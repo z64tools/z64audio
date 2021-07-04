@@ -28,6 +28,7 @@ int main(int argc, char** argv) {
 	InstrumentChunk instf[3] = { 0 };
 	
 	DEBUG_PRINT = true;
+	FABULOUS = false;
 	
 	if (system(buffer) == -1)
 		PrintFail("Intro has failed.\n", 0);

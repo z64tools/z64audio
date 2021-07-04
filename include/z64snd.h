@@ -33,6 +33,7 @@ const char sHeaders[3][6] = {
 // #define DebugPrint(s, ...) fprintf(stdout, "\e[0;94m[*] \e[m" s, __VA_ARGS__)
 
 static s8 DEBUG_PRINT;
+static s8 FABULOUS;
 
 void DebugPrint(const char* fmt, ...) {
     if (!DEBUG_PRINT)
@@ -46,14 +47,17 @@ void DebugPrint(const char* fmt, ...) {
         "\e[0;35m[<]: \e[m\0",
     };
     static s8 i = 0;
-    i += i < 5 ? 1 : -5;
+    
+    if (FABULOUS)
+        i += i < 5 ? 1 : -5;
     
     va_list args;
     
 	va_start(args, fmt);
-	printf(
-		colors[i]
-	);
+    if (FABULOUS)
+    	printf(colors[i]);
+    else
+        printf(colors[1]);
 	vprintf(
 		fmt,
 		args
