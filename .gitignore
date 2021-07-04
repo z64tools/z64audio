@@ -2,5 +2,5 @@ z64snd
 z64snd.exe
 compile_flags.txt
 *_config.tsv
-*_prd.bin
-*_smp.bin
+*_predictor.bin
+*_sample.bin

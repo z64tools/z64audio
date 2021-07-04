@@ -90,6 +90,16 @@ s16 Audio_Downsample(s32 wow) {
     return (s16)temp;
 }
 
+int File_TestIfExists(const char* fn) {
+	FILE* fp = fopen(fn, "rb");
+	
+	if (!fp)
+		return 0;
+	fclose(fp);
+	
+	return 1;
+}
+
 void GetFilename(char* _src, char* _dest, char* _path, s32* sizeStore) {
 	char temporName[1024] = { 0 };
 	
@@ -502,12 +512,11 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	p = adpcm = malloc(allocSize);
 	if (adpcm == 0)
 		PrintFail("malloc fail\n");
-    DebugPrint("adpcm malloc\t\tOK\n", 0);
 	fread(adpcm, allocSize, 1, f);
 	fclose(f);
 	
 	/* PREDICTOR */
-	snprintf(buffer, sizeof(buffer), "%s%s_prd.bin", path,fname);
+	snprintf(buffer, sizeof(buffer), "%s%s_predictor.bin", path,fname);
 	pred = fopen(buffer, MODE_WRITE);
 	while (!(p[-7] == 'C' && p[-6] == 'O' && p[-5] == 'D' && p[-4] == 'E' && p[-3] == 'S')) {
 		p++;
@@ -534,7 +543,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	fclose(pred);
 	
 	/* SAMPLE */
-	snprintf(buffer, sizeof(buffer), "%s%s_smp.bin", path,fname);
+	snprintf(buffer, sizeof(buffer), "%s%s_sample.bin", path,fname);
 	samp = fopen(buffer, MODE_WRITE);
 	p += 4;
 	
@@ -551,8 +560,8 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	fclose(samp);
 	
 	printf("\n");
-	DebugPrint("%s_prd.bin\t\tOK\n", fname);
-	DebugPrint("%s_smp.bin\t\tOK\n", fname);
+	DebugPrint("%s_predictor.bin\tOK\n", fname);
+	DebugPrint("%s_sample.bin\tOK\n", fname);
 	
 	ALADPCMloop* loopInfo;
 	InstrumentChunk* instData;
@@ -606,7 +615,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 		fprintf(conf, "%08X\n", 0);
 	}
     
-    DebugPrint("%s_config.tsv\t\tOK\n\n", fname);
+    DebugPrint("%s_config.tsv\tOK\n\n", fname);
 	
 	fclose(conf);
 }
