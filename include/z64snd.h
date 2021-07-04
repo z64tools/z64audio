@@ -425,7 +425,7 @@ void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff) {
 		BSWAP16(commonChunk.compressionTypeL);
 		fwrite(&commonChunk, sizeof(CommonChunk), 1, o);
 	}
-	DebugPrint("CommonChunk\t\t\tDone\n", 0);
+	DebugPrint("CommonChunk\t\tDone\n", 0);
 	
 	if (wasHasExtraData == true) {      /* MARK && INST CHUNK */
 		chunkHeader = (ChunkHeader) {
