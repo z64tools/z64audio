@@ -32,11 +32,11 @@ const char sHeaders[3][6] = {
 
 // #define DebugPrint(s, ...) fprintf(stdout, "\e[0;94m[*] \e[m" s, __VA_ARGS__)
 
-static s8 DEBUG_PRINT;
-static s8 FABULOUS;
+static s8 STATE_DEBUG_PRINT;
+static s8 STATE_FABULOUS;
 
 void DebugPrint(const char* fmt, ...) {
-    if (!DEBUG_PRINT)
+    if (!STATE_DEBUG_PRINT)
         return;
     const s8 colors[][64] = {
         "\e[0;31m[<]: \e[m\0",
@@ -48,13 +48,13 @@ void DebugPrint(const char* fmt, ...) {
     };
     static s8 i = 0;
     
-    if (FABULOUS)
+    if (STATE_FABULOUS)
         i += i < 5 ? 1 : -5;
     
     va_list args;
     
 	va_start(args, fmt);
-    if (FABULOUS)
+    if (STATE_FABULOUS)
     	printf(colors[i]);
     else
         printf(colors[1]);
@@ -154,9 +154,9 @@ s8 File_GetAndSort(char** argv, int argc, char** t, char** file) {
 	if (fileCount == 1) {
 		u64 offset = 0;
 		s32 foundNum = 0;
-		s32 sizeOf = sizeof(argv[1]);
-		static char A[128] = { 0 };
-		static char B[128] = { 0 };
+		s32 sizeOf = strlen(argv[1]);
+		static char A[1024] = { 0 };
+		static char B[1024] = { 0 };
 		s8 A_ID = 0;
 		s8 B_ID = 0;
 		s8 A_EX = 0;
@@ -174,16 +174,17 @@ s8 File_GetAndSort(char** argv, int argc, char** t, char** file) {
 			for (s32 i = 0; i < 3; i++) {
 				if (i  != foundNum - 1) {
 					if (A[0] == 0) {
-						bcopy(argv[1], A, sizeof(argv[1]));
-						snprintf(&A[sizeOf], 12, "%d.wav\0", i + 1);
+						bcopy(argv[1], A, strlen(argv[1]));
+						snprintf(&A[sizeOf - 5], 24, "%d.wav\0", i + 1);
 						A_ID = i + 1;
 					} else if (B[0] == 0) {
-						bcopy(argv[1], B, sizeof(argv[1]));
-						snprintf(&B[sizeOf], 12, "%d.wav\0", i + 1);
+						bcopy(argv[1], B, strlen(argv[1]));
+						snprintf(&B[sizeOf - 5], 24, "%d.wav\0", i + 1);
 						B_ID = i + 1;
 					}
 				}
 			}
+            
 			if ((A_EX = File_TestIfExists(A)) != 0) {
 				fileCount += 1;
 			}
@@ -673,7 +674,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	
 	fclose(samp);
 	
-    if (DEBUG_PRINT)
+    if (STATE_DEBUG_PRINT)
     	printf("\n");
 	DebugPrint("%s_predictor.bin\tOK\n", fname);
 	DebugPrint("%s_sample.bin\tOK\n", fname);
@@ -706,7 +707,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	
 	p = adpcm;
 	
-	while (!(p[0] == 'I' && p[1] == 'N' && p[2] == 'S' && p[3] == 'T')) {
+	while (!(p[-8] == 'I' && p[-7] == 'N' && p[-6] == 'S' && p[-5] == 'T')) {
 		p++;
 		if ((u64)p - (u64)adpcm > allocSize) {
 			PrintFail("Out of bounds while searchin:\t'INST'\n");
