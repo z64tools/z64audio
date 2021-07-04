@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdarg.h>
+#include <math.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,7 +30,36 @@ const char sHeaders[3][6] = {
 	{ ".adpcm" }
 };
 
-#define DebugPrint(s, ...) fprintf(stdout, "\e[0;94m[*] \e[m" s, __VA_ARGS__)
+// #define DebugPrint(s, ...) fprintf(stdout, "\e[0;94m[*] \e[m" s, __VA_ARGS__)
+
+static s8 DEBUG_PRINT;
+
+void DebugPrint(const char* fmt, ...) {
+    if (!DEBUG_PRINT)
+        return;
+    const s8 colors[][64] = {
+        "\e[0;31m[<]: \e[m\0",
+        "\e[0;33m[<]: \e[m\0",
+        "\e[0;32m[<]: \e[m\0",
+        "\e[0;36m[<]: \e[m\0",
+        "\e[0;34m[<]: \e[m\0",
+        "\e[0;35m[<]: \e[m\0",
+    };
+    static s8 i = 0;
+    i += i < 5 ? 1 : -5;
+    
+    va_list args;
+    
+	va_start(args, fmt);
+	printf(
+		colors[i]
+	);
+	vprintf(
+		fmt,
+		args
+	);
+	va_end(args);
+}
 
 #  define BSWAP16(x)       x = __builtin_bswap16(x);
 #  define BSWAP32(x)       x = __builtin_bswap32(x);
@@ -78,16 +108,17 @@ void Audio_Clean(char* path, char* fname) {
 }
 
 s16 Audio_Downsample(s32 wow) {
-    // s32 sign = (wow > 0) ? 1 : -1;
-    // u32 ok = (wow > 0) ? wow : -wow;
-    // s16 result = ok & 0xFFFF;
-    //
-    // result *= sign;
-    
-    long double temp = wow;
-    temp *= 0.00003014885;
-    
-    return (s16)temp;
+	// s32 sign = (wow > 0) ? 1 : -1;
+	// u32 ok = (wow > 0) ? wow : -wow;
+	// s16 result = ok & 0xFFFF;
+	//
+	// result *= sign;
+	
+	long double temp = wow;
+	
+	temp *= 0.00003014885;
+	
+	return (s16)temp;
 }
 
 int File_TestIfExists(const char* fn) {
@@ -98,6 +129,87 @@ int File_TestIfExists(const char* fn) {
 	fclose(fp);
 	
 	return 1;
+}
+
+s8 File_GetAndSort(char** argv, int argc, char** t, char** file) {
+	s8 fileCount = 0;
+	
+	/* Get Filenames */
+	for (s32 i = 1; i < argc; i++) {
+		if (strstr(argv[i], ".wav")) {
+			fileCount++;
+			file[i - 1] = t[i - 1] = argv[i];
+		} else
+			PrintFail("No wav files\n");
+	}
+	
+	if (File_TestIfExists(argv[1]) == 0) {
+		PrintFail("File not found\n");
+	}
+	
+	if (fileCount == 1) {
+		u64 offset = 0;
+		s32 foundNum = 0;
+		s32 sizeOf = sizeof(argv[1]);
+		static char A[128] = { 0 };
+		static char B[128] = { 0 };
+		s8 A_ID = 0;
+		s8 B_ID = 0;
+		s8 A_EX = 0;
+		s8 B_EX = 0;
+		
+		if (strstr(argv[1], "_1"))
+			foundNum = 1;
+		else if (strstr(argv[1], "_2"))
+			foundNum = 2;
+		else if (strstr(argv[1], "_3"))
+			foundNum = 3;
+		
+		if (foundNum) {
+			DebugPrint("File has number at the end. Finding more samples...\n", 0);
+			for (s32 i = 0; i < 3; i++) {
+				if (i  != foundNum - 1) {
+					if (A[0] == 0) {
+						bcopy(argv[1], A, sizeof(argv[1]));
+						snprintf(&A[sizeOf], 12, "%d.wav\0", i + 1);
+						A_ID = i + 1;
+					} else if (B[0] == 0) {
+						bcopy(argv[1], B, sizeof(argv[1]));
+						snprintf(&B[sizeOf], 12, "%d.wav\0", i + 1);
+						B_ID = i + 1;
+					}
+				}
+			}
+			if ((A_EX = File_TestIfExists(A)) != 0) {
+				fileCount += 1;
+			}
+			if ((B_EX = File_TestIfExists(B)) != 0) {
+				fileCount += 1;
+			}
+			
+			if ((A_ID < foundNum && A_EX == false) || (B_ID < foundNum && B_EX == false)) {
+				PrintFail("Could not find file with smaller ID\n");
+			} else {
+				t[1] = A_EX ? A : 0;
+				t[2] = B_EX ? B : 0;
+			}
+			DebugPrint("More samples found!\n", 0);
+		}
+	}
+	
+	if (fileCount > 1) {
+		/* Sort */
+		for (s32 i = 0; i < fileCount; i++) {
+			if (strstr(t[i], "_1"))
+				file[0] = t[i];
+			else if (strstr(t[i], "_2"))
+				file[1] = t[i];
+			else if (strstr(t[i], "_3"))
+				file[2] = t[i];
+		}
+	}
+	
+	return fileCount;
 }
 
 void GetFilename(char* _src, char* _dest, char* _path, s32* sizeStore) {
@@ -237,7 +349,7 @@ void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff) {
 		}
 	}
 	
-    DebugPrint("BitRate\t\t\t%d-bit.\n", wav->bitsPerSamp);
+	DebugPrint("BitRate\t\t\t%d-bit.\n", wav->bitsPerSamp);
 	if (wav->bitsPerSamp != 16) {
 		bitProcess = true;
 		DebugPrint("Warning: Provided WAV isn't 16bit.\n", 0);
@@ -245,7 +357,7 @@ void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff) {
 		PrintFail("Bit depth is %X. That's too much of an hassle to work with...\7\n", wav->bitsPerSamp);
 	}
 	
-    DebugPrint("Channels\t\t\t%d\n", wav->numChannels);
+	DebugPrint("Channels\t\t\t%d\n", wav->numChannels);
 	if (wav->numChannels > 1) {
 		channelProcess = true;
 		DebugPrint("Warning: Provided WAV isn't mono.\nSelecting left channel for conversion.\n", 0);
@@ -423,7 +535,7 @@ void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff) {
 				s32 tempS32 = tempData[i];
 				BSWAP32(tempS32);
 				s16 tempS16 = Audio_Downsample(tempS32);
-                // BSWAP16(tempS16);
+				// BSWAP16(tempS16);
 				
 				fwrite(&tempS32, sizeof(s16), 1, o);
 				
@@ -448,47 +560,45 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	
 	SetFilename(argv,fname,path,nameAiff,nameAdpcm,nameTable);
 	DebugPrint("Name: %s\n", fname);
-    DebugPrint("Path: %s\n\n", path);
+	DebugPrint("Path: %s\n\n", path);
 	Audio_ConvertWAVtoAIFF(argv, nameAiff);
-    
-    #ifdef _WIN32
-    char TOOL_TABLEDESIGN[64] = {
-        "tools\\tabledesign.exe\0"
-        
-    };
-    char TOOL_VADPCM_ENC[64] = {
-        "tools\\vadpcm_enc.exe\0"
-    };
-	#else
-    char TOOL_TABLEDESIGN[64] = {
-        "./tools/tabledesign\0"
-        
-    };
-    char TOOL_VADPCM_ENC[64] = {
-        "./tools/vadpcm_enc\0"
-    };
-    #endif
-    
+	
+#ifdef _WIN32
+		char TOOL_TABLEDESIGN[64] = {
+			"tools\\tabledesign.exe\0"
+		};
+		char TOOL_VADPCM_ENC[64] = {
+			"tools\\vadpcm_enc.exe\0"
+		};
+#else
+		char TOOL_TABLEDESIGN[64] = {
+			"./tools/tabledesign\0"
+		};
+		char TOOL_VADPCM_ENC[64] = {
+			"./tools/vadpcm_enc\0"
+		};
+#endif
+	
 	if (path[0] != 0) {
-        DebugPrint("%s -i 2000 %s%s > %s%s\n", TOOL_TABLEDESIGN, path, nameAiff, path, nameTable);
+		DebugPrint("\e[0;90m%s %s%s > %s%s\e[m\n", TOOL_TABLEDESIGN, path, nameAiff, path, nameTable);
 		snprintf(buffer, sizeof(buffer), "%s -i 2000 %s%s > %s%s\0", TOOL_TABLEDESIGN, path, nameAiff, path, nameTable);
 		if (system(buffer) == -1)
 			PrintFail("tabledesigner has failed...\n", 0);
 		DebugPrint("%s generated succesfully\n", nameTable);
 		
-        DebugPrint("%s -c %s%s %s%s %s%s\n", TOOL_VADPCM_ENC, path, nameTable, path, nameAiff, path, nameAdpcm);
+		DebugPrint("\e[0;90m%s -c %s%s %s%s %s%s\e[m\n", TOOL_VADPCM_ENC, path, nameTable, path, nameAiff, path, nameAdpcm);
 		snprintf(buffer, sizeof(buffer), "%s -c %s%s %s%s %s%s\0", TOOL_VADPCM_ENC, path, nameTable, path, nameAiff, path, nameAdpcm);
 		if (system(buffer) == -1)
 			PrintFail("vadpcm_enc has failed...\n", 0);
 		DebugPrint("%s converted to %s succesfully\n", nameAiff, nameAdpcm);
 	} else {
-        DebugPrint("%s -i 2000 %s > %s\n", TOOL_TABLEDESIGN, nameAiff, nameTable);
+		DebugPrint("\e[0;90m%s %s > %s\e[m\n", TOOL_TABLEDESIGN, nameAiff, nameTable);
 		snprintf(buffer, sizeof(buffer), "%s -i 2000 %s > %s\0", TOOL_TABLEDESIGN, nameAiff, nameTable);
 		if (system(buffer) == -1)
 			PrintFail("tabledesigner has failed...\n", 0);
 		DebugPrint("%s generated succesfully\n", nameTable);
 		
-        DebugPrint("%s -c %s %s %s\n", TOOL_VADPCM_ENC, nameTable, nameAiff, nameAdpcm);
+		DebugPrint("\e[0;90m%s -c %s %s %s\e[m\n", TOOL_VADPCM_ENC, nameTable, nameAiff, nameAdpcm);
 		snprintf(buffer, sizeof(buffer), "%s -c %s %s %s\0", TOOL_VADPCM_ENC, nameTable, nameAiff, nameAdpcm);
 		if (system(buffer) == -1)
 			PrintFail("vadpcm_enc has failed...\n", 0);
@@ -520,10 +630,10 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	pred = fopen(buffer, MODE_WRITE);
 	while (!(p[-7] == 'C' && p[-6] == 'O' && p[-5] == 'D' && p[-4] == 'E' && p[-3] == 'S')) {
 		p++;
-        if ((u64)p - (u64)adpcm > allocSize) {
+		if ((u64)p - (u64)adpcm > allocSize) {
 			PrintFail("Out of bounds while searchin:\t'CODES'\n");
 		}
-    }
+	}
 	
 	s8 head[] = { 0, 0, 0, p[1], 0, 0, 0, p[3] };
 	
@@ -535,11 +645,11 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	while (!(p[0] == 'S' && p[1] == 'S' && p[2] == 'N' && p[3] == 'D')) {
 		fwrite(p, 1, 1, pred);
 		p++;
-        if ((u64)p - (u64)adpcm > allocSize) {
+		if ((u64)p - (u64)adpcm > allocSize) {
 			PrintFail("Out of bounds while searchin:\t'SSND'\n");
 		}
 	}
-    
+	
 	fclose(pred);
 	
 	/* SAMPLE */
@@ -559,7 +669,8 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	
 	fclose(samp);
 	
-	printf("\n");
+    if (DEBUG_PRINT)
+    	printf("\n");
 	DebugPrint("%s_predictor.bin\tOK\n", fname);
 	DebugPrint("%s_sample.bin\tOK\n", fname);
 	
@@ -581,7 +692,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	
 	if (lflag) {
 		loopInfo = (ALADPCMloop*)p;
-        bcopy(loopInfo, _destLoop, sizeof(ALADPCMloop));
+		bcopy(loopInfo, _destLoop, sizeof(ALADPCMloop));
 		BSWAP32(loopInfo->start);
 		BSWAP32(loopInfo->end);
 		BSWAP32(loopInfo->count);
@@ -593,13 +704,13 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	
 	while (!(p[0] == 'I' && p[1] == 'N' && p[2] == 'S' && p[3] == 'T')) {
 		p++;
-        if ((u64)p - (u64)adpcm > allocSize) {
+		if ((u64)p - (u64)adpcm > allocSize) {
 			PrintFail("Out of bounds while searchin:\t'INST'\n");
 		}
-    }
-    
+	}
+	
 	instData = (InstrumentChunk*)p;
-    bcopy(instData, _destInst, sizeof(InstrumentChunk));
+	bcopy(instData, _destInst, sizeof(InstrumentChunk));
 	
 	fprintf(conf, "precision\tloopstart\tloopend  \tloopcount\tlooptail \n%08X\t", 0);
 	if (lflag) {
@@ -614,8 +725,8 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 		fprintf(conf, "%08X\t", 0);
 		fprintf(conf, "%08X\n", 0);
 	}
-    
-    DebugPrint("%s_config.tsv\tOK\n\n", fname);
+	
+	DebugPrint("%s_config.tsv\tOK\n\n", fname);
 	
 	fclose(conf);
 }
