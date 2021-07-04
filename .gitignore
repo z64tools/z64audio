@@ -1,6 +1,3 @@
-tools/audiofile/*
-tools/sdk-tools/*
 z64snd
 z64snd.exe
-tools/Makefile
 compile_flags.txt
