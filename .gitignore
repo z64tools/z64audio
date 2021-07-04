@@ -1,6 +1,6 @@
 z64snd
 z64snd.exe
 compile_flags.txt
-example_config.tsv
-example_prd.bin
-example_smp.bin
+*_config.tsv
+*_prd.bin
+*_smp.bin

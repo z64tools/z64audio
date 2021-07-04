@@ -40,7 +40,7 @@ void PrintFail(const char* fmt, ...) {
 	
 	va_start(args, fmt);
 	printf(
-		"\e[0;91m[*] "
+		"\7\e[0;91m[*] "
 		"Error: \e[m"
 	);
 	printf(
