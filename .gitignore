@@ -3,3 +3,7 @@ z64snd.exe
 compile_flags.txt
 *.tsv
 *.bin
+bin/
+tools/tabledesign
+tools/vadpcm_enc
+tools/*.exe
