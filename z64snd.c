@@ -129,10 +129,10 @@ int main(int argc, char** argv) {
 			free(file[i]);
 	
 #ifdef _WIN32
-		if (argc == 2) {
-			fflush(stdin);
-			getchar();
-		}
+	if (argc == 2) {
+		fflush(stdin);
+		getchar();
+	}
 #endif
 	
 	return 0;
