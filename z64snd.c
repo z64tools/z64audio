@@ -24,8 +24,10 @@ int main(int argc, char** argv) {
 	char* t[3];
 	char* file[3];
 	
-	static ALADPCMloop loopf[3] = { 0 };
-	static InstrumentChunk instf[3] = { 0 };
+	ALADPCMloop loopInfo[3] = { 0 };
+	InstrumentChunk instInfo[3] = { 0 };
+	CommonChunk commInfo[3] = { 0 };
+	u32 sampleRate[3] = { 0 };
 	
 	STATE_DEBUG_PRINT = true;
 	STATE_FABULOUS = false;
@@ -37,41 +39,14 @@ int main(int argc, char** argv) {
 	if ((procCount = File_GetAndSort(argv, argc, t, file)) <= 0)
 		PrintFail("Something has gone terribly wrong... fileCount == %d", procCount);
 	for (s32 i = 0; i < procCount; i++)
-		Audio_Process(file[i], 0, &loopf[i], &instf[i]);
+		Audio_Process(file[i], 0, &loopInfo[i], &instInfo[i], &commInfo[i], &sampleRate[i]);
 	
 	for (s32 i = 0; i < procCount; i++) {
 		SetFilename(file[i], fname, path, NULL, NULL, NULL);
 		Audio_Clean(path, fname);
 	}
 	
-	FILE* conf;
-	
-	if (procCount > 1) {
-		char* p;
-	
-		snprintf(buffer, sizeof(buffer), "%s", fname);
-	
-		if ((p = strstr(buffer, "_1")) != 0) {
-		} else if ((p = strstr(buffer, "_2")) != 0) {
-		} else if ((p = strstr(buffer, "_3")) != 0) {
-		}
-	
-		snprintf(p, sizeof(buffer), "_inst.tsv");
-	} else {
-		snprintf(buffer, sizeof(buffer), "%s_inst.tsv", fname);
-	}
-	
-	conf = fopen(buffer, MODE_WRITE);
-	
-	fprintf(conf, "split1\tsplit2\tsplit3\trelease\tatkrate\tatklvl\tdcy1rt\tdcy1lvl\tdcy2rt\tdcy2lvl\n");
-	
-	switch (procCount) {
-	    case 1: {
-		    fprintf(conf, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n");
-	    } break;
-	}
-	
-	fclose(conf);
+	Audio_GenerateInstrumentConf(fname, procCount, instInfo);
 	
 	return 1;
 }

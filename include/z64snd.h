@@ -1,16 +1,7 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <fcntl.h>
-#include <unistd.h>
 
 #include "vadpcm.h"
 #include "wave.h"
@@ -283,7 +274,7 @@ void SetFilename(char* argv, char* fname, char* path, char* nameAiff, char* name
 	}
 }
 
-void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff) {
+void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff, u32* _sr) {
 	FILE* f;
 	WaveHeader* wav;
 	FILE* o;
@@ -420,6 +411,7 @@ void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff) {
 		
 		BSWAP32(*numFrames);
 		
+        *_sr = wav->sampleRate;
 		__float80 s = wav->sampleRate;
 		u8* wow = (void*)&s;
 		for (s32 i = 0; i < 10; i++)
@@ -555,7 +547,7 @@ void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff) {
 	fclose(o);
 }
 
-void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChunk* _destInst) {
+void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChunk* _destInst, CommonChunk* _destComm, u32* _sr) {
 	char fname[64] = { 0 };
 	char path[128] = { 0 };
 	char nameAiff[64] = { 0 };
@@ -566,7 +558,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	SetFilename(argv,fname,path,nameAiff,nameAdpcm,nameTable);
 	DebugPrint("Name: %s\n", fname);
 	DebugPrint("Path: %s\n\n", path);
-	Audio_ConvertWAVtoAIFF(argv, nameAiff);
+	Audio_ConvertWAVtoAIFF(argv, nameAiff, _sr);
 	
 #ifdef _WIN32
 		char TOOL_TABLEDESIGN[64] = {
@@ -683,6 +675,8 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	InstrumentChunk* instData;
 	CommonChunk* comm = (CommonChunk*)(adpcm + 14);
 	int lflag = true;
+    
+    bcopy(comm, _destComm, sizeof(CommonChunk));
 	
 	snprintf(buffer, sizeof(buffer), "%s%s_config.tsv", path, fname);
 	conf = fopen(buffer, MODE_WRITE);
@@ -732,6 +726,80 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	}
 	
 	DebugPrint("%s_config.tsv\tOK\n\n", fname);
+	
+	fclose(conf);
+}
+
+void Audio_GenerateInstrumentConf(char* fname, s8 procCount, InstrumentChunk* instInfo) {
+    char buffer[128] = { 0 };
+    FILE* conf;
+	
+	if (procCount > 1) {
+		char* p;
+		
+		snprintf(buffer, sizeof(buffer), "%s", fname);
+		
+		if ((p = strstr(buffer, "_1")) != 0) {
+		} else if ((p = strstr(buffer, "_2")) != 0) {
+		} else if ((p = strstr(buffer, "_3")) != 0) {
+		}
+		
+		snprintf(p, sizeof(buffer), "_inst.tsv");
+	} else {
+		snprintf(buffer, sizeof(buffer), "%s_inst.tsv", fname);
+	}
+	
+	float pitch[3] = { 0 };
+	for (s32 i = 0; i < 3; i++) {
+		pitch[i] = pow(pow(2, 1.0 / 12), 60 - instInfo[i].baseNote);
+	}
+	
+	conf = fopen(buffer, MODE_WRITE);
+	fprintf(conf, "split1\tsplit2\tsplit3\trelease\tatkrate\tatklvl\tdcy1rt\tdcy1lvl\tdcy2rt\tdcy2lvl\n");
+	s8 split[] = { 0, 0, 127 };
+	char floats[3][9] = {
+		"NULLNULL\0",
+		"NULLNULL\0",
+		"NULLNULL\0",
+	};
+	char sampleID[3][5] = {
+		"NULL\0",
+		"NULL\0",
+		"NULL\0",
+	};
+	
+	switch (procCount) {
+		/* NULL Prim NULL */
+	    case 1: {
+			snprintf(floats[1], 9, "%08X", *(u32*)&pitch[0]);
+			snprintf(sampleID[1], 5, "%d", 0);
+	    } break;
+			
+		/* NULL Prim Secn */
+	    case 2: {
+			snprintf(floats[1], 9, "%08X", *(u32*)&pitch[0]);
+			snprintf(sampleID[1], 5, "%d", 0);
+			
+			snprintf(floats[2], 8, "%08X", *(u32*)&pitch[1]);
+			snprintf(sampleID[2], 4, "%d", 0);
+	    } break;
+		
+		/* Prev Prim Secn */
+	    case 3: {
+			snprintf(floats[1], 9, "%08X", *(u32*)&pitch[1]);
+			snprintf(sampleID[1], 5, "%d", 0);
+			
+			snprintf(floats[2], 9, "%08X", *(u32*)&pitch[2]);
+			snprintf(sampleID[2], 5, "%d", 0);
+			
+			snprintf(floats[0], 9, "%08X", *(u32*)&pitch[0]);
+			snprintf(sampleID[0], 5, "%d", 0);
+	    } break;
+	}
+	
+	fprintf(conf, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", split[0], split[1], split[2], 238, 2, 32700, 1, 32700, 32700, 29430);
+	fprintf(conf, "sample1\tpitch1  \tsample2\tpitch2  \tsample3\tpitch3  \n");
+	fprintf(conf, "%s\t%s\t%s\t%s\t%s\t%s", sampleID[0], floats[0], sampleID[1], floats[1], sampleID[2], floats[2]);
 	
 	fclose(conf);
 }
