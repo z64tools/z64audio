@@ -11,6 +11,13 @@
  #define __float80 float
 #endif
 
+enum z64audioMode {
+	Z64AUDIOMODE_UNSET = 0
+	, Z64AUDIOMODE_WAV_TO_ZZRTL
+	, Z64AUDIOMODE_WAV_TO_AIFF
+	, Z64AUDIOMODE_LAST
+};
+
 enum {
 	false,
 	true
@@ -139,84 +146,62 @@ int File_TestIfExists(const char* fn) {
 	return 1;
 }
 
-s8 File_GetAndSort(char** argv, int argc, char** t, char** file) {
-	s8 fileCount = 0;
+int FormatSampleNameExists(char *dst, const char *wav, const char *sample)
+{
+	char *s;
+	char *slash = dst;
 	
-	/* Get Filenames */
-	for (s32 i = 1; i < argc; i++) {
-		if (strstr(argv[i], ".wav")) {
-			fileCount++;
-			file[i - 1] = t[i - 1] = argv[i];
-		} else
-			PrintFail("No wav files\n");
+	strcpy(dst, wav);
+	
+	/* get last slash in file path (if there is one) */
+	if ((s = strrchr(dst, '/')) && s > slash)
+		slash = s;
+	if ((s = strrchr(dst, '\\')) && s > slash)
+		slash = s;
+	
+	/* get the period at the end and ensure it is the extension */
+	if ((s = strrchr(dst, '.')) && s < slash)
+		PrintFail("Filename '%s' has no extension!\n", wav);
+	
+	/* make room for '.sample' before '.wav' */
+	memmove(s + 1/*'.'*/ + strlen(sample), s, strlen(s) + 1/*'\0'*/);
+	
+	/* insert '.sample' */
+	memcpy(s + 1/*'.'*/, sample, strlen(sample));
+	
+	//fprintf(stderr, "'%s'\n", dst);
+	
+	return File_TestIfExists(dst);
+}
+
+s8 File_GetAndSort(char* wav, char** file) {
+	s8 fileCount = 1;
+	char *wow = malloc(strlen(wav) + 32);
+	
+	/* primary */
+	file[0] = strdup(wav);
+	
+	/* secondary */
+	if (FormatSampleNameExists(wow, wav, "secondary"))
+	{
+		++fileCount;
+		file[1] = strdup(wow);
+		//fprintf(stderr, "secondary = '%s'\n", wow);
 	}
 	
-	if (File_TestIfExists(argv[1]) == 0) {
-		PrintFail("File not found\n");
+	/* previous */
+	if (FormatSampleNameExists(wow, wav, "previous"))
+	{
+		++fileCount;
+		file[2] = strdup(wow);
+		//fprintf(stderr, "previous = '%s'\n", wow);
 	}
 	
-	if (fileCount == 1) {
-		u64 offset = 0;
-		s32 foundNum = 0;
-		s32 sizeOf = strlen(argv[1]);
-		static char A[1024] = { 0 };
-		static char B[1024] = { 0 };
-		s8 A_ID = 0;
-		s8 B_ID = 0;
-		s8 A_EX = 0;
-		s8 B_EX = 0;
-		
-		if (strstr(argv[1], "_1"))
-			foundNum = 1;
-		else if (strstr(argv[1], "_2"))
-			foundNum = 2;
-		else if (strstr(argv[1], "_3"))
-			foundNum = 3;
-		
-		if (foundNum) {
-			DebugPrint("File has number at the end. Finding more samples...\n", 0);
-			for (s32 i = 0; i < 3; i++) {
-				if (i  != foundNum - 1) {
-					if (A[0] == 0) {
-						memcpy(A, argv[1], strlen(argv[1]));
-						snprintf(&A[sizeOf - 5], 24, "%d.wav", i + 1);
-						A_ID = i + 1;
-					} else if (B[0] == 0) {
-						memcpy(B, argv[1], strlen(argv[1]));
-						snprintf(&B[sizeOf - 5], 24, "%d.wav", i + 1);
-						B_ID = i + 1;
-					}
-				}
-			}
-            
-			if ((A_EX = File_TestIfExists(A)) != 0) {
-				fileCount += 1;
-			}
-			if ((B_EX = File_TestIfExists(B)) != 0) {
-				fileCount += 1;
-			}
-			
-			if ((A_ID < foundNum && A_EX == false) || (B_ID < foundNum && B_EX == false)) {
-				PrintFail("Could not find file with smaller ID\n");
-			} else {
-				t[1] = A_EX ? A : 0;
-				t[2] = B_EX ? B : 0;
-			}
-			DebugPrint("More samples found!\n", 0);
-		}
-	}
+	/* TODO logic for handling 'previous' without 'secondary' */
+	if (file[2] && !file[1])
+		PrintFail("'%s' found but not '%s'\n", file[2], file[1]);
 	
-	if (fileCount > 1) {
-		/* Sort */
-		for (s32 i = 0; i < fileCount; i++) {
-			if (strstr(t[i], "_1"))
-				file[0] = t[i];
-			else if (strstr(t[i], "_2"))
-				file[1] = t[i];
-			else if (strstr(t[i], "_3"))
-				file[2] = t[i];
-		}
-	}
+	free(wow);
 	
 	return fileCount;
 }
@@ -753,20 +738,7 @@ void Audio_GenerateInstrumentConf(char* fname, s8 procCount, InstrumentChunk* in
     char buffer[128] = { 0 };
     FILE* conf;
 	
-	if (procCount > 1) {
-		char* p;
-		
-		snprintf(buffer, sizeof(buffer), "%s", fname);
-		
-		if ((p = strstr(buffer, "_1")) != 0) {
-		} else if ((p = strstr(buffer, "_2")) != 0) {
-		} else if ((p = strstr(buffer, "_3")) != 0) {
-		}
-		
-		snprintf(p, sizeof(buffer), "_inst.tsv");
-	} else {
-		snprintf(buffer, sizeof(buffer), "%s_inst.tsv", fname);
-	}
+	snprintf(buffer, sizeof(buffer), "%s_inst.tsv", fname);
 	
 	float pitch[3] = { 0 };
 	for (s32 i = 0; i < 3; i++) {
