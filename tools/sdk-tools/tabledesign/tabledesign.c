@@ -32,7 +32,7 @@ typedef int SampleFormat;
 
 char usage[80] = "[-o order -s bits -t thresh -i refine_iter -f frame_size] aifcfile";
 
-int main(int argc, char **argv)
+int tabledesign(int argc, char **argv, FILE *outstream)
 {
     const char *programName; // sp118
     double thresh; // sp110
@@ -79,6 +79,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
+    optind = 1;
     while ((opt = getopt(argc, argv, "o:s:t:i:f:")) != -1)
     {
         switch (opt)
@@ -247,11 +248,11 @@ int main(int argc, char **argv)
     }
 
     npredictors = 1 << curBits;
-    fprintf(stdout, "%d\n%d\n", order, npredictors);
+    fprintf(outstream, "%d\n%d\n", order, npredictors);
 
     for (i = 0; i < npredictors; i++)
     {
-        numOverflows += print_entry(stdout, temp_s1[i], order);
+        numOverflows += print_entry(outstream, temp_s1[i], order);
     }
 
     if (numOverflows > 0)

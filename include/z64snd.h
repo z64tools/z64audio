@@ -22,6 +22,9 @@ const char sHeaders[3][6] = {
 	{ ".adpcm" }
 };
 
+extern int tabledesign(int argc, char **argv, FILE *outstream);
+extern int vadpcm_enc(int argc, char **argv);
+
 // #define DebugPrint(s, ...) fprintf(stdout, "\e[0;94m[*] \e[m" s, __VA_ARGS__)
 
 /* returns the byte difference between two pointers */
@@ -571,47 +574,49 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	DebugPrint("Name: %s\n", fname);
 	DebugPrint("Path: %s\n\n", path);
 	Audio_ConvertWAVtoAIFF(argv, nameAiff, _sr);
-	
-#ifdef _WIN32
-		char TOOL_TABLEDESIGN[64] = {
-			"tools\\tabledesign.exe\0"
+
+	/* run tabledesign */
+	{
+		strcpy(buffer, path); strcat(buffer, nameTable);
+		FILE *fp = fopen(buffer, "w");
+		char *argv[] = {
+			/*0*/strdup("tabledesign")
+			/*1*/, strdup("-i")
+			/*2*/, strdup("2000")
+			/*3*/, buffer
+			/*4*/, 0
 		};
-		char TOOL_VADPCM_ENC[64] = {
-			"tools\\vadpcm_enc.exe\0"
-		};
-#else
-		char TOOL_TABLEDESIGN[64] = {
-			"./tools/tabledesign\0"
-		};
-		char TOOL_VADPCM_ENC[64] = {
-			"./tools/vadpcm_enc\0"
-		};
-#endif
-	
-	if (path[0] != 0) {
-		DebugPrint("\e[0;90m%s %s%s > %s%s\e[m\n", TOOL_TABLEDESIGN, path, nameAiff, path, nameTable);
-		snprintf(buffer, sizeof(buffer), "%s -i 2000 %s%s > %s%s", TOOL_TABLEDESIGN, path, nameAiff, path, nameTable);
-		if (system(buffer) == -1)
-			PrintFail("tabledesigner has failed...\n", 0);
+		snprintf(buffer, sizeof(buffer), "%s%s", path, nameAiff);
+		if (tabledesign(4, argv, fp))
+			PrintFail("tabledesign has failed...\n", 0);
 		DebugPrint("%s generated succesfully\n", nameTable);
-		
-		DebugPrint("\e[0;90m%s -c %s%s %s%s %s%s\e[m\n", TOOL_VADPCM_ENC, path, nameTable, path, nameAiff, path, nameAdpcm);
-		snprintf(buffer, sizeof(buffer), "%s -c %s%s %s%s %s%s", TOOL_VADPCM_ENC, path, nameTable, path, nameAiff, path, nameAdpcm);
-		if (system(buffer) == -1)
+		fclose(fp);
+		free(argv[0]);
+		free(argv[1]);
+		free(argv[2]);
+	}
+
+	/* run vadpcm_enc */
+	{
+		int i;
+		int pathMax = 1024;
+		char *argv[] = {
+			/*0*/strdup("vadpcm_enc")
+			/*1*/, strdup("-c")
+			/*2*/, malloc(pathMax)
+			/*3*/, malloc(pathMax)
+			/*4*/, malloc(pathMax)
+			/*5*/, 0
+		};
+		//snprintf(buffer, sizeof(buffer), "%s -c %s%s %s%s %s%s", TOOL_VADPCM_ENC, path, nameTable, path, nameAiff, path, nameAdpcm);
+		snprintf(argv[2], pathMax, "%s%s", path, nameTable);
+		snprintf(argv[3], pathMax, "%s%s", path, nameAiff);
+		snprintf(argv[4], pathMax, "%s%s", path, nameAdpcm);
+		if (vadpcm_enc(5, argv))
 			PrintFail("vadpcm_enc has failed...\n", 0);
 		DebugPrint("%s converted to %s succesfully\n", nameAiff, nameAdpcm);
-	} else {
-		DebugPrint("\e[0;90m%s %s > %s\e[m\n", TOOL_TABLEDESIGN, nameAiff, nameTable);
-		snprintf(buffer, sizeof(buffer), "%s -i 2000 %s > %s", TOOL_TABLEDESIGN, nameAiff, nameTable);
-		if (system(buffer) == -1)
-			PrintFail("tabledesigner has failed...\n", 0);
-		DebugPrint("%s generated succesfully\n", nameTable);
-		
-		DebugPrint("\e[0;90m%s -c %s %s %s\e[m\n", TOOL_VADPCM_ENC, nameTable, nameAiff, nameAdpcm);
-		snprintf(buffer, sizeof(buffer), "%s -c %s %s %s", TOOL_VADPCM_ENC, nameTable, nameAiff, nameAdpcm);
-		if (system(buffer) == -1)
-			PrintFail("vadpcm_enc has failed...\n", 0);
-		DebugPrint("%s converted to %s succesfully\n", nameAiff, nameAdpcm);
+		for (i = 0; argv[i]; ++i)
+			free(argv[i]);
 	}
 	
 	FILE* f;

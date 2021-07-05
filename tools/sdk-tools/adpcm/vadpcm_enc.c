@@ -7,7 +7,7 @@
 
 static char usage[] = "[-t -l min_loop_length] -c codebook aifcfile compressedfile";
 
-int main(int argc, char **argv)
+int vadpcm_enc(int argc, char **argv)
 {
     s32 c;
     char *progname = argv[0];
@@ -67,6 +67,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
+    optind = 1;
     while ((c = getopt(argc, argv, "tc:l:")) != -1)
     {
         switch (c)
