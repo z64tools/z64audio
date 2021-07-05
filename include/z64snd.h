@@ -26,49 +26,48 @@ enum {
 const char sHeaders[3][6] = {
 	{ ".aiff" },
 	{ ".table" },
-	{ ".adpcm" }
+	{ ".aifc" }
 };
 
-extern int tabledesign(int argc, char **argv, FILE *outstream);
-extern int vadpcm_enc(int argc, char **argv);
+extern int tabledesign(int argc, char** argv, FILE* outstream);
+extern int vadpcm_enc(int argc, char** argv);
 
 // #define DebugPrint(s, ...) fprintf(stdout, "\e[0;94m[*] \e[m" s, __VA_ARGS__)
 
 /* returns the byte difference between two pointers */
-intptr_t ptrDiff(const void *minuend, const void *subtrahend)
-{
-    const u8 *m = minuend;
-    const u8 *s = subtrahend;
-    
-    return m - s;
+intptr_t ptrDiff(const void* minuend, const void* subtrahend) {
+	const u8* m = minuend;
+	const u8* s = subtrahend;
+	
+	return m - s;
 }
 
 static s8 STATE_DEBUG_PRINT;
 static s8 STATE_FABULOUS;
 
 void DebugPrint(const char* fmt, ...) {
-    if (!STATE_DEBUG_PRINT)
-        return;
-    const char colors[][64] = {
-        "\e[0;31m[<]: \e[m\0",
-        "\e[0;33m[<]: \e[m\0",
-        "\e[0;32m[<]: \e[m\0",
-        "\e[0;36m[<]: \e[m\0",
-        "\e[0;34m[<]: \e[m\0",
-        "\e[0;35m[<]: \e[m\0",
-    };
-    static s8 i = 0;
-    
-    if (STATE_FABULOUS)
-        i += i < 5 ? 1 : -5;
-    
-    va_list args;
-    
+	if (!STATE_DEBUG_PRINT)
+		return;
+	const char colors[][64] = {
+		"\e[0;31m[<]: \e[m\0",
+		"\e[0;33m[<]: \e[m\0",
+		"\e[0;32m[<]: \e[m\0",
+		"\e[0;36m[<]: \e[m\0",
+		"\e[0;34m[<]: \e[m\0",
+		"\e[0;35m[<]: \e[m\0",
+	};
+	static s8 i = 0;
+	
+	if (STATE_FABULOUS)
+		i += i < 5 ? 1 : -5;
+	
+	va_list args;
+	
 	va_start(args, fmt);
-   if (STATE_FABULOUS)
-    	printf(colors[i]);
-   else
-      printf(colors[1]);
+	if (STATE_FABULOUS)
+		printf(colors[i]);
+	else
+		printf(colors[1]);
 	vprintf(
 		fmt,
 		args
@@ -76,9 +75,9 @@ void DebugPrint(const char* fmt, ...) {
 	va_end(args);
 }
 
-#  define BSWAP16(x)       x = __builtin_bswap16(x);
-#  define BSWAP32(x)       x = __builtin_bswap32(x);
-#  define BSWAPFLOAT(x)    x = __builtin_bswapfloat(x);
+#define BSWAP16(x)    x = __builtin_bswap16(x);
+#define BSWAP32(x)    x = __builtin_bswap32(x);
+#define BSWAPFLOAT(x) x = __builtin_bswapfloat(x);
 
 void PrintFail(const char* fmt, ...) {
 	va_list args;
@@ -94,32 +93,6 @@ void PrintFail(const char* fmt, ...) {
 	);
 	va_end(args);
 	exit(EXIT_FAILURE);
-}
-
-void Audio_Clean(char* path, char* fname) {
-	char buffer[128];
-	
-	if (path[0] != 0) {
-		snprintf(buffer, sizeof(buffer), "rm %s%s.adpcm", path, fname);
-		if (system(buffer) == -1)
-			PrintFail("cleaning has failed...\n", 0);
-		DebugPrint("%s.adpcm cleaned succesfully\n", fname);
-		
-		snprintf(buffer, sizeof(buffer), "rm %s%s.table %s.aiff", path, fname, path);
-		if (system(buffer) == -1)
-			PrintFail("cleaning has failed...\n", 0);
-		DebugPrint("%s.table and %s.aiff cleaned succesfully\n", fname, fname);
-	} else {
-		snprintf(buffer, sizeof(buffer), "rm %s.adpcm", fname);
-		if (system(buffer) == -1)
-			PrintFail("cleaning has failed...\n", 0);
-		DebugPrint("%s.adpcm cleaned succesfully\n", fname);
-		
-		snprintf(buffer, sizeof(buffer), "rm %s.table %s.aiff", fname, fname);
-		if (system(buffer) == -1)
-			PrintFail("cleaning has failed...\n", 0);
-		DebugPrint("%s.table and %s.aiff cleaned succesfully\n", fname, fname);
-	}
 }
 
 s16 Audio_Downsample(s32 wow) {
@@ -146,10 +119,9 @@ int File_TestIfExists(const char* fn) {
 	return 1;
 }
 
-int FormatSampleNameExists(char *dst, const char *wav, const char *sample)
-{
-	char *s;
-	char *slash = dst;
+int FormatSampleNameExists(char* dst, const char* wav, const char* sample) {
+	char* s;
+	char* slash = dst;
 	
 	strcpy(dst, wav);
 	
@@ -164,10 +136,10 @@ int FormatSampleNameExists(char *dst, const char *wav, const char *sample)
 		PrintFail("Filename '%s' has no extension!\n", wav);
 	
 	/* make room for '.sample' before '.wav' */
-	memmove(s + 1/*'.'*/ + strlen(sample), s, strlen(s) + 1/*'\0'*/);
+	memmove(s + 1 /*'.'*/ + strlen(sample), s, strlen(s) + 1 /*'\0'*/);
 	
 	/* insert '.sample' */
-	memcpy(s + 1/*'.'*/, sample, strlen(sample));
+	memcpy(s + 1 /*'.'*/, sample, strlen(sample));
 	
 	//fprintf(stderr, "'%s'\n", dst);
 	
@@ -176,22 +148,20 @@ int FormatSampleNameExists(char *dst, const char *wav, const char *sample)
 
 s8 File_GetAndSort(char* wav, char** file) {
 	s8 fileCount = 1;
-	char *wow = malloc(strlen(wav) + 32);
+	char* wow = malloc(strlen(wav) + 32);
 	
 	/* primary */
 	file[0] = strdup(wav);
 	
 	/* secondary */
-	if (FormatSampleNameExists(wow, wav, "secondary"))
-	{
+	if (FormatSampleNameExists(wow, wav, "secondary")) {
 		++fileCount;
 		file[1] = strdup(wow);
 		//fprintf(stderr, "secondary = '%s'\n", wow);
 	}
 	
 	/* previous */
-	if (FormatSampleNameExists(wow, wav, "previous"))
-	{
+	if (FormatSampleNameExists(wow, wav, "previous")) {
 		++fileCount;
 		file[2] = strdup(wow);
 		//fprintf(stderr, "previous = '%s'\n", wow);
@@ -229,50 +199,77 @@ void GetFilename(char* _src, char* _dest, char* _path, s32* sizeStore) {
 	for (s32 i = 0; i <= sizeOfName - slashPoint - 5; i++) {
 		_dest[i] = temporName[slashPoint + i];
 		*sizeStore = i;
+		_dest[i + 1] = '\0';
 	}
 	
-	for (s32 i = 0; i < slashPoint; i++)
+	for (s32 i = 0; i < slashPoint; i++) {
 		_path[i] = _src[i];
+		_path[i + 1] = '\0';
+	}
 	
 	*sizeStore += 1;
 }
 
-void SetFilename(char* argv, char* fname, char* path, char* nameAiff, char* nameAdpcm, char* nameTable) {
+void SetFilename(char* argv, char* fname, char* path, char* fname_AIFF, char* fname_AIFC, char* fname_TABLE) {
 	s32 fnameSize = 0;
 	
 	GetFilename(argv, fname, path, &fnameSize);
 	
-	if (nameAiff == 0 && nameAdpcm == 0 && nameTable == 0)
+	if (fname_AIFF == 0 && fname_AIFC == 0 && fname_TABLE == 0)
 		return;
 	
 	/* Get Filenames to nameVars */
 	for (s32 i = 0; i < fnameSize; i++) {
-		if (nameAiff != NULL)
-			nameAiff[i] = fname[i];
+		if (fname_AIFF != NULL)
+			fname_AIFF[i] = fname[i];
 		
-		if (nameAdpcm != NULL)
-			nameTable[i] = fname[i];
+		if (fname_AIFC != NULL)
+			fname_AIFC[i] = fname[i];
 		
-		if (nameTable != NULL)
-			nameAdpcm[i] = fname[i];
+		if (fname_TABLE != NULL)
+			fname_TABLE[i] = fname[i];
 		
 		if (i == fnameSize - 1) {
 			i++;
 			for (s32 j = 0; j < 6; j++) {
-				if (nameAiff != NULL)
-					nameAiff[i + j] = sHeaders[0][j];
+				if (fname_AIFF != NULL)
+					fname_AIFF[i + j] = sHeaders[0][j];
 				
-				if (nameAdpcm != NULL)
-					nameTable[i + j] = sHeaders[1][j];
+				if (fname_AIFC != NULL)
+					fname_AIFC[i + j] = sHeaders[2][j];
 				
-				if (nameTable != NULL)
-					nameAdpcm[i + j] = sHeaders[2][j];
+				if (fname_TABLE != NULL)
+					fname_TABLE[i + j] = sHeaders[1][j];
 			}
 		}
 	}
 }
 
-void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff, u32* _sr) {
+void Audio_Clean(char* path, char* fname) {
+	char buffer[128];
+	
+	if (path[0] != 0) {
+		snprintf(buffer, sizeof(buffer), "%s%s.aifc", path, fname);
+		remove(buffer);
+		
+		snprintf(buffer, sizeof(buffer), "%s%s.aiff", path, fname);
+		remove(buffer);
+		
+		snprintf(buffer, sizeof(buffer), "%s%s.table", path, fname);
+		remove(buffer);
+	} else {
+		snprintf(buffer, sizeof(buffer), "%s.aifc", fname);
+		remove(buffer);
+		
+		snprintf(buffer, sizeof(buffer), "%s.aiff", fname);
+		remove(buffer);
+		
+		snprintf(buffer, sizeof(buffer), "%s.table", fname);
+		remove(buffer);
+	}
+}
+
+void Audio_Convert_WavToAiff(char* fileInput, char* fname_AIFF, u32* _sampleRate) {
 	FILE* f;
 	WaveHeader* wav = 0;
 	FILE* o;
@@ -317,8 +314,8 @@ void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff, u32* _sr) {
 			wasHasExtraData = true;
 	}
 	
-	if ((o = fopen(nameAiff, MODE_WRITE)) == NULL) {
-		PrintFail("Output file [%s] could not be opened.\n", nameAiff);
+	if ((o = fopen(fname_AIFF, MODE_WRITE)) == NULL) {
+		PrintFail("Output file [%s] could not be opened.\n", fname_AIFF);
 	}
 	
 	if (wasHasExtraData == true) {
@@ -348,7 +345,7 @@ void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff, u32* _sr) {
 		bitProcess = true;
 		DebugPrint("Warning: Provided WAV isn't 16bit.\n", 0);
 		// if (wav->bitsPerSamp != 32)
-		PrintFail("Bit depth is %X. That's too much of an hassle to work with...\7\n", wav->bitsPerSamp);
+		// PrintFail("Bit depth is %X. That's too much of an hassle to work with...\7\n", wav->bitsPerSamp);
 	}
 	
 	DebugPrint("Channels\t\t\t%d\n", wav->numChannels);
@@ -409,7 +406,7 @@ void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff, u32* _sr) {
 		
 		BSWAP32(*numFrames);
 		
-        *_sr = wav->sampleRate;
+		*_sampleRate = wav->sampleRate;
 		__float80 s = wav->sampleRate;
 		u8* wow = (void*)&s;
 		for (s32 i = 0; i < 10; i++)
@@ -525,14 +522,11 @@ void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff, u32* _sr) {
 			;
 		} else {
 			for (s32 i = 0; i < wavDataChunk->size / 2 / 2; i++) {
-				s32* tempData = (s32*)data;
-				
-				s32 tempS32 = tempData[i];
-				BSWAP32(tempS32);
-				s16 tempS16 = Audio_Downsample(tempS32);
-				// BSWAP16(tempS16);
-				
-				fwrite(&tempS32, sizeof(s16), 1, o);
+                float f32 = ((float*)data)[i];
+				BSWAP32(f32);
+                s16 wow = f32 * 32767;
+                
+				fwrite(&wow, sizeof(s16), 1, o);
 				
 				if (channelProcess)
 					i += 1;
@@ -550,56 +544,56 @@ void Audio_ConvertWAVtoAIFF(char* fileInput, char* nameAiff, u32* _sr) {
 void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChunk* _destInst, CommonChunk* _destComm, u32* _sr) {
 	char fname[64] = { 0 };
 	char path[128] = { 0 };
-	char nameAiff[64] = { 0 };
-	char nameTable[64] = { 0 };
-	char nameAdpcm[64] = { 0 };
+	char fname_AIFF[64] = { 0 };
+	char fname_TABLE[64] = { 0 };
+	char fname_AIFC[64] = { 0 };
 	char buffer[1024];
 	
-	SetFilename(argv,fname,path,nameAiff,nameAdpcm,nameTable);
+	SetFilename(argv,fname,path,fname_AIFF,fname_AIFC,fname_TABLE);
 	DebugPrint("Name: %s\n", fname);
 	DebugPrint("Path: %s\n\n", path);
-	Audio_ConvertWAVtoAIFF(argv, nameAiff, _sr);
-
+	Audio_Convert_WavToAiff(argv, fname_AIFF, _sr);
+	
 	/* run tabledesign */
 	{
-		strcpy(buffer, path); strcat(buffer, nameTable);
-		FILE *fp = fopen(buffer, "w");
-		char *argv[] = {
-			/*0*/strdup("tabledesign")
+		strcpy(buffer, path); strcat(buffer, fname_TABLE);
+		FILE* fp = fopen(buffer, "w");
+		char* argv[] = {
+			/*0*/ strdup("tabledesign")
 			/*1*/, strdup("-i")
 			/*2*/, strdup("2000")
 			/*3*/, buffer
 			/*4*/, 0
 		};
-		snprintf(buffer, sizeof(buffer), "%s%s", path, nameAiff);
+		snprintf(buffer, sizeof(buffer), "%s%s", path, fname_AIFF);
 		if (tabledesign(4, argv, fp))
 			PrintFail("tabledesign has failed...\n", 0);
-		DebugPrint("%s generated succesfully\n", nameTable);
+		DebugPrint("%s generated succesfully\n", fname_TABLE);
 		fclose(fp);
 		free(argv[0]);
 		free(argv[1]);
 		free(argv[2]);
 	}
-
+	
 	/* run vadpcm_enc */
 	{
 		int i;
 		int pathMax = 1024;
-		char *argv[] = {
-			/*0*/strdup("vadpcm_enc")
+		char* argv[] = {
+			/*0*/ strdup("vadpcm_enc")
 			/*1*/, strdup("-c")
 			/*2*/, malloc(pathMax)
 			/*3*/, malloc(pathMax)
 			/*4*/, malloc(pathMax)
 			/*5*/, 0
 		};
-		//snprintf(buffer, sizeof(buffer), "%s -c %s%s %s%s %s%s", TOOL_VADPCM_ENC, path, nameTable, path, nameAiff, path, nameAdpcm);
-		snprintf(argv[2], pathMax, "%s%s", path, nameTable);
-		snprintf(argv[3], pathMax, "%s%s", path, nameAiff);
-		snprintf(argv[4], pathMax, "%s%s", path, nameAdpcm);
+		//snprintf(buffer, sizeof(buffer), "%s -c %s%s %s%s %s%s", TOOL_VADPCM_ENC, path, fname_TABLE, path, fname_AIFF, path, fname_AIFC);
+		snprintf(argv[2], pathMax, "%s%s", path, fname_TABLE);
+		snprintf(argv[3], pathMax, "%s%s", path, fname_AIFF);
+		snprintf(argv[4], pathMax, "%s%s", path, fname_AIFC);
 		if (vadpcm_enc(5, argv))
 			PrintFail("vadpcm_enc has failed...\n", 0);
-		DebugPrint("%s converted to %s succesfully\n", nameAiff, nameAdpcm);
+		DebugPrint("%s converted to %s succesfully\n", fname_AIFF, fname_AIFC);
 		for (i = 0; argv[i]; ++i)
 			free(argv[i]);
 	}
@@ -608,12 +602,11 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	FILE* pred;
 	FILE* samp;
 	FILE* conf;
-	FILE* inst;
 	char* adpcm = 0;
 	char* p = 0;
 	s32 allocSize;
 	
-	f = fopen(nameAdpcm, "rb");
+	f = fopen(fname_AIFC, "rb");
 	fseek(f, 0, SEEK_END);
 	allocSize = ftell(f);
 	rewind(f);
@@ -625,7 +618,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	fclose(f);
 	
 	/* PREDICTOR */
-	snprintf(buffer, sizeof(buffer), "%s%s_predictor.bin", path,fname);
+	snprintf(buffer, sizeof(buffer), "%s%s.pred.bin", path,fname);
 	pred = fopen(buffer, MODE_WRITE);
 	p += 8;
 	while (!(p[-7] == 'C' && p[-6] == 'O' && p[-5] == 'D' && p[-4] == 'E' && p[-3] == 'S')) {
@@ -640,8 +633,6 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	fwrite(&head, sizeof(head), 1, pred);
 	p += 4;
 	
-	s32 i = 0;
-	
 	while (!(p[0] == 'S' && p[1] == 'S' && p[2] == 'N' && p[3] == 'D')) {
 		fwrite(p, 1, 1, pred);
 		p++;
@@ -653,7 +644,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	fclose(pred);
 	
 	/* SAMPLE */
-	snprintf(buffer, sizeof(buffer), "%s%s_sample.bin", path,fname);
+	snprintf(buffer, sizeof(buffer), "%s%s.sample.bin", path,fname);
 	samp = fopen(buffer, MODE_WRITE);
 	p += 4;
 	
@@ -669,19 +660,19 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	
 	fclose(samp);
 	
-   if (STATE_DEBUG_PRINT)
-      printf("\n");
-	DebugPrint("%s_predictor.bin\tOK\n", fname);
-	DebugPrint("%s_sample.bin\tOK\n", fname);
+	if (STATE_DEBUG_PRINT)
+		printf("\n");
+	DebugPrint("%s.pred.bin\tOK\n", fname);
+	DebugPrint("%s.sample.bin\tOK\n", fname);
 	
 	ALADPCMloop* loopInfo = 0;
 	InstrumentChunk* instData;
 	CommonChunk* comm = (CommonChunk*)(adpcm + 14);
 	int lflag = true;
-    
-    memcpy(_destComm, comm, sizeof(CommonChunk));
 	
-	snprintf(buffer, sizeof(buffer), "%s%s_config.tsv", path, fname);
+	memcpy(_destComm, comm, sizeof(CommonChunk));
+	
+	snprintf(buffer, sizeof(buffer), "%s%s.conf.tsv", path, fname);
 	conf = fopen(buffer, MODE_WRITE);
 	
 	while (!(p[-8] == 'O' && p[-7] == 'O' && p[-6] == 'P' && p[-5] == 'S')) {
@@ -727,7 +718,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 		fprintf(conf, "%08X\n", 0);
 	}
 	
-	DebugPrint("%s_config.tsv\tOK\n\n", fname);
+	DebugPrint("%s.conf.tsv\tOK\n\n", fname);
 	
 	fclose(conf);
 	if (adpcm)
@@ -735,19 +726,19 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 }
 
 void Audio_GenerateInstrumentConf(char* fname, s8 procCount, InstrumentChunk* instInfo) {
-    char buffer[128] = { 0 };
-    FILE* conf;
+	char buffer[128] = { 0 };
+	FILE* conf;
 	
-	snprintf(buffer, sizeof(buffer), "%s_inst.tsv", fname);
+	snprintf(buffer, sizeof(buffer), "%s.inst.tsv", fname);
 	
 	float pitch[3] = { 0 };
+	
 	for (s32 i = 0; i < 3; i++) {
 		pitch[i] = pow(pow(2, 1.0 / 12), 60 - instInfo[i].baseNote);
 	}
 	
 	conf = fopen(buffer, MODE_WRITE);
 	fprintf(conf, "split1\tsplit2\tsplit3\trelease\tatkrate\tatklvl\tdcy1rt\tdcy1lvl\tdcy2rt\tdcy2lvl\n");
-	s8 split[] = { 0, 0, 127 };
 	char floats[3][9] = {
 		"NULLNULL\0",
 		"NULLNULL\0",
@@ -758,37 +749,48 @@ void Audio_GenerateInstrumentConf(char* fname, s8 procCount, InstrumentChunk* in
 		"NULL\0",
 		"NULL\0",
 	};
+    
+    char split[3][4] = {
+        "0",
+        "0",
+        "127"
+    };
 	
 	switch (procCount) {
-		/* NULL Prim NULL */
+	    /* NULL Prim NULL */
 	    case 1: {
-			snprintf(floats[1], 9, "%08X", *(u32*)&pitch[0]);
-			snprintf(sampleID[1], 5, "%d", 0);
+		    snprintf(floats[1], 9, "%08X", *(u32*)&pitch[0]);
+		    snprintf(sampleID[1], 5, "%d", 0);
 	    } break;
-			
-		/* NULL Prim Secn */
+	    
+	    /* NULL Prim Secn */
 	    case 2: {
-			snprintf(floats[1], 9, "%08X", *(u32*)&pitch[0]);
-			snprintf(sampleID[1], 5, "%d", 0);
-			
-			snprintf(floats[2], 9, "%08X", *(u32*)&pitch[1]);
-			snprintf(sampleID[2], 4, "%d", 0);
+		    snprintf(floats[1], 9, "%08X", *(u32*)&pitch[0]);
+		    snprintf(sampleID[1], 5, "%d", 0);
+		    
+		    snprintf(floats[2], 9, "%08X", *(u32*)&pitch[1]);
+		    snprintf(sampleID[2], 4, "%d", 0);
+            
+            snprintf(split[2], 9, "%d", instInfo[1].highNote - 21);
 	    } break;
-		
-		/* Prev Prim Secn */
+	    
+	    /* Prev Prim Secn */
 	    case 3: {
-			snprintf(floats[1], 9, "%08X", *(u32*)&pitch[1]);
-			snprintf(sampleID[1], 5, "%d", 0);
-			
-			snprintf(floats[2], 9, "%08X", *(u32*)&pitch[2]);
-			snprintf(sampleID[2], 5, "%d", 0);
-			
-			snprintf(floats[0], 9, "%08X", *(u32*)&pitch[0]);
-			snprintf(sampleID[0], 5, "%d", 0);
+		    snprintf(floats[1], 9, "%08X", *(u32*)&pitch[1]);
+		    snprintf(sampleID[1], 5, "%d", 0);
+		    
+		    snprintf(floats[2], 9, "%08X", *(u32*)&pitch[2]);
+		    snprintf(sampleID[2], 5, "%d", 0);
+		    
+		    snprintf(floats[0], 9, "%08X", *(u32*)&pitch[0]);
+		    snprintf(sampleID[0], 5, "%d", 0);
+            
+            snprintf(split[1], 9, "%d", instInfo[1].lowNote - 21);
+            snprintf(split[2], 9, "%d", instInfo[1].highNote - 21);
 	    } break;
 	}
 	
-	fprintf(conf, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", split[0], split[1], split[2], 238, 2, 32700, 1, 32700, 32700, 29430);
+	fprintf(conf, "%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", split[0], split[1], split[2], 238, 2, 32700, 1, 32700, 32700, 29430);
 	fprintf(conf, "sample1\tpitch1  \tsample2\tpitch2  \tsample3\tpitch3  \n");
 	fprintf(conf, "%s\t%s\t%s\t%s\t%s\t%s", sampleID[0], floats[0], sampleID[1], floats[1], sampleID[2], floats[2]);
 	
