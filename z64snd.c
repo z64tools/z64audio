@@ -8,7 +8,7 @@ static z64audioMode requestMode(void);
 static void showArgs(void);
 
 int main(int argc, char** argv) {
-	s8 procCount = 0;
+	s8 fileCount = 0;
 	int i;
 	char* file[3] = { 0 };
 	char* infile = 0;
@@ -40,7 +40,8 @@ int main(int argc, char** argv) {
 	}
 	/* one input file = guided mode */
 	else if (argc == 2) {
-		gAudioState.mode = requestMode();
+		// gAudioState.mode = requestMode();
+		gAudioState.mode = Z64AUDIOMODE_WAV_TO_ZZRTL; // For testing purposes
 		infile = argv[1];
 	}
 	/* multiple arguments */
@@ -49,33 +50,35 @@ int main(int argc, char** argv) {
 		for (i = 1; i < argc; i += 2) {
 			char* arg = argv[i];
 			char* next = argv[i + 1];
-			
+	
 			if (!next)
-				PrintFail("Argument '%s' is missing parameter", arg);
-			
+				PrintFail("Argument '%s' is missing parameter\n", arg);
+	
 			if (!strcmp(arg, "--wav"))
 				infile = next;
 			else if (!strcmp(arg, "--mode"))
 				gAudioState.mode = atoi(next);
 			else
-				PrintFail("Unknown argument '%s'", arg);
+				PrintFail("Unknown argument '%s'\n", arg);
 		}
 	}
 	
 	/* ensure provided mode is acceptable */
 	assertMode(gAudioState.mode);
 	
-	if ((procCount = File_GetAndSort(infile, file)) <= 0)
-		PrintFail("Something has gone terribly wrong... fileCount == %d", procCount);
+	if ((fileCount = File_GetAndSort(infile, file)) <= 0)
+		PrintFail("Something has gone terribly wrong... fileCount == %d", fileCount);
 	
-	for (s32 i = 0; i < procCount; i++)
+	for (s32 i = 0; i < fileCount; i++)
 		Audio_Process(file[i], 0, &loopInfo[i], &instInfo[i], &commInfo[i], &sampleRate[i]);
 	
-	for (s32 i = 0; i < procCount; i++) {
+	DebugPrint("Starting clean for %d file(s)\n", fileCount);
+	
+	for (s32 i = 0; i < fileCount; i++) {
 		Audio_Clean(file[i]);
 	}
 	
-	Audio_GenerateInstrumentConf(file[0], procCount, instInfo);
+	Audio_GenerateInstrumentConf(file[0], fileCount, instInfo, sampleRate);
 	DebugPrint("*.inst.tsv\t\t\tOK\n");
 	
 	for (i = 0; i < (sizeof(file) / sizeof(*file)); ++i)
@@ -87,7 +90,8 @@ int main(int argc, char** argv) {
 	#ifdef _WIN32
 	if (argc == 2) {
 		fflush(stdin);
-		// getchar();
+		DebugPrint("\nPress any key to exit...\n");
+		getchar();
 	}
 	#endif
 	

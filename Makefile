@@ -41,4 +41,4 @@ z64audio.exe: z64snd.c include/z64snd.h
 	@rm *.o
 
 clean:
-	@rm *.tsv *.bin
+	@rm *.tsv *.bin *.aifc *.aiff *.table
