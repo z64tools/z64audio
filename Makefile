@@ -1,7 +1,7 @@
 GCC = gcc
 GPP = g++
 LD = ld
-MAGIC = -Os
+MAGIC = -Ofast
 ADPCM = tools/sdk-tools/adpcm/
 
 .PHONY: objects clean
@@ -17,7 +17,7 @@ objects:
 
 z64audio: z64snd.c include/z64snd.h
 	@$(GCC) -c z64snd.c -Wall
-	@$(GPP) -o z64audio.exe *.o bin/o/linux/*.o $(MAGIC) -s -flto -DNDEBUG
+	@$(GPP) -o z64audio *.o bin/o/linux/*.o $(MAGIC) -s -flto -DNDEBUG
 	@rm *.o
 
 clean:

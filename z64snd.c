@@ -44,20 +44,18 @@ static void showArgs(void) {
 	P("    z64audio --wav \"input.wav\" --mode X");
 	P("    where X is one of the following modes:");
 #ifdef _WIN32 /* helps users unfamiliar with command line */
-		P("");
-		P("Alternatively, Windows users can close this window and drop");
-		P("a .wav file directly onto the z64audio executable. If you use");
-		P("z64audio often, consider right-clicking a .wav, selecting");
-		P("'Open With', and then z64audio.");
-		getchar();
+	P("");
+	P("Alternatively, Windows users can close this window and drop");
+	P("a .wav file directly onto the z64audio executable. If you use");
+	P("z64audio often, consider right-clicking a .wav, selecting");
+	P("'Open With', and then z64audio.");
+	getchar();
 #endif
 #undef P
 	exit(EXIT_FAILURE);
 }
 
 int main(int argc, char** argv) {
-	char fname[1024] = { 0 };
-	char path[1024] = { 0 };
 	s8 procCount = 0;
 	int i;
 	enum z64audioMode mode = Z64AUDIOMODE_UNSET;
@@ -76,7 +74,7 @@ int main(int argc, char** argv) {
 	fprintf(
 		stderr,
 		"/******************************\n"
-		" * \e[0;31mz64audio 1.0.0\e[m             *\n"
+		" * \e[0;36mz64audio 1.0.0\e[m             *\n"
 		" *   by rankaisija and z64me  *\n"
 		" ******************************/\n\n"
 	);
@@ -117,12 +115,10 @@ int main(int argc, char** argv) {
 		Audio_Process(file[i], 0, &loopInfo[i], &instInfo[i], &commInfo[i], &sampleRate[i]);
 	
 	for (s32 i = 0; i < procCount; i++) {
-		SetFilename(file[i], fname, path, NULL, NULL, NULL);
-		Audio_Clean(path, fname);
+		Audio_Clean(file[i]);
 	}
 	
-	SetFilename(file[0], fname, path, NULL, NULL, NULL);
-	Audio_GenerateInstrumentConf(fname, procCount, instInfo);
+	Audio_GenerateInstrumentConf(file[0], procCount, instInfo);
 	
 	for (i = 0; i < (sizeof(file) / sizeof(*file)); ++i)
 		if (file[i])

@@ -75,9 +75,8 @@ void DebugPrint(const char* fmt, ...) {
 	va_end(args);
 }
 
-#define BSWAP16(x)    x = __builtin_bswap16(x);
-#define BSWAP32(x)    x = __builtin_bswap32(x);
-#define BSWAPFLOAT(x) x = __builtin_bswapfloat(x);
+#define BSWAP16(x) x = __builtin_bswap16(x);
+#define BSWAP32(x) x = __builtin_bswap32(x);
 
 void PrintFail(const char* fmt, ...) {
 	va_list args;
@@ -245,8 +244,16 @@ void SetFilename(char* argv, char* fname, char* path, char* fname_AIFF, char* fn
 	}
 }
 
-void Audio_Clean(char* path, char* fname) {
-	char buffer[128];
+void Audio_Clean(char* file) {
+	char buffer[1024] = { 0 };
+	char fname[128] = { 0 };
+	char path[128] = { 0 };
+	
+	SetFilename(file, fname, path, NULL, NULL, NULL);
+	
+	if (file[0] == 0) {
+		DebugPrint("Failed to get filename, skipping cleaning");
+	}
 	
 	if (path[0] != 0) {
 		snprintf(buffer, sizeof(buffer), "%s%s.aifc", path, fname);
@@ -269,7 +276,7 @@ void Audio_Clean(char* path, char* fname) {
 	}
 }
 
-void Audio_Convert_WavToAiff(char* fileInput, char* fname_AIFF, u32* _sampleRate) {
+void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 	FILE* f;
 	WaveHeader* wav = 0;
 	FILE* o;
@@ -281,6 +288,11 @@ void Audio_Convert_WavToAiff(char* fileInput, char* fname_AIFF, u32* _sampleRate
 	InstrumentHeader* waveInst;
 	SampleHeader* waveSmpl;
 	s16* data;
+	char fname[128] = { 0 };
+	char fname_AIFF[128] = { 0 };
+	char path[128] = { 0 };
+	
+	SetFilename(fileInput, fname, path, fname_AIFF, NULL, NULL);
 	
 	/* FILE LOAD */ {
 		WaveHeader wave;
@@ -341,11 +353,9 @@ void Audio_Convert_WavToAiff(char* fileInput, char* fname_AIFF, u32* _sampleRate
 	}
 	
 	DebugPrint("BitRate\t\t\t%d-bit.\n", wav->bitsPerSamp);
-	if (wav->bitsPerSamp != 16) {
+	if (wav->bitsPerSamp != 16 && wav->bitsPerSamp != 32) {
 		bitProcess = true;
-		DebugPrint("Warning: Provided WAV isn't 16bit.\n", 0);
-		// if (wav->bitsPerSamp != 32)
-		// PrintFail("Bit depth is %X. That's too much of an hassle to work with...\7\n", wav->bitsPerSamp);
+		DebugPrint("Warning: Non supported bit depth. Try 16-bit or 32-bit.\n", 0);
 	}
 	
 	DebugPrint("Channels\t\t\t%d\n", wav->numChannels);
@@ -512,6 +522,12 @@ void Audio_Convert_WavToAiff(char* fileInput, char* fname_AIFF, u32* _sampleRate
 		if (!bitProcess) {
 			for (s32 i = 0; i < wavDataChunk->size / 2; i++) {
 				s16 tempData = ((s16*)data)[i];
+				s16 medianator;
+				
+				if (channelProcess) {
+					medianator = ((s16*)data)[i + 1];
+					tempData = ((float)tempData + (float)medianator) * 0.5;
+				}
 				
 				BSWAP16(tempData);
 				fwrite(&tempData, sizeof(s16), 1, o);
@@ -519,19 +535,18 @@ void Audio_Convert_WavToAiff(char* fileInput, char* fname_AIFF, u32* _sampleRate
 				if (channelProcess)
 					i += 1;
 			}
-			;
 		} else {
 			for (s32 i = 0; i < wavDataChunk->size / 2 / 2; i++) {
-                float f32 = ((float*)data)[i];
-				BSWAP32(f32);
-                s16 wow = f32 * 32767;
-                
+				float* f32 = (float*)data;
+				s16 wow = f32[i] * 32767;
+				
+				BSWAP16(wow);
+				
 				fwrite(&wow, sizeof(s16), 1, o);
 				
 				if (channelProcess)
 					i += 1;
 			}
-			;
 		}
 	}
 	DebugPrint("SoundChunk\t\t\tDone\n", 0);
@@ -552,7 +567,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	SetFilename(argv,fname,path,fname_AIFF,fname_AIFC,fname_TABLE);
 	DebugPrint("Name: %s\n", fname);
 	DebugPrint("Path: %s\n\n", path);
-	Audio_Convert_WavToAiff(argv, fname_AIFF, _sr);
+	Audio_Convert_WavToAiff(argv, _sr);
 	
 	/* run tabledesign */
 	{
@@ -561,7 +576,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 		char* argv[] = {
 			/*0*/ strdup("tabledesign")
 			/*1*/, strdup("-i")
-			/*2*/, strdup("2000")
+			/*2*/, strdup("30")
 			/*3*/, buffer
 			/*4*/, 0
 		};
@@ -725,11 +740,18 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 		free(adpcm);
 }
 
-void Audio_GenerateInstrumentConf(char* fname, s8 procCount, InstrumentChunk* instInfo) {
-	char buffer[128] = { 0 };
+void Audio_GenerateInstrumentConf(char* file, s8 procCount, InstrumentChunk* instInfo) {
+	char buffer[1024] = { 0 };
+	char fname[128] = { 0 };
+	char path[128] = { 0 };
 	FILE* conf;
 	
-	snprintf(buffer, sizeof(buffer), "%s.inst.tsv", fname);
+	SetFilename(file, fname, path, NULL, NULL, NULL);
+	
+	if (path[0] == 0)
+		snprintf(buffer, sizeof(buffer), "%s.inst.tsv", fname);
+	else
+		snprintf(buffer, sizeof(buffer), "%s%s.inst.tsv", path, fname);
 	
 	float pitch[3] = { 0 };
 	
@@ -749,12 +771,12 @@ void Audio_GenerateInstrumentConf(char* fname, s8 procCount, InstrumentChunk* in
 		"NULL\0",
 		"NULL\0",
 	};
-    
-    char split[3][4] = {
-        "0",
-        "0",
-        "127"
-    };
+	
+	char split[3][4] = {
+		"0",
+		"0",
+		"127"
+	};
 	
 	switch (procCount) {
 	    /* NULL Prim NULL */
@@ -770,8 +792,8 @@ void Audio_GenerateInstrumentConf(char* fname, s8 procCount, InstrumentChunk* in
 		    
 		    snprintf(floats[2], 9, "%08X", *(u32*)&pitch[1]);
 		    snprintf(sampleID[2], 4, "%d", 0);
-            
-            snprintf(split[2], 9, "%d", instInfo[1].highNote - 21);
+		    
+		    snprintf(split[2], 9, "%d", instInfo[1].highNote - 21);
 	    } break;
 	    
 	    /* Prev Prim Secn */
@@ -784,9 +806,9 @@ void Audio_GenerateInstrumentConf(char* fname, s8 procCount, InstrumentChunk* in
 		    
 		    snprintf(floats[0], 9, "%08X", *(u32*)&pitch[0]);
 		    snprintf(sampleID[0], 5, "%d", 0);
-            
-            snprintf(split[1], 9, "%d", instInfo[1].lowNote - 21);
-            snprintf(split[2], 9, "%d", instInfo[1].highNote - 21);
+		    
+		    snprintf(split[1], 9, "%d", instInfo[1].lowNote - 21);
+		    snprintf(split[2], 9, "%d", instInfo[1].highNote - 21);
 	    } break;
 	}
 	
