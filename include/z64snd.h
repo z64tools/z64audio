@@ -7,27 +7,43 @@
 #include "vadpcm.h"
 #include "wave.h"
 
-typedef struct {
-	s8 aiff  : 1;
-	s8 aifc  : 1;
-	s8 table : 1;
-	s8 _     : 1;
-} CleanState;
-
 #ifndef __FLOAT80_SUCKS__
  #define __float80 float
 #endif
 
-enum z64audioMode {
+enum {
+	false,
+	true
+};
+
+typedef enum {
+	NONE = 0
+	, WAV
+	, AIFF
+} FileExten;
+
+typedef enum  {
 	Z64AUDIOMODE_UNSET = 0
 	, Z64AUDIOMODE_WAV_TO_ZZRTL
 	, Z64AUDIOMODE_WAV_TO_AIFF
 	, Z64AUDIOMODE_LAST
-};
+} z64audioMode;
 
-enum {
-	false,
-	true
+typedef struct {
+	s8        aiff  : 1;
+	s8        aifc  : 1;
+	s8        table : 1;
+	FileExten ftype;
+	z64audioMode mode;
+	
+} z64audioState;
+
+static z64audioState gAudioState = {
+	.aiff = false,
+	.aifc = true,
+	.table = true,
+	.ftype = NONE,
+	.mode = Z64AUDIOMODE_UNSET,
 };
 
 const char sHeaders[3][6] = {
@@ -38,8 +54,10 @@ const char sHeaders[3][6] = {
 
 extern int tabledesign(int argc, char** argv, FILE* outstream);
 extern int vadpcm_enc(int argc, char** argv);
-
-// #define DebugPrint(s, ...) fprintf(stdout, "\e[0;94m[*] \e[m" s, __VA_ARGS__)
+static s8 STATE_DEBUG_PRINT;
+static s8 STATE_FABULOUS;
+#define BSWAP16(x) x = __builtin_bswap16(x);
+#define BSWAP32(x) x = __builtin_bswap32(x);
 
 /* returns the byte difference between two pointers */
 intptr_t ptrDiff(const void* minuend, const void* subtrahend) {
@@ -48,42 +66,6 @@ intptr_t ptrDiff(const void* minuend, const void* subtrahend) {
 	
 	return m - s;
 }
-
-static s8 STATE_DEBUG_PRINT;
-static s8 STATE_FABULOUS;
-
-void DebugPrint(const char* fmt, ...) {
-	if (!STATE_DEBUG_PRINT)
-		return;
-	const char colors[][64] = {
-		"\e[0;31m[<]: \e[m\0",
-		"\e[0;33m[<]: \e[m\0",
-		"\e[0;32m[<]: \e[m\0",
-		"\e[0;36m[<]: \e[m\0",
-		"\e[0;34m[<]: \e[m\0",
-		"\e[0;35m[<]: \e[m\0",
-	};
-	static s8 i = 0;
-	
-	if (STATE_FABULOUS)
-		i += i < 5 ? 1 : -5;
-	
-	va_list args;
-	
-	va_start(args, fmt);
-	if (STATE_FABULOUS)
-		printf(colors[i]);
-	else
-		printf(colors[1]);
-	vprintf(
-		fmt,
-		args
-	);
-	va_end(args);
-}
-
-#define BSWAP16(x) x = __builtin_bswap16(x);
-#define BSWAP32(x) x = __builtin_bswap32(x);
 
 void PrintFail(const char* fmt, ...) {
 	va_list args;
@@ -109,6 +91,36 @@ void PrintWarning(const char* fmt, ...) {
 		"\7\e[0;91m[*] "
 		"Warning: \e[m"
 	);
+	vprintf(
+		fmt,
+		args
+	);
+	va_end(args);
+}
+
+void DebugPrint(const char* fmt, ...) {
+	if (!STATE_DEBUG_PRINT)
+		return;
+	const char colors[][64] = {
+		"\e[0;31m[<]: \e[m\0",
+		"\e[0;33m[<]: \e[m\0",
+		"\e[0;32m[<]: \e[m\0",
+		"\e[0;36m[<]: \e[m\0",
+		"\e[0;34m[<]: \e[m\0",
+		"\e[0;35m[<]: \e[m\0",
+	};
+	static s8 i = 0;
+	
+	if (STATE_FABULOUS)
+		i += i < 5 ? 1 : -5;
+	
+	va_list args;
+	
+	va_start(args, fmt);
+	if (STATE_FABULOUS)
+		printf(colors[i]);
+	else
+		printf(colors[1]);
 	vprintf(
 		fmt,
 		args
@@ -194,6 +206,14 @@ s8 File_GetAndSort(char* wav, char** file) {
 	
 	free(wow);
 	
+	if (strstr(wav, ".wav")) {
+		gAudioState.ftype = WAV;
+		DebugPrint("Filetype: .wav\n");
+	}else if (strstr(wav, ".aiff")) {
+		gAudioState.ftype = AIFF;
+		DebugPrint("Filetype: .aiff\n");
+	}
+	
 	return fileCount;
 }
 
@@ -204,8 +224,13 @@ void GetFilename(char* _src, char* _dest, char* _path, s32* sizeStore) {
 	s32 sizeOfName = 0;
 	s32 slashPoint = 0;
 	
+	s32 extensionPoint = 0;
+	
 	while (temporName[sizeOfName] != 0)
 		sizeOfName++;
+	
+	while (temporName[sizeOfName - extensionPoint] != '.')
+		extensionPoint++;
 	
 	for (s32 i = 0; i < sizeOfName; i++) {
 		if (temporName[i] == '/')
@@ -217,7 +242,7 @@ void GetFilename(char* _src, char* _dest, char* _path, s32* sizeStore) {
 	else
 		_path[0] = 0;
 	
-	for (s32 i = 0; i <= sizeOfName - slashPoint - 5; i++) {
+	for (s32 i = 0; i <= sizeOfName - slashPoint - 1 - extensionPoint; i++) {
 		_dest[i] = temporName[slashPoint + i];
 		*sizeStore = i;
 		_dest[i + 1] = '\0';
@@ -266,7 +291,7 @@ void SetFilename(char* argv, char* fname, char* path, char* fname_AIFF, char* fn
 	}
 }
 
-void Audio_Clean(char* file, CleanState state) {
+void Audio_Clean(char* file) {
 	char buffer[1024] = { 0 };
 	char fname[128] = { 0 };
 	char path[128] = { 0 };
@@ -278,21 +303,21 @@ void Audio_Clean(char* file, CleanState state) {
 		PrintWarning("Failed to get filename, skipping cleaning");
 	}
 	
-	if (state.aifc == 1) {
+	if (gAudioState.aifc == true) {
 		snprintf(buffer, sizeof(buffer), "%s%s.aifc", path, fname);
 		remove(buffer);
 		if (File_TestIfExists(buffer) == 1)
 			PrintWarning("Tried to remove %s but failed\n", buffer);
 	}
 	
-	if (state.aifc == 1) {
+	if (gAudioState.aifc == true) {
 		snprintf(buffer, sizeof(buffer), "%s%s.aiff", path, fname);
 		remove(buffer);
 		if (File_TestIfExists(buffer) == 1)
 			PrintWarning("Tried to remove %s but failed\n", buffer);
 	}
 	
-	if (state.aifc == 1) {
+	if (gAudioState.aifc == true) {
 		snprintf(buffer, sizeof(buffer), "%s%s.table", path, fname);
 		remove(buffer);
 		if (File_TestIfExists(buffer) == 1)
@@ -591,7 +616,17 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	SetFilename(argv,fname,path,fname_AIFF,fname_AIFC,fname_TABLE);
 	DebugPrint("Name: %s\n", fname);
 	DebugPrint("Path: %s\n\n", path);
-	Audio_Convert_WavToAiff(argv, _sr);
+	
+	if (gAudioState.ftype == WAV)
+		Audio_Convert_WavToAiff(argv, _sr);
+    
+    if (gAudioState.mode == Z64AUDIOMODE_WAV_TO_AIFF) {
+        if (File_TestIfExists(fname_AIFF))
+            exit(EXIT_SUCCESS);
+        else {
+            PrintFail("%s does not exist. Something has gone terribly wrong.\n");
+        }
+    }
 	
 	/* run tabledesign */
 	{
