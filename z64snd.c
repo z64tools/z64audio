@@ -44,12 +44,12 @@ static void showArgs(void) {
 	P("    z64audio --wav \"input.wav\" --mode X");
 	P("    where X is one of the following modes:");
 #ifdef _WIN32 /* helps users unfamiliar with command line */
-	P("");
-	P("Alternatively, Windows users can close this window and drop");
-	P("a .wav file directly onto the z64audio executable. If you use");
-	P("z64audio often, consider right-clicking a .wav, selecting");
-	P("'Open With', and then z64audio.");
-	getchar();
+		P("");
+		P("Alternatively, Windows users can close this window and drop");
+		P("a .wav file directly onto the z64audio executable. If you use");
+		P("z64audio often, consider right-clicking a .wav, selecting");
+		P("'Open With', and then z64audio.");
+		getchar();
 #endif
 #undef P
 	exit(EXIT_FAILURE);
@@ -67,9 +67,21 @@ int main(int argc, char** argv) {
 	InstrumentChunk instInfo[3] = { 0 };
 	CommonChunk commInfo[3] = { 0 };
 	u32 sampleRate[3] = { 0 };
+	CleanState clnState = {
+		.aiff = true,
+		.aifc = true,
+		.table = true
+	};
 	
 	STATE_DEBUG_PRINT = true;
 	STATE_FABULOUS = false;
+	
+#ifdef _WIN32
+		char magic[] = { " \0" };
+		// This fixes the coloring of text printed in CMD or PowerShell
+		if (system(magic) != 0)
+			PrintFail("Intro has failed.\n", 0);
+#endif
 	
 	fprintf(
 		stderr,
@@ -115,7 +127,7 @@ int main(int argc, char** argv) {
 		Audio_Process(file[i], 0, &loopInfo[i], &instInfo[i], &commInfo[i], &sampleRate[i]);
 	
 	for (s32 i = 0; i < procCount; i++) {
-		Audio_Clean(file[i]);
+		Audio_Clean(file[i], clnState);
 	}
 	
 	Audio_GenerateInstrumentConf(file[0], procCount, instInfo);

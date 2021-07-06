@@ -7,6 +7,13 @@
 #include "vadpcm.h"
 #include "wave.h"
 
+typedef struct {
+	s8 aiff  : 1;
+	s8 aifc  : 1;
+	s8 table : 1;
+	s8 _     : 1;
+} CleanState;
+
 #ifndef __FLOAT80_SUCKS__
  #define __float80 float
 #endif
@@ -86,12 +93,27 @@ void PrintFail(const char* fmt, ...) {
 		"\7\e[0;91m[*] "
 		"Error: \e[m"
 	);
-	printf(
+	vprintf(
 		fmt,
 		args
 	);
 	va_end(args);
 	exit(EXIT_FAILURE);
+}
+
+void PrintWarning(const char* fmt, ...) {
+	va_list args;
+	
+	va_start(args, fmt);
+	printf(
+		"\7\e[0;91m[*] "
+		"Warning: \e[m"
+	);
+	vprintf(
+		fmt,
+		args
+	);
+	va_end(args);
 }
 
 s16 Audio_Downsample(s32 wow) {
@@ -222,11 +244,11 @@ void SetFilename(char* argv, char* fname, char* path, char* fname_AIFF, char* fn
 		if (fname_AIFF != NULL)
 			fname_AIFF[i] = fname[i];
 		
-		if (fname_AIFC != NULL)
-			fname_AIFC[i] = fname[i];
-		
 		if (fname_TABLE != NULL)
 			fname_TABLE[i] = fname[i];
+		
+		if (fname_AIFC != NULL)
+			fname_AIFC[i] = fname[i];
 		
 		if (i == fnameSize - 1) {
 			i++;
@@ -234,45 +256,47 @@ void SetFilename(char* argv, char* fname, char* path, char* fname_AIFF, char* fn
 				if (fname_AIFF != NULL)
 					fname_AIFF[i + j] = sHeaders[0][j];
 				
-				if (fname_AIFC != NULL)
-					fname_AIFC[i + j] = sHeaders[2][j];
-				
 				if (fname_TABLE != NULL)
 					fname_TABLE[i + j] = sHeaders[1][j];
+				
+				if (fname_AIFC != NULL)
+					fname_AIFC[i + j] = sHeaders[2][j];
 			}
 		}
 	}
 }
 
-void Audio_Clean(char* file) {
+void Audio_Clean(char* file, CleanState state) {
 	char buffer[1024] = { 0 };
 	char fname[128] = { 0 };
 	char path[128] = { 0 };
+	s32 siz = 0;
 	
-	SetFilename(file, fname, path, NULL, NULL, NULL);
+	GetFilename(file, fname, path, &siz);
 	
-	if (file[0] == 0) {
-		DebugPrint("Failed to get filename, skipping cleaning");
+	if (fname[0] == 0) {
+		PrintWarning("Failed to get filename, skipping cleaning");
 	}
 	
-	if (path[0] != 0) {
+	if (state.aifc == 1) {
 		snprintf(buffer, sizeof(buffer), "%s%s.aifc", path, fname);
 		remove(buffer);
-		
+		if (File_TestIfExists(buffer) == 1)
+			PrintWarning("Tried to remove %s but failed\n", buffer);
+	}
+	
+	if (state.aifc == 1) {
 		snprintf(buffer, sizeof(buffer), "%s%s.aiff", path, fname);
 		remove(buffer);
-		
+		if (File_TestIfExists(buffer) == 1)
+			PrintWarning("Tried to remove %s but failed\n", buffer);
+	}
+	
+	if (state.aifc == 1) {
 		snprintf(buffer, sizeof(buffer), "%s%s.table", path, fname);
 		remove(buffer);
-	} else {
-		snprintf(buffer, sizeof(buffer), "%s.aifc", fname);
-		remove(buffer);
-		
-		snprintf(buffer, sizeof(buffer), "%s.aiff", fname);
-		remove(buffer);
-		
-		snprintf(buffer, sizeof(buffer), "%s.table", fname);
-		remove(buffer);
+		if (File_TestIfExists(buffer) == 1)
+			PrintWarning("Tried to remove %s but failed\n", buffer);
 	}
 }
 
