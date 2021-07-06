@@ -7,3 +7,8 @@ bin/
 tools/tabledesign
 tools/vadpcm_enc
 tools/*.exe
+*.aifc
+*.aiff
+*.table
+z64audio
+z64audio.exe
