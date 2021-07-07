@@ -10,6 +10,7 @@ static void showModes(void);
 static void assertMode(z64audioMode mode);
 static z64audioMode requestMode(void);
 static void showArgs(void);
+static void shiftArgs(int *argc, char *argv[], int i);
 
 static inline void win32icon(void)
 {
@@ -84,7 +85,8 @@ int main(int argc, char** argv) {
 		showArgs();
 	}
 	/* one input file = guided mode */
-	else if (argc == 2) {
+	else if (argc == 2 && memcmp(argv[1], "--", 2)) {
+		// TODO revert for final release
 		// gAudioState.mode = requestMode();
 		gAudioState.mode = Z64AUDIOMODE_WAV_TO_ZZRTL; // For testing purposes
 		infile = argv[1];
@@ -95,6 +97,17 @@ int main(int argc, char** argv) {
 		for (i = 1; i < argc; i += 2) {
 			char* arg = argv[i];
 			char* next = argv[i + 1];
+			
+			if (!strcmp(arg, "--tabledesign"))
+			{
+				shiftArgs(&argc, argv, i);
+				return tabledesign(argc, argv, stdout);
+			}
+			else if (!strcmp(arg, "--vadpcm_enc"))
+			{
+				shiftArgs(&argc, argv, i);
+				return vadpcm_enc(argc, argv);
+			}
 	
 			if (!next)
 				PrintFail("Argument '%s' is missing parameter\n", arg);
@@ -180,6 +193,10 @@ static void showArgs(void) {
 	P("  command line mode:");
 	P("    z64audio --wav \"input.wav\" --mode X");
 	P("    where X is one of the following modes:");
+	P("  extras:");
+	P("    --tabledesign");
+	P("    --vadpcm_enc");
+	P("    example: z64audio --tabledesign -i 30 \"wow.aiff\" > \"wow.table\"");
 #ifdef _WIN32 /* helps users unfamiliar with command line */
 	P("");
 	P("Alternatively, Windows users can close this window and drop");
@@ -191,3 +208,13 @@ static void showArgs(void) {
 	#undef P
 	exit(EXIT_FAILURE);
 }
+
+static void shiftArgs(int *argc, char *argv[], int i)
+{
+	int newArgc = *argc - i;
+	int k;
+	for (k = 0; i <= *argc; ++k, ++i)
+		argv[k] = argv[i];
+	*argc = newArgc;
+}
+
