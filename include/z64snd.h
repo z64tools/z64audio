@@ -35,12 +35,11 @@ typedef struct {
 	s8        table;
 	FileExten ftype;
 	z64audioMode mode;
-	
 } z64audioState;
 
 static z64audioState gAudioState = {
-	.aiff = true,
-	.aifc = true,
+	.aiff = false,
+	.aifc = false,
 	.table = true,
 	.ftype = NONE,
 	.mode = Z64AUDIOMODE_UNSET,
@@ -68,8 +67,7 @@ intptr_t ptrDiff(const void* minuend, const void* subtrahend) {
 }
 
 /* return u32 representation of float */
-u32 hexFloat(float v)
-{
+u32 hexFloat(float v) {
 	/* TODO this might not work on platforms with different endianness */
 	return *(u32*)&v;
 }
@@ -268,39 +266,39 @@ s8 File_GetAndSort(char* wav, char** file) {
 	s8 fileCount = 1;
 	char* wow = malloc(strlen(wav) + 32);
 	char fname[128];
-    char fnameT[128];
-    char path[128];
-    s32 temp = 0;
+	char fnameT[128];
+	char path[128];
+	s32 temp = 0;
+	
 	/* primary */
 	file[0] = strdup(wav);
-    
-    if (strstr(wav, ".previous") || strstr(wav, ".secondary")) {
-        char* p = strstr(wav, ".previous");
-        
-        if (p == NULL && (*p = strstr(wav, ".secondary") == NULL)) {
-            PrintWarning("Could not confirm filename. Processing only one file");
-            
-            return fileCount;
-        }
-        
-        GetFilename(wav, fname, path, &temp);
-        GetFilename(wav, fnameT, path, &temp);
-        
-        fnameT[ptrDiff(p, wav) - strlen(path)] = '\0';
-        
-        snprintf(fname, 5 + strlen(fname), "%s.wav", fnameT);
-        DebugPrint("Looking for %s\n", fname);
-        
-        
-        if (File_TestIfExists(fname) == 0) {
-            PrintWarning("Could not find %s. Processing only one file\n", fname);
-            
-            return fileCount;
-        }
-        
-        file[0] = strdup(fname);
-        wav = strdup(fname);
-    }
+	
+	if (strstr(wav, ".previous") || strstr(wav, ".secondary")) {
+		char* p = strstr(wav, ".previous");
+		
+		if (p == NULL && (*p = strstr(wav, ".secondary") == NULL)) {
+			PrintWarning("Could not confirm filename. Processing only one file");
+			
+			return fileCount;
+		}
+		
+		GetFilename(wav, fname, path, &temp);
+		GetFilename(wav, fnameT, path, &temp);
+		
+		fnameT[ptrDiff(p, wav) - strlen(path)] = '\0';
+		
+		snprintf(fname, 5 + strlen(fname), "%s.wav", fnameT);
+		DebugPrint("Looking for %s\n", fname);
+		
+		if (File_TestIfExists(fname) == 0) {
+			PrintWarning("Could not find %s. Processing only one file\n", fname);
+			
+			return fileCount;
+		}
+		
+		file[0] = strdup(fname);
+		wav = strdup(fname);
+	}
 	
 	/* secondary */
 	if (FormatSampleNameExists(wow, wav, "secondary")) {
@@ -349,7 +347,8 @@ void Audio_Clean(char* file) {
 	
 	if (fname[0] == 0) {
 		PrintWarning("Failed to get filename for cleaning.");
-        return;
+		
+		return;
 	}
 	
 	if (gAudioState.aiff == true) {
@@ -454,11 +453,11 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 	}
 	
 	DebugPrint("BitRate\t\t\t%d-bit.\n", wav->bitsPerSamp);
-    
-    if (wav->bitsPerSamp == 32) {
-        bitProcess = true;
-    }
-    
+	
+	if (wav->bitsPerSamp == 32) {
+		bitProcess = true;
+	}
+	
 	if (wav->bitsPerSamp != 16 && wav->bitsPerSamp != 32) {
 		DebugPrint("Warning: Non supported bit depth. Try 16-bit or 32-bit.\n");
 	}
@@ -559,16 +558,15 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 				.positionL = (waveSmpl->loopData[0].end & 0xFFFF),
 			},
 		};
-        
-        if(waveSmpl->numSampleLoops == 0) {
-            marker[0].positionH = marker[0].positionL = 0;
-        };
+		
+		if(waveSmpl->numSampleLoops == 0) {
+			marker[0].positionH = marker[0].positionL = 0;
+		}
+		;
 		
 		BSWAP16(marker[0].MarkerID);
-		BSWAP16(marker[0].positionH);
 		BSWAP16(marker[0].positionL);
 		BSWAP16(marker[1].MarkerID);
-		BSWAP16(marker[1].positionH);
 		BSWAP16(marker[1].positionL);
 		fwrite(&marker, sizeof(Marker) * 2, 1, o);
 		
@@ -594,16 +592,14 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 				.endLoop = 2
 			},
 			.releaseLoop = {
-				.playMode = 1,
-				.beginLoop = 0,
-				.endLoop = 1
+				.playMode = 0
 			}
 		};
-        
-        if (waveSmpl->numSampleLoops == 0) {
-            instChunk.sustainLoop.playMode = 0;
-            instChunk.releaseLoop.playMode = 0;
-        }
+		
+		if (waveSmpl->numSampleLoops == 0) {
+			instChunk.sustainLoop.playMode = 0;
+			instChunk.releaseLoop.playMode = 0;
+		}
 		
 		BSWAP16(instChunk.sustainLoop.playMode);
 		BSWAP16(instChunk.sustainLoop.beginLoop);
@@ -652,18 +648,18 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 		} else {
 			for (s32 i = 0; i < wavDataChunk->size / 2 / 2; i++) {
 				float* f32 = (float*)data;
-				s16 wow = f32[i] * 32767;
+				s16 wow = f32[i] * 32766;
 				
 				if (channelProcess) {
-    				s16 wow_2 = f32[i + 1] * 32767;
-                    wow = ((float)wow + (float)wow_2) * 0.5;
-                    
+					s16 wow_2 = f32[i + 1] * 32766;
+					wow = ((float)wow + (float)wow_2) * 0.5;
+					
 					i += 1;
-                }
-                
-                BSWAP16(wow);
-                
-                fwrite(&wow, sizeof(s16), 1, o);
+				}
+				
+				BSWAP16(wow);
+				
+				fwrite(&wow, sizeof(s16), 1, o);
 			}
 		}
 	}
@@ -688,39 +684,39 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	
 	if (gAudioState.ftype == WAV)
 		Audio_Convert_WavToAiff(argv, _sr);
-    
-    if (gAudioState.mode == Z64AUDIOMODE_WAV_TO_AIFF) {
-        if (File_TestIfExists(fname_AIFF))
-            exit(EXIT_SUCCESS);
-        else {
-            PrintFail("%s does not exist. Something has gone terribly wrong.\n", fname_AIFF);
-        }
-    }
+	
+	if (gAudioState.mode == Z64AUDIOMODE_WAV_TO_AIFF) {
+		if (File_TestIfExists(fname_AIFF))
+			exit(EXIT_SUCCESS);
+		else {
+			PrintFail("%s does not exist. Something has gone terribly wrong.\n", fname_AIFF);
+		}
+	}
 	
 	/* run tabledesign */
 	{
 #ifdef Z64AUDIO_EXTERNAL_DEPENDENCIES
-		snprintf(buffer, sizeof(buffer), "tabledesign -i 30 \"%s%s\" > \"%s%s\"", path, fname_AIFF, path, fname_TABLE);
-		if (system(buffer))
-			PrintFail("tabledesign has failed...\n");
+    	snprintf(buffer, sizeof(buffer), "tabledesign -i 30 \"%s%s\" > \"%s%s\"", path, fname_AIFF, path, fname_TABLE);
+    	if (system(buffer))
+    		PrintFail("tabledesign has failed...\n");
 #else
-		strcpy(buffer, path); strcat(buffer, fname_TABLE);
-		FILE* fp = fopen(buffer, "w");
-		char* argv[] = {
-			/*0*/ strdup("tabledesign")
-			/*1*/, strdup("-i")
-			/*2*/, strdup("30")
-			/*3*/, buffer
-			/*4*/, 0
-		};
-		snprintf(buffer, sizeof(buffer), "%s%s", path, fname_AIFF);
-		if (tabledesign(4, argv, fp))
-			PrintFail("tabledesign has failed...\n");
-		DebugPrint("%s generated succesfully\n", fname_TABLE);
-		fclose(fp);
-		free(argv[0]);
-		free(argv[1]);
-		free(argv[2]);
+    	strcpy(buffer, path); strcat(buffer, fname_TABLE);
+    	FILE* fp = fopen(buffer, "w");
+    	char* argv[] = {
+    		/*0*/ strdup("tabledesign")
+    		/*1*/, strdup("-i")
+    		/*2*/, strdup("30")
+    		/*3*/, buffer
+    		/*4*/, 0
+    	};
+    	snprintf(buffer, sizeof(buffer), "%s%s", path, fname_AIFF);
+    	if (tabledesign(4, argv, fp))
+    		PrintFail("tabledesign has failed...\n");
+    	DebugPrint("%s generated succesfully\n", fname_TABLE);
+    	fclose(fp);
+    	free(argv[0]);
+    	free(argv[1]);
+    	free(argv[2]);
 #endif
 	}
 	
@@ -772,7 +768,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	fclose(f);
 	
 	/* PREDICTOR */
-	snprintf(buffer, sizeof(buffer), "%s%s.pred.bin", path,fname);
+	snprintf(buffer, sizeof(buffer), "%s%s.predictors.bin", path,fname);
 	pred = fopen(buffer, MODE_WRITE);
 	p += 8;
 	while (!(p[-7] == 'C' && p[-6] == 'O' && p[-5] == 'D' && p[-4] == 'E' && p[-3] == 'S')) {
@@ -816,7 +812,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	
 	if (STATE_DEBUG_PRINT)
 		printf("\n");
-	DebugPrint("%s.pred.bin\tOK\n", fname);
+	DebugPrint("%s.predictors.bin\tOK\n", fname);
 	DebugPrint("%s.sample.bin\tOK\n", fname);
 	
 	ALADPCMloop* loopInfo = 0;
@@ -826,7 +822,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	
 	memcpy(_destComm, comm, sizeof(CommonChunk));
 	
-	snprintf(buffer, sizeof(buffer), "%s%s.conf.tsv", path, fname);
+	snprintf(buffer, sizeof(buffer), "%s%s.config.tsv", path, fname);
 	conf = fopen(buffer, MODE_WRITE);
 	
 	while (!(p[-8] == 'O' && p[-7] == 'O' && p[-6] == 'P' && p[-5] == 'S')) {
@@ -843,15 +839,15 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 		BSWAP32(loopInfo->start);
 		BSWAP32(loopInfo->end);
 		BSWAP32(loopInfo->count);
-        
-        snprintf(buffer, sizeof(buffer), "%s.loopPred.bin", fname);
-        
-        FILE* fLoopPred = fopen(buffer, MODE_WRITE);
-        
-        for (s32 i = 0; i < 16; i++)
-            fwrite(&loopInfo->state[i], sizeof(s16), 1, fLoopPred);
-        
-        fclose(fLoopPred);
+		
+		snprintf(buffer, sizeof(buffer), "%s.looppredictors.bin", fname);
+		
+		FILE* fLoopPred = fopen(buffer, MODE_WRITE);
+		
+		for (s32 i = 0; i < 16; i++)
+			fwrite(&loopInfo->state[i], sizeof(s16), 1, fLoopPred);
+		
+		fclose(fLoopPred);
 	}
 	
 	p = adpcm + 8;
@@ -864,17 +860,17 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	
 	instData = (InstrumentChunk*)p;
 	memcpy(_destInst, instData, sizeof(InstrumentChunk));
-    
-    u32 numFrame = 0;
-    u16 numFrames[2] = {
-        comm->numFramesH,
-        comm->numFramesL
-    };
-    
-    BSWAP16(numFrames[0]);
-    BSWAP16(numFrames[1]);
-    
-    numFrame = (numFrames[0] << 16) | numFrames[1];
+	
+	u32 numFrame = 0;
+	u16 numFrames[2] = {
+		comm->numFramesH,
+		comm->numFramesL
+	};
+	
+	BSWAP16(numFrames[0]);
+	BSWAP16(numFrames[1]);
+	
+	numFrame = (numFrames[0] << 16) | numFrames[1];
 	
 	fprintf(conf, "precision\tloopstart\tloopend  \tloopcount\tlooptail \n%08X\t", 0);
 	if (lflag && loopInfo) {
@@ -882,17 +878,17 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 		fprintf(conf, "%08X\t", loopInfo->start);
 		fprintf(conf, "%08X\t", loopInfo->end);
 		fprintf(conf, "%08X\t", loopInfo->count);
-        if (numFrame <= loopInfo->end)
-            numFrame = 0;
+		if (numFrame <= loopInfo->end)
+			numFrame = 0;
 		fprintf(conf, "%08X\n", numFrame);
 	} else {
 		fprintf(conf, "%08X\t", 0);
-        fprintf(conf, "%08X\t", numFrame);
+		fprintf(conf, "%08X\t", numFrame);
 		fprintf(conf, "%08X\t", 0);
 		fprintf(conf, "%08X\n", 0);
 	}
 	
-	DebugPrint("%s.conf.tsv\tOK\n\n", fname);
+	DebugPrint("%s.config.tsv\tOK\n\n", fname);
 	
 	fclose(conf);
 	if (adpcm)
@@ -904,6 +900,23 @@ void Audio_GenerateInstrumentConf(char* file, s8 procCount, InstrumentChunk* ins
 	char fname[128] = { 0 };
 	char path[128] = { 0 };
 	FILE* conf;
+	char note[12][4] = {
+		"C",
+		"C#",
+		"D",
+		"D#",
+		"E",
+		"F",
+		"F#",
+		"G",
+		"G#",
+		"A",
+		"A#",
+		"H",
+	};
+	
+	printf("\n");
+	DebugPrint("Generating inst.tsv\n");
 	
 	SetFilename(file, fname, path, NULL, NULL, NULL);
 	
@@ -915,7 +928,11 @@ void Audio_GenerateInstrumentConf(char* file, s8 procCount, InstrumentChunk* ins
 	float pitch[3] = { 0 };
 	
 	for (s32 i = 0; i < 3; i++) {
-		pitch[i] = pow(pow(2, 1.0 / 12), 60 - instInfo[i].baseNote) * ( (float)sampleRate[i] / 32000.0);
+		pitch[i] = ((float)sampleRate[i]) / 32000.0f;
+		pitch[i] *= pow(pow(2, 1.0 / 12), 60 - instInfo[i].baseNote);
+		s8 nn = instInfo[i].baseNote % 12;
+		u32 f = floor((double)instInfo[i].baseNote / 12);
+		DebugPrint("note %s%d\t%2.1f kHz\t%f\n", note[nn], (u32)f, (float)sampleRate[i] * 0.001, pitch[i]);
 	}
 	
 	conf = fopen(buffer, MODE_WRITE);
@@ -952,22 +969,22 @@ void Audio_GenerateInstrumentConf(char* file, s8 procCount, InstrumentChunk* ins
 		    snprintf(floats[2], 9, "%08X", hexFloat(pitch[1]));
 		    snprintf(sampleID[2], 4, "%d", 0);
 		    
-		    snprintf(split[2], 9, "%d", instInfo[1].highNote - 21);
+		    snprintf(split[2], 9, "%d", instInfo[0].highNote - 21);
 	    } break;
 	    
 	    /* Prev Prim Secn */
 	    case 3: {
-		    snprintf(floats[1], 9, "%08X", hexFloat(pitch[1]));
-		    snprintf(sampleID[1], 5, "%d", 0);
-		    
-		    snprintf(floats[2], 9, "%08X", hexFloat(pitch[2]));
-		    snprintf(sampleID[2], 5, "%d", 0);
-		    
-		    snprintf(floats[0], 9, "%08X", hexFloat(pitch[0]));
+		    snprintf(floats[0], 9, "%08X", hexFloat(pitch[2]));
 		    snprintf(sampleID[0], 5, "%d", 0);
 		    
-		    snprintf(split[1], 9, "%d", instInfo[1].lowNote - 21);
-		    snprintf(split[2], 9, "%d", instInfo[1].highNote - 21);
+		    snprintf(floats[1], 9, "%08X", hexFloat(pitch[0]));
+		    snprintf(sampleID[1], 5, "%d", 0);
+		    
+		    snprintf(floats[2], 9, "%08X", hexFloat(pitch[1]));
+		    snprintf(sampleID[2], 5, "%d", 0);
+		    
+		    snprintf(split[1], 9, "%d", instInfo[0].lowNote - 21);
+		    snprintf(split[2], 9, "%d", instInfo[0].highNote - 21);
 	    } break;
 	}
 	
@@ -976,4 +993,6 @@ void Audio_GenerateInstrumentConf(char* file, s8 procCount, InstrumentChunk* ins
 	fprintf(conf, "%s\t%s\t%s\t%s\t%s\t%s", sampleID[0], floats[0], sampleID[1], floats[1], sampleID[2], floats[2]);
 	
 	fclose(conf);
+	
+	DebugPrint("inst.tsv\t\t\tOK\n");
 }

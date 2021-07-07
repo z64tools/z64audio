@@ -17,6 +17,7 @@ win32: z64audio.exe
 all: objects default
 
 objlinux:
+	@rm -f bin/o/linux/*.o
 	@$(GPP) -std=c++11 -c $(MAGIC) -DNDEBUG tools/audiofile/audiofile.cpp -Itools/audiofile
 	@$(GCC) -c tools/sdk-tools/tabledesign/*.c -s $(MAGIC) -flto -DNDEBUG -Itools/audiofile
 	@$(GCC) -c $(ADPCM)quant.c $(ADPCM)sampleio.c $(ADPCM)util.c $(ADPCM)vpredictor.c $(ADPCM)vadpcm_enc.c $(ADPCM)vencode.c -s $(MAGIC) -flto -DNDEBUG -Itools/audiofile
@@ -25,10 +26,11 @@ objlinux:
 
 z64audio: z64snd.c include/z64snd.h
 	@$(GCC) -c z64snd.c -Wall
-	@$(GPP) -o z64audio *.o bin/o/linux/*.o $(MAGIC) -s -flto -DNDEBUG
-	@rm *.o
+	@$(GPP) -o z64audio z64snd.o bin/o/linux/*.o $(MAGIC) -s -flto -DNDEBUG
+	@rm -f *.o
 
 objwin32:
+	@rm -f bin/o/win32/*.o
 	@$(WIN_GPP) -std=c++11 -c $(MAGIC) -DNDEBUG tools/audiofile/audiofile.cpp -Itools/audiofile
 	@$(WIN_GCC) -c tools/sdk-tools/tabledesign/*.c -s $(MAGIC) -flto -DNDEBUG -Itools/audiofile
 	@$(WIN_GCC) -c $(ADPCM)quant.c $(ADPCM)sampleio.c $(ADPCM)util.c $(ADPCM)vpredictor.c $(ADPCM)vadpcm_enc.c $(ADPCM)vencode.c -s $(MAGIC) -flto -DNDEBUG -Itools/audiofile
@@ -37,9 +39,9 @@ objwin32:
 
 z64audio.exe: z64snd.c include/z64snd.h
 	@$(WIN_GCC) -c z64snd.c -Wall
-	~/c/mxe/usr/bin/i686-w64-mingw32.static-windres icon.rc -o bin/o/win32/icon.o
-	@$(WIN_GPP) -o z64audio.exe *.o bin/o/win32/*.o $(MAGIC) -s -flto -DNDEBUG
-	@rm *.o
+	@~/c/mxe/usr/bin/i686-w64-mingw32.static-windres icon.rc -o bin/o/win32/icon.o
+	@$(WIN_GPP) -o z64audio.exe z64snd.o bin/o/win32/*.o $(MAGIC) -s -flto -DNDEBUG
+	@rm -f *.o
 
 clean:
-	@rm *.tsv *.bin *.aifc *.aiff *.table
+	@rm -f *.tsv *.bin *.aifc *.aiff *.table

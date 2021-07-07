@@ -137,7 +137,6 @@ int main(int argc, char** argv) {
 	}
 	
 	Audio_GenerateInstrumentConf(file[0], fileCount, instInfo, sampleRate);
-	DebugPrint("*.inst.tsv\t\t\tOK\n");
 	
 	for (i = 0; i < (sizeof(file) / sizeof(*file)); ++i)
 		if (file[i])
@@ -148,7 +147,7 @@ int main(int argc, char** argv) {
 	#ifdef _WIN32
 	if (argc == 2) {
 		fflush(stdin);
-		DebugPrint("\nPress any key to exit...\n");
+		DebugPrint("\nPress ENTER to exit...\n");
 		getchar();
 	}
 	#endif
