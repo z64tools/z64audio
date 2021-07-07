@@ -11,4 +11,4 @@ tools/*.exe
 *.aiff
 *.table
 z64audio
-z64audio.exe
+*exe
