@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
 		PrintFail("Something has gone terribly wrong... fileCount == %d", fileCount);
 	
 	for (s32 i = 0; i < fileCount; i++)
-		Audio_Process(file[i], 0, &loopInfo[i], &instInfo[i], &commInfo[i], &sampleRate[i]);
+		Audio_Process(file[i], i, &loopInfo[i], &instInfo[i], &commInfo[i], &sampleRate[i]);
 	
 	DebugPrint("Starting clean for %d file(s)\n", fileCount);
 	

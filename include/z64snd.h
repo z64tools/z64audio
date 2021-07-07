@@ -35,6 +35,7 @@ typedef struct {
 	s8        table;
 	FileExten ftype;
 	z64audioMode mode;
+    s8 instDataFlag[3];
 } z64audioState;
 
 static z64audioState gAudioState = {
@@ -43,6 +44,7 @@ static z64audioState gAudioState = {
 	.table = true,
 	.ftype = NONE,
 	.mode = Z64AUDIOMODE_UNSET,
+    .instDataFlag = { 0, 0, 0 },
 };
 
 const char sHeaders[3][6] = {
@@ -376,13 +378,12 @@ void Audio_Clean(char* file) {
 	}
 }
 
-void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
+void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate, s32 iMain) {
 	FILE* f;
 	WaveHeader* wav = 0;
 	FILE* o;
 	s32 bitProcess = 0;
 	s32 channelProcess = 0;
-	s32 wasHasExtraData = 0;
 	ChunkHeader chunkHeader;
 	WaveChunk* wavDataChunk;
 	InstrumentHeader* waveInst;
@@ -396,6 +397,7 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 	
 	/* FILE LOAD */ {
 		WaveHeader wave;
+        u32 fsize = 0;
 		f = fopen(fileInput, MODE_READ);
 		fread(&wave, sizeof(WaveHeader), 1, f);
 		fclose(f);
@@ -405,6 +407,11 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 		if (wav == NULL)
 			PrintFail("Malloc Fail\n");
 		fread(wav, wave.chunk.size + 8, 1, f);
+        
+        rewind(f);
+        fseek(f, 0L, SEEK_END);
+        fsize = ftell(f);
+        
 		fclose(f);
 		
 		wavDataChunk = (WaveChunk*)wav;
@@ -421,16 +428,18 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 		}
 		
 		data = ((WaveData*)wavDataChunk)->data;
-		
-		if (wav->chunk.size - 0x24 > wavDataChunk->size)
-			wasHasExtraData = true;
+        
+		DebugPrint("ExtraData comparison result: %d > %d\n", fsize - ((intptr_t)data - (intptr_t)wav), wavDataChunk->size);
+		if (fsize - ((intptr_t)data - (intptr_t)wav) > wavDataChunk->size) {
+			gAudioState.instDataFlag[iMain] = true;
+        }
 	}
 	
 	if ((o = fopen(fname_AIFF, MODE_WRITE)) == NULL) {
 		PrintFail("Output file [%s] could not be opened.\n", fname_AIFF);
 	}
 	
-	if (wasHasExtraData == true) {
+	if (gAudioState.instDataFlag[iMain]) {
 		waveSmpl = (SampleHeader*)((char*)data + wavDataChunk->size);
 		while (!(waveSmpl->chunk.ID[0] == 0x73 && waveSmpl->chunk.ID[1] == 0x6D && waveSmpl->chunk.ID[2] == 0x70 && waveSmpl->chunk.ID[3] == 0x6C)) {
 			char* s = (char*)waveSmpl;
@@ -480,7 +489,7 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 		
 		formChunk.ckSize += chunkSize;
 		
-		if (wasHasExtraData)
+		if (gAudioState.instDataFlag[iMain])
 			formChunk.ckSize += sizeof(ChunkHeader) + sizeof(Marker) * 2 + sizeof(u16) + sizeof(ChunkHeader) + sizeof(InstrumentChunk);
 		
 		BSWAP32(formChunk.ckID);
@@ -533,7 +542,7 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 	}
 	DebugPrint("CommonChunk\t\tDone\n");
 	
-	if (wasHasExtraData == true) {      /* MARK && INST CHUNK */
+	if (gAudioState.instDataFlag[iMain]) {      /* MARK && INST CHUNK */
 		chunkHeader = (ChunkHeader) {
 			.ckID = 0x4d41524b, // MARK
 			.ckSize = sizeof(Marker) * 2 + sizeof(u16)
@@ -670,7 +679,7 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 		free(wav);
 }
 
-void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChunk* _destInst, CommonChunk* _destComm, u32* _sr) {
+void Audio_Process(char* argv, s32 iMain, ALADPCMloop* _destLoop, InstrumentChunk* _destInst, CommonChunk* _destComm, u32* _sr) {
 	char fname[64] = { 0 };
 	char path[128] = { 0 };
 	char fname_AIFF[64] = { 0 };
@@ -683,7 +692,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 	DebugPrint("Path: %s\n\n", path);
 	
 	if (gAudioState.ftype == WAV)
-		Audio_Convert_WavToAiff(argv, _sr);
+		Audio_Convert_WavToAiff(argv, _sr, iMain);
 	
 	if (gAudioState.mode == Z64AUDIOMODE_WAV_TO_AIFF) {
 		if (File_TestIfExists(fname_AIFF))
@@ -895,7 +904,7 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 		free(adpcm);
 }
 
-void Audio_GenerateInstrumentConf(char* file, s8 procCount, InstrumentChunk* instInfo, u32* sampleRate) {
+void Audio_GenerateInstrumentConf(char* file, s32 fileCount, InstrumentChunk* instInfo, u32* sampleRate) {
 	char buffer[1024] = { 0 };
 	char fname[128] = { 0 };
 	char path[128] = { 0 };
@@ -927,12 +936,17 @@ void Audio_GenerateInstrumentConf(char* file, s8 procCount, InstrumentChunk* ins
 	
 	float pitch[3] = { 0 };
 	
-	for (s32 i = 0; i < 3; i++) {
+	for (s32 i = 0; i < fileCount; i++) {
+        s8 nn = instInfo[i].baseNote % 12;
+        u32 f = floor((double)instInfo[i].baseNote / 12);
+        
 		pitch[i] = ((float)sampleRate[i]) / 32000.0f;
-		pitch[i] *= pow(pow(2, 1.0 / 12), 60 - instInfo[i].baseNote);
-		s8 nn = instInfo[i].baseNote % 12;
-		u32 f = floor((double)instInfo[i].baseNote / 12);
-		DebugPrint("note %s%d\t%2.1f kHz\t%f\n", note[nn], (u32)f, (float)sampleRate[i] * 0.001, pitch[i]);
+        
+        if (gAudioState.instDataFlag[i]) {
+    		pitch[i] *= pow(pow(2, 1.0 / 12), 60 - instInfo[i].baseNote);
+        }
+        
+        DebugPrint("note %s%d\t%2.1f kHz\t%f\n", note[nn], (u32)f, (float)sampleRate[i] * 0.001, pitch[i]);
 	}
 	
 	conf = fopen(buffer, MODE_WRITE);
@@ -954,7 +968,7 @@ void Audio_GenerateInstrumentConf(char* file, s8 procCount, InstrumentChunk* ins
 		"127"
 	};
 	
-	switch (procCount) {
+	switch (fileCount) {
 	    /* NULL Prim NULL */
 	    case 1: {
 		    snprintf(floats[1], 9, "%08X", hexFloat(pitch[0]));
@@ -969,7 +983,8 @@ void Audio_GenerateInstrumentConf(char* file, s8 procCount, InstrumentChunk* ins
 		    snprintf(floats[2], 9, "%08X", hexFloat(pitch[1]));
 		    snprintf(sampleID[2], 4, "%d", 0);
 		    
-		    snprintf(split[2], 9, "%d", instInfo[0].highNote - 21);
+            if (instInfo[0].highNote != 0)
+    		    snprintf(split[2], 9, "%d", instInfo[0].highNote - 21);
 	    } break;
 	    
 	    /* Prev Prim Secn */
@@ -983,8 +998,10 @@ void Audio_GenerateInstrumentConf(char* file, s8 procCount, InstrumentChunk* ins
 		    snprintf(floats[2], 9, "%08X", hexFloat(pitch[1]));
 		    snprintf(sampleID[2], 5, "%d", 0);
 		    
-		    snprintf(split[1], 9, "%d", instInfo[0].lowNote - 21);
-		    snprintf(split[2], 9, "%d", instInfo[0].highNote - 21);
+            if (instInfo[0].highNote != 0) {
+    		    snprintf(split[1], 9, "%d", instInfo[0].lowNote - 21);
+    		    snprintf(split[2], 9, "%d", instInfo[0].highNote - 21);
+            }
 	    } break;
 	}
 	
