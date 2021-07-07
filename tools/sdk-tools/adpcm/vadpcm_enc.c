@@ -58,7 +58,6 @@ int vadpcm_enc(int argc, char **argv)
     ALADPCMloop *aloops = 0;
     Marker *markers = 0;
     CodeChunk cChunk = {0};
-    char filename[1024] = {0};
     FILE *fhandle = 0;
     FILE *ifile = 0;
     FILE *ofile = 0;
@@ -75,20 +74,17 @@ int vadpcm_enc(int argc, char **argv)
         switch (c)
         {
         case 'c':
-            if (sscanf(optarg, "%s", filename) == 1)
+            if ((fhandle = fopen(optarg, "r")) == NULL)
             {
-                if ((fhandle = fopen(filename, "r")) == NULL)
-                {
-                    fprintf(stderr, "Codebook file %s could not be opened\n", filename);
-                    exit(1);
-                }
-                if (readcodebook(fhandle, &coefTable, &order, &npredictors) != 0)
-                {
-                    fprintf(stderr, "Error reading codebook\n");
-                    exit(1);
-                }
-                fclose(fhandle);
+                fprintf(stderr, "Codebook file %s could not be opened\n", optarg);
+                exit(1);
             }
+            if (readcodebook(fhandle, &coefTable, &order, &npredictors) != 0)
+            {
+                fprintf(stderr, "Error reading codebook\n");
+                exit(1);
+            }
+            fclose(fhandle);
             break;
 
         case 't':
