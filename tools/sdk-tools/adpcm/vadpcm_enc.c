@@ -5,61 +5,63 @@
 #include <getopt.h>
 #include "vadpcm.h"
 
+#define FREE_P(P)  if (P) free(P);
+
 static char usage[] = "[-t -l min_loop_length] -c codebook aifcfile compressedfile";
 
 int vadpcm_enc(int argc, char **argv)
 {
-    s32 c;
+    s32 c = 0;
     char *progname = argv[0];
     s16 nloops = 0;
-    s16 numMarkers;
-    s16 *inBuffer;
-    s16 ts;
+    s16 numMarkers = 0;
+    s16 *inBuffer = 0;
+    s16 ts = 0;
     s32 minLoopLength = 800;
     s32 ***coefTable = NULL;
-    s32 *state;
-    s32 order;
-    s32 npredictors;
+    s32 *state = 0;
+    s32 order = 0;
+    s32 npredictors = 0;
     s32 done = 0;
     s32 truncate = 0;
-    s32 num;
-    s32 tableSize;
-    s32 nsam;
-    s32 left;
-    u32 newEnd;
-    s32 nRepeats;
-    s32 i;
-    s32 j;
-    s32 k;
-    s32 nFrames;
-    s32 offset;
-    s32 cChunkPos;
-    s32 currentPos;
+    s32 num = 0;
+    s32 tableSize = 0;
+    s32 nsam = 0;
+    s32 left = 0;
+    u32 newEnd = 0;
+    s32 nRepeats = 0;
+    s32 i = 0;
+    s32 j = 0;
+    s32 k = 0;
+    s32 nFrames = 0;
+    s32 offset = 0;
+    s32 cChunkPos = 0;
+    s32 currentPos = 0;
     s32 soundPointer = 0;
     s32 startPointer = 0;
     s32 startSoundPointer = 0;
-    s32 cType;
+    s32 cType = 0;
     s32 nBytes = 0;
-    u32 loopEnd;
+    u32 loopEnd = 0;
     char *compName = "VADPCM ~4-1";
     char *appCodeName = "VADPCMCODES";
     char *appLoopName = "VADPCMLOOPS";
-    u8 strnLen;
-    Chunk AppChunk;
-    Chunk FormChunk;
-    ChunkHeader CSndChunk;
-    ChunkHeader Header;
-    CommonChunk CommChunk;
-    SoundDataChunk SndDChunk;
-    InstrumentChunk InstChunk;
+    u8 strnLen = 0;
+    Chunk AppChunk = {0};
+    Chunk FormChunk = {0};
+    ChunkHeader CSndChunk = {0};
+    ChunkHeader Header = {0};
+    CommonChunk CommChunk = {0};
+    SoundDataChunk SndDChunk = {0};
+    InstrumentChunk InstChunk = {0};
     Loop *loops = NULL;
-    ALADPCMloop *aloops;
-    Marker *markers;
-    CodeChunk cChunk;
-    char filename[1024];
-    FILE *fhandle;
-    FILE *ifile;
-    FILE *ofile;
+    ALADPCMloop *aloops = 0;
+    Marker *markers = 0;
+    CodeChunk cChunk = {0};
+    char filename[1024] = {0};
+    FILE *fhandle = 0;
+    FILE *ifile = 0;
+    FILE *ofile = 0;
 
     if (argc < 2)
     {
@@ -85,6 +87,7 @@ int vadpcm_enc(int argc, char **argv)
                     fprintf(stderr, "Error reading codebook\n");
                     exit(1);
                 }
+                fclose(fhandle);
             }
             break;
 
@@ -133,7 +136,7 @@ int vadpcm_enc(int argc, char **argv)
 
     inBuffer = malloc(16 * sizeof(s16));
 
-    fread(&FormChunk, sizeof(Chunk), 1, ifile);
+    fread(&FormChunk, sizeof(FormChunk), 1, ifile);
     BSWAP32(FormChunk.ckID)
     BSWAP32(FormChunk.ckSize)
     BSWAP32(FormChunk.formType)
@@ -217,6 +220,7 @@ int vadpcm_enc(int argc, char **argv)
             offset = ftell(ifile);
             fread(&numMarkers, sizeof(s16), 1, ifile);
             BSWAP16(numMarkers)
+            FREE_P(markers);
             markers = malloc(numMarkers * sizeof(Marker));
             for (i = 0; i < numMarkers; i++)
             {
@@ -246,6 +250,8 @@ int vadpcm_enc(int argc, char **argv)
             BSWAP16(InstChunk.releaseLoop.playMode)
             BSWAP16(InstChunk.releaseLoop.beginLoop)
             BSWAP16(InstChunk.releaseLoop.endLoop)
+            FREE_P(aloops);
+            FREE_P(loops);
             aloops = malloc(2 * sizeof(ALADPCMloop));
             loops = malloc(2 * sizeof(Loop));
             if (InstChunk.sustainLoop.playMode == 1)
@@ -273,7 +279,7 @@ int vadpcm_enc(int argc, char **argv)
     BSWAP32(FormChunk.ckID)
     BSWAP32(FormChunk.ckSize)
     BSWAP32(FormChunk.formType)
-    fwrite(&FormChunk, sizeof(Chunk), 1, ofile);
+    fwrite(&FormChunk, sizeof(FormChunk), 1, ofile);
 
     Header.ckID = 0x434f4d4d; // COMM
     Header.ckSize = sizeof(CommonChunk) + 1 + 11;
@@ -515,5 +521,27 @@ int vadpcm_enc(int argc, char **argv)
     fwrite(&CommChunk, sizeof(CommonChunk), 1, ofile);
     fclose(ifile);
     fclose(ofile);
+    FREE_P(markers);
+    FREE_P(state);
+    FREE_P(aloops);
+    FREE_P(loops);
+    FREE_P(inBuffer);
+    if (coefTable)
+    {
+    	int i;
+ 		int k;
+    	for (i = 0; i < npredictors; ++i)
+    	{
+    		if (!coefTable[i])
+    			continue;
+    		for (k = 0; k < 8; ++k)
+    		{
+    			if (coefTable[i][k])
+    				free(coefTable[i][k]);
+    		}
+    		free(coefTable[i]);
+    	}
+    	free(coefTable);
+    }
     return 0;
 }

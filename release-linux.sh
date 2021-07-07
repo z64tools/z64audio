@@ -2,7 +2,7 @@
 rm *.o
 
 # compile
-gcc -c z64snd.c -Wall
+gcc -c z64snd.c -Wall -Os -s -flto -DNDEBUG
 
 # link compiled objects into executable using g++
 mkdir -p bin/release

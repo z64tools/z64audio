@@ -67,6 +67,17 @@ intptr_t ptrDiff(const void* minuend, const void* subtrahend) {
 	return m - s;
 }
 
+/* return u32 representation of float */
+u32 hexFloat(float v)
+{
+	/* TODO this might not work on platforms with different endianness */
+	return *(u32*)&v;
+}
+
+void PrintFail(const char* fmt, ...) __attribute__ ((format (printf, 1, 2)));
+void PrintWarning(const char* fmt, ...) __attribute__ ((format (printf, 1, 2)));
+void DebugPrint(const char* fmt, ...) __attribute__ ((format (printf, 1, 2)));
+
 void PrintFail(const char* fmt, ...) {
 	va_list args;
 	
@@ -405,8 +416,8 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 			wavDataChunk = (WaveChunk*)s;
 			
 			if ((u8*)wavDataChunk > (u8*)wav + 8 + wav->chunk.size) {
-				DebugPrint("%X / %X\n", (u8*)wavDataChunk - (u8*)wav, 8 + wav->chunk.size);
-				PrintFail("SampleChunk: Out of range. Better stop before everything goes bonkers.\n", 0);
+				DebugPrint("%X / %X\n", (unsigned)ptrDiff(wavDataChunk, wav), 8 + wav->chunk.size);
+				PrintFail("SampleChunk: Out of range. Better stop before everything goes bonkers.\n");
 			}
 		}
 		
@@ -428,7 +439,7 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 			waveSmpl = (SampleHeader*)s;
 			
 			if ((u8*)waveSmpl > ((u8*)wav) + 8 + wav->chunk.size)
-				PrintFail("SampleInfo: Out of range. Better stop before everything goes bonkers.\n", 0);
+				PrintFail("SampleInfo: Out of range. Better stop before everything goes bonkers.\n");
 		}
 		
 		waveInst = (InstrumentHeader*)((char*)data + wavDataChunk->size);
@@ -438,7 +449,7 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 			waveInst = (InstrumentHeader*)s;
 			
 			if ((u8*)waveInst > ((u8*)wav) + 8 + wav->chunk.size)
-				PrintFail("InstrumentInfo: Out of range. Better stop before everything goes bonkers.\n", 0);
+				PrintFail("InstrumentInfo: Out of range. Better stop before everything goes bonkers.\n");
 		}
 	}
 	
@@ -449,13 +460,13 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
     }
     
 	if (wav->bitsPerSamp != 16 && wav->bitsPerSamp != 32) {
-		DebugPrint("Warning: Non supported bit depth. Try 16-bit or 32-bit.\n", 0);
+		DebugPrint("Warning: Non supported bit depth. Try 16-bit or 32-bit.\n");
 	}
 	
 	DebugPrint("Channels\t\t\t%d\n", wav->numChannels);
 	if (wav->numChannels > 1) {
 		channelProcess = true;
-		PrintWarning("Warning: Provided WAV is not MONO.\n", 0);
+		PrintWarning("Warning: Provided WAV is not MONO.\n");
 	}
 	
 	/* FORM CHUNK */ {
@@ -478,7 +489,7 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 		BSWAP32(formChunk.formType);
 		fwrite(&formChunk, sizeof(Chunk), 1, o);
 	}
-	DebugPrint("FormChunk\t\t\tDone\n", 0);
+	DebugPrint("FormChunk\t\t\tDone\n");
 	
 	/* COMMON CHUNK */ {
 		chunkHeader = (ChunkHeader) {
@@ -521,7 +532,7 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 		BSWAP16(commonChunk.compressionTypeL);
 		fwrite(&commonChunk, sizeof(CommonChunk), 1, o);
 	}
-	DebugPrint("CommonChunk\t\tDone\n", 0);
+	DebugPrint("CommonChunk\t\tDone\n");
 	
 	if (wasHasExtraData == true) {      /* MARK && INST CHUNK */
 		chunkHeader = (ChunkHeader) {
@@ -598,7 +609,7 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 		BSWAP16(instChunk.sustainLoop.beginLoop);
 		BSWAP16(instChunk.sustainLoop.endLoop);
 		fwrite(&instChunk, sizeof(InstrumentChunk), 1, o);
-		DebugPrint("ExtraChunk\t\t\tDone\n", 0);
+		DebugPrint("ExtraChunk\t\t\tDone\n");
 	}
 	
 	/* SOUND CHUNK */ {
@@ -656,8 +667,8 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate) {
 			}
 		}
 	}
-	DebugPrint("SoundChunk\t\t\tDone\n", 0);
-	DebugPrint("WAV to AIFF conversion\tOK\n\n", 0);
+	DebugPrint("SoundChunk\t\t\tDone\n");
+	DebugPrint("WAV to AIFF conversion\tOK\n\n");
 	fclose(o);
 	if (wav)
 		free(wav);
@@ -682,12 +693,17 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
         if (File_TestIfExists(fname_AIFF))
             exit(EXIT_SUCCESS);
         else {
-            PrintFail("%s does not exist. Something has gone terribly wrong.\n");
+            PrintFail("%s does not exist. Something has gone terribly wrong.\n", fname_AIFF);
         }
     }
 	
 	/* run tabledesign */
 	{
+#ifdef Z64AUDIO_EXTERNAL_DEPENDENCIES
+		snprintf(buffer, sizeof(buffer), "tabledesign -i 30 \"%s%s\" > \"%s%s\"", path, fname_AIFF, path, fname_TABLE);
+		if (system(buffer))
+			PrintFail("tabledesign has failed...\n");
+#else
 		strcpy(buffer, path); strcat(buffer, fname_TABLE);
 		FILE* fp = fopen(buffer, "w");
 		char* argv[] = {
@@ -699,16 +715,22 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 		};
 		snprintf(buffer, sizeof(buffer), "%s%s", path, fname_AIFF);
 		if (tabledesign(4, argv, fp))
-			PrintFail("tabledesign has failed...\n", 0);
+			PrintFail("tabledesign has failed...\n");
 		DebugPrint("%s generated succesfully\n", fname_TABLE);
 		fclose(fp);
 		free(argv[0]);
 		free(argv[1]);
 		free(argv[2]);
+#endif
 	}
 	
 	/* run vadpcm_enc */
 	{
+#ifdef Z64AUDIO_EXTERNAL_DEPENDENCIES
+		snprintf(buffer, sizeof(buffer), "vadpcm_enc -c \"%s%s\" \"%s%s\" \"%s%s\"", path, fname_TABLE, path, fname_AIFF, path, fname_AIFC);
+		if (system(buffer))
+			PrintFail("vadpcm_enc has failed...\n");
+#else
 		int i;
 		int pathMax = 1024;
 		char* argv[] = {
@@ -719,15 +741,15 @@ void Audio_Process(char* argv, int clean, ALADPCMloop* _destLoop, InstrumentChun
 			/*4*/, malloc(pathMax)
 			/*5*/, 0
 		};
-		//snprintf(buffer, sizeof(buffer), "%s -c %s%s %s%s %s%s", TOOL_VADPCM_ENC, path, fname_TABLE, path, fname_AIFF, path, fname_AIFC);
 		snprintf(argv[2], pathMax, "%s%s", path, fname_TABLE);
 		snprintf(argv[3], pathMax, "%s%s", path, fname_AIFF);
 		snprintf(argv[4], pathMax, "%s%s", path, fname_AIFC);
 		if (vadpcm_enc(5, argv))
-			PrintFail("vadpcm_enc has failed...\n", 0);
+			PrintFail("vadpcm_enc has failed...\n");
 		DebugPrint("%s converted to %s succesfully\n", fname_AIFF, fname_AIFC);
 		for (i = 0; argv[i]; ++i)
 			free(argv[i]);
+#endif
 	}
 	
 	FILE* f;
@@ -918,16 +940,16 @@ void Audio_GenerateInstrumentConf(char* file, s8 procCount, InstrumentChunk* ins
 	switch (procCount) {
 	    /* NULL Prim NULL */
 	    case 1: {
-		    snprintf(floats[1], 9, "%08X", *(u32*)&pitch[0]);
+		    snprintf(floats[1], 9, "%08X", hexFloat(pitch[0]));
 		    snprintf(sampleID[1], 5, "%d", 0);
 	    } break;
 	    
 	    /* NULL Prim Secn */
 	    case 2: {
-		    snprintf(floats[1], 9, "%08X", *(u32*)&pitch[0]);
+		    snprintf(floats[1], 9, "%08X", hexFloat(pitch[0]));
 		    snprintf(sampleID[1], 5, "%d", 0);
 		    
-		    snprintf(floats[2], 9, "%08X", *(u32*)&pitch[1]);
+		    snprintf(floats[2], 9, "%08X", hexFloat(pitch[1]));
 		    snprintf(sampleID[2], 4, "%d", 0);
 		    
 		    snprintf(split[2], 9, "%d", instInfo[1].highNote - 21);
@@ -935,13 +957,13 @@ void Audio_GenerateInstrumentConf(char* file, s8 procCount, InstrumentChunk* ins
 	    
 	    /* Prev Prim Secn */
 	    case 3: {
-		    snprintf(floats[1], 9, "%08X", *(u32*)&pitch[1]);
+		    snprintf(floats[1], 9, "%08X", hexFloat(pitch[1]));
 		    snprintf(sampleID[1], 5, "%d", 0);
 		    
-		    snprintf(floats[2], 9, "%08X", *(u32*)&pitch[2]);
+		    snprintf(floats[2], 9, "%08X", hexFloat(pitch[2]));
 		    snprintf(sampleID[2], 5, "%d", 0);
 		    
-		    snprintf(floats[0], 9, "%08X", *(u32*)&pitch[0]);
+		    snprintf(floats[0], 9, "%08X", hexFloat(pitch[0]));
 		    snprintf(sampleID[0], 5, "%d", 0);
 		    
 		    snprintf(split[1], 9, "%d", instInfo[1].lowNote - 21);

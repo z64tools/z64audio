@@ -2,10 +2,53 @@
 
 #include "include/z64snd.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 static void showModes(void);
 static void assertMode(z64audioMode mode);
 static z64audioMode requestMode(void);
 static void showArgs(void);
+
+static inline void win32icon(void)
+{
+#ifdef _WIN32
+#include "icon.h"
+{
+	HWND win = GetActiveWindow();
+	if( win )
+	{
+		SendMessage(
+			win
+			, WM_SETICON
+			, ICON_BIG
+			, (LPARAM)LoadImage(
+					GetModuleHandle(NULL)
+					, MAKEINTRESOURCE(IDI_ICON)
+					, IMAGE_ICON
+					, 32//GetSystemMetrics(SM_CXSMICON)
+					, 32//GetSystemMetrics(SM_CXSMICON)
+					, 0
+				)
+		);
+		SendMessage(
+			win
+			, WM_SETICON
+			, ICON_SMALL
+			, (LPARAM)LoadImage(
+					GetModuleHandle(NULL)
+					, MAKEINTRESOURCE(IDI_ICON)
+					, IMAGE_ICON
+					, 16//GetSystemMetrics(SM_CXSMICON)
+					, 16//GetSystemMetrics(SM_CXSMICON)
+					, 0
+				)
+		);
+	}
+}
+#endif
+}
 
 int main(int argc, char** argv) {
 	s8 fileCount = 0;
@@ -17,6 +60,8 @@ int main(int argc, char** argv) {
 	CommonChunk commInfo[3] = { 0 };
 	u32 sampleRate[3] = { 0 };
 	
+	win32icon();
+	
 	STATE_DEBUG_PRINT = true;
 	STATE_FABULOUS = false;
 	
@@ -24,7 +69,7 @@ int main(int argc, char** argv) {
 		char magic[] = { " \0" };
 		// This fixes the coloring of text printed in CMD or PowerShell
 		if (system(magic) != 0)
-			PrintFail("Intro has failed.\n", 0);
+			PrintFail("Intro has failed.\n");
 	#endif
 	
 	fprintf(

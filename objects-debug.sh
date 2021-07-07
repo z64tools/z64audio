@@ -3,23 +3,23 @@ rm *.o
 
 # compile C++ objects using g++
 # we request c++11 features because llrint etc are used in this code
-~/c/mxe/usr/bin/i686-w64-mingw32.static-g++ -std=c++11 -c -Ofast -s -DNDEBUG tools/audiofile/audiofile.cpp -Itools/audiofile
+g++ -std=c++11 -c -Og -g tools/audiofile/audiofile.cpp -Itools/audiofile
 
 # compile C objects using gcc
-~/c/mxe/usr/bin/i686-w64-mingw32.static-gcc -c tools/sdk-tools/tabledesign/*.c -Ofast -s -DNDEBUG -Itools/audiofile
+gcc -c tools/sdk-tools/tabledesign/*.c -Og -g -Itools/audiofile
 
 # compile C objects using gcc
-~/c/mxe/usr/bin/i686-w64-mingw32.static-gcc -c \
+gcc -c \
 	tools/sdk-tools/adpcm/quant.c \
 	tools/sdk-tools/adpcm/sampleio.c \
 	tools/sdk-tools/adpcm/util.c \
 	tools/sdk-tools/adpcm/vpredictor.c \
 	tools/sdk-tools/adpcm/vadpcm_enc.c \
 	tools/sdk-tools/adpcm/vencode.c \
-	-Ofast -s -DNDEBUG -Itools/audiofile
+	-Og -g -Itools/audiofile
 
 # move objects into appropriate directory
-mkdir -p bin/o/win32
-mv *.o bin/o/win32
+mkdir -p bin/o/linux
+mv *.o bin/o/linux
 
 

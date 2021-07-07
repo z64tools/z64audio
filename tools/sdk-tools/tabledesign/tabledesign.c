@@ -19,6 +19,7 @@ typedef long SampleFormat;
 
 typedef int SampleFormat;
 #define AFopenfile afOpenFile
+#define AFclosefile afCloseFile
 #define AFgetchannels afGetChannels
 #define AFgettrackids afGetTrackIDs
 #define AFgetsampfmt afGetSampleFormat
@@ -46,8 +47,8 @@ int tabledesign(int argc, char **argv, FILE *outstream)
     double *spF4;
     double dummy; // spE8
     double **mat; // spE4
-    double **data; // spD0
-    double *splitDelta; // spCC
+    double **data = 0; // spD0
+    double *splitDelta = 0; // spCC
     int j; // spC0
     int permDet;
     int curBits; // spB8
@@ -56,11 +57,12 @@ int tabledesign(int argc, char **argv, FILE *outstream)
     int numOverflows; // spAC
     SampleFormat sampleFormat; // sp90
     SampleFormat sampleWidth; // sp8C
-    AFfilehandle afFile; // sp88
+    AFfilehandle afFile = 0; // sp88
     int channels;
     int tracks;
     double *vec; // s2
-    double **temp_s1;
+    double **temp_s1 = 0;
+    int temp_s1Num = 0;
     short *temp_s3;
     int i;
     int dataSize; // s4
@@ -145,8 +147,9 @@ int tabledesign(int argc, char **argv, FILE *outstream)
         exit(1);
     }
 
-    temp_s1 = malloc((1 << bits) * sizeof(double*));
-    for (i = 0; i < (1 << bits); i++)
+    temp_s1Num = (1 << bits);
+    temp_s1 = malloc(temp_s1Num * sizeof(double*));
+    for (i = 0; i < temp_s1Num; i++)
     {
         temp_s1[i] = malloc((order + 1) * sizeof(double));
     }
@@ -259,5 +262,26 @@ int tabledesign(int argc, char **argv, FILE *outstream)
     {
         fprintf(stderr, "There was overflow - check the table\n");
     }
+    
+    /* cleanup */
+#define FREE_PP(PP, NUM)             \
+    if (PP)                          \
+    {                                \
+        for (i = 0; i < (NUM); ++i)  \
+            if (PP[i])               \
+                free(PP[i]);         \
+        free(PP);                    \
+    }
+#define FREE_P(P)  if (P) free(P);
+    FREE_PP(data, dataSize);
+    FREE_PP(temp_s1, temp_s1Num);
+    FREE_PP(mat, order + 1);
+    FREE_P(vec);
+    FREE_P(spF4);
+    FREE_P(perm);
+    FREE_P(temp_s3);
+    FREE_P(splitDelta);
+    if (afFile)
+        AFclosefile(afFile);
     return 0;
 }

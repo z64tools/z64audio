@@ -5,7 +5,7 @@
 
 void vencodeframe(FILE *ofile, s16 *inBuffer, s32 *state, s32 ***coefTable, s32 order, s32 npredictors, s32 nsam)
 {
-    s16 ix[16];
+    s16 ix[16] = {0};
     s32 prediction[16];
     s32 inVector[16];
     s32 saveState[16];
