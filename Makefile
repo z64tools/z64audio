@@ -37,6 +37,7 @@ objwin32:
 
 z64audio.exe: z64snd.c include/z64snd.h
 	@$(WIN_GCC) -c z64snd.c -Wall
+	~/c/mxe/usr/bin/i686-w64-mingw32.static-windres icon.rc -o bin/o/win32/icon.o
 	@$(WIN_GPP) -o z64audio.exe *.o bin/o/win32/*.o $(MAGIC) -s -flto -DNDEBUG
 	@rm *.o
 
