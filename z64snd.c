@@ -3,14 +3,14 @@
 #include "include/z64snd.h"
 
 #ifdef _WIN32
-#include <windows.h>
+ #include <windows.h>
 #endif
 
 static void showModes(void);
 static void assertMode(z64audioMode mode);
 static z64audioMode requestMode(void);
 static void showArgs(void);
-static void shiftArgs(int *argc, char *argv[], int i);
+static void shiftArgs(int* argc, char* argv[], int i);
 
 static inline void win32icon(void)
 {
@@ -98,20 +98,19 @@ int main(int argc, char** argv) {
 			char* arg = argv[i];
 			char* next = argv[i + 1];
 			
-			if (!strcmp(arg, "--tabledesign"))
-			{
+			if (!strcmp(arg, "--tabledesign")) {
 				shiftArgs(&argc, argv, i);
+				
 				return tabledesign(argc, argv, stdout);
-			}
-			else if (!strcmp(arg, "--vadpcm_enc"))
-			{
+			}else if (!strcmp(arg, "--vadpcm_enc")) {
 				shiftArgs(&argc, argv, i);
+				
 				return vadpcm_enc(argc, argv);
 			}
-	
+			
 			if (!next)
 				PrintFail("Argument '%s' is missing parameter\n", arg);
-	
+			
 			if (!strcmp(arg, "--wav"))
 				infile = next;
 			else if (!strcmp(arg, "--mode"))
@@ -145,21 +144,21 @@ int main(int argc, char** argv) {
 	DebugPrint("File free\t\t\tOK\n");
 	
 	#ifdef _WIN32
-	if (argc == 2) {
-		fflush(stdin);
-		DebugPrint("\nPress ENTER to exit...\n");
-		getchar();
-	}
+		if (argc == 2) {
+			fflush(stdin);
+			DebugPrint("\nPress ENTER to exit...\n");
+			getchar();
+		}
 	#endif
 	
 	return 0;
 }
 
 static void showModes(void) {
-	#define P(X) fprintf(stderr, X "\n")
+#define P(X) fprintf(stderr, X "\n")
 	P("      1: wav to zzrtl instrument");
 	P("      2: wav to aiff");
-	#undef P
+#undef P
 }
 
 static void assertMode(z64audioMode mode) {
@@ -185,7 +184,7 @@ static z64audioMode requestMode(void) {
 }
 
 static void showArgs(void) {
-	#define P(X) fprintf(stderr, X "\n")
+#define P(X) fprintf(stderr, X "\n")
 	P("arguments:");
 	P("  guided mode:");
 	P("    z64audio \"input.wav\"");
@@ -196,24 +195,23 @@ static void showArgs(void) {
 	P("    --tabledesign");
 	P("    --vadpcm_enc");
 	P("    example: z64audio --tabledesign -i 30 \"wow.aiff\" > \"wow.table\"");
-#ifdef _WIN32 /* helps users unfamiliar with command line */
-	P("");
-	P("Alternatively, Windows users can close this window and drop");
-	P("a .wav file directly onto the z64audio executable. If you use");
-	P("z64audio often, consider right-clicking a .wav, selecting");
-	P("'Open With', and then z64audio.");
-	getchar();
-#endif
-	#undef P
+	#ifdef _WIN32 /* helps users unfamiliar with command line */
+		P("");
+		P("Alternatively, Windows users can close this window and drop");
+		P("a .wav file directly onto the z64audio executable. If you use");
+		P("z64audio often, consider right-clicking a .wav, selecting");
+		P("'Open With', and then z64audio.");
+		getchar();
+	#endif
+#undef P
 	exit(EXIT_FAILURE);
 }
 
-static void shiftArgs(int *argc, char *argv[], int i)
-{
+static void shiftArgs(int* argc, char* argv[], int i) {
 	int newArgc = *argc - i;
 	int k;
+	
 	for (k = 0; i <= *argc; ++k, ++i)
 		argv[k] = argv[i];
 	*argc = newArgc;
 }
-

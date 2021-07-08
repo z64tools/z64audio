@@ -20,7 +20,7 @@ typedef enum {
 	NONE = 0
 	, WAV
 	, AIFF
-} FileExten;
+} FExt;
 
 typedef enum  {
 	Z64AUDIOMODE_UNSET = 0
@@ -30,13 +30,17 @@ typedef enum  {
 } z64audioMode;
 
 typedef struct {
-	s8        aiff;
-	s8        aifc;
-	s8        table;
-	FileExten ftype;
+	s8   aiff;
+	s8   aifc;
+	s8   table;
+	FExt ftype;
 	z64audioMode mode;
-    s8 instDataFlag[3];
+	s8   instDataFlag[3];
 } z64audioState;
+
+typedef struct {
+	u8 release;
+} ADSR;
 
 static z64audioState gAudioState = {
 	.aiff = false,
@@ -44,7 +48,7 @@ static z64audioState gAudioState = {
 	.table = true,
 	.ftype = NONE,
 	.mode = Z64AUDIOMODE_UNSET,
-    .instDataFlag = { 0, 0, 0 },
+	.instDataFlag = { 0, 0, 0 },
 };
 
 const char sHeaders[3][6] = {
@@ -57,8 +61,9 @@ extern int tabledesign(int argc, char** argv, FILE* outstream);
 extern int vadpcm_enc(int argc, char** argv);
 static s8 STATE_DEBUG_PRINT;
 static s8 STATE_FABULOUS;
-#define BSWAP16(x) x = __builtin_bswap16(x);
-#define BSWAP32(x) x = __builtin_bswap32(x);
+#define BSWAP16(x)         x = __builtin_bswap16(x);
+#define BSWAP32(x)         x = __builtin_bswap32(x);
+#define CLAMP(x, min, max) (x < min ? min : x > max ? max : x)
 
 /* returns the byte difference between two pointers */
 intptr_t ptrDiff(const void* minuend, const void* subtrahend) {
@@ -139,18 +144,20 @@ void DebugPrint(const char* fmt, ...) {
 	va_end(args);
 }
 
-s16 Audio_Downsample(s32 wow) {
-	// s32 sign = (wow > 0) ? 1 : -1;
-	// u32 ok = (wow > 0) ? wow : -wow;
-	// s16 result = ok & 0xFFFF;
-	//
-	// result *= sign;
+/* Gets ADSR values from Seconds */
+ADSR Audio_ADSR(double release) {
+	ADSR adsr = { 0 };
+	double calcRelease;
 	
-	long double temp = wow;
+	if (release < 2) {
+		calcRelease = 255.0 - 60.0 * release;
+	} else {
+		calcRelease = 504.064 - 49.6879 * log(1839.46 - 1749.32 * release);
+	}
 	
-	temp *= 0.00003014885;
+	adsr.release = CLAMP(calcRelease, 0, 255);
 	
-	return (s16)temp;
+	return adsr;
 }
 
 int File_TestIfExists(const char* fn) {
@@ -397,7 +404,7 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate, s32 iMain) {
 	
 	/* FILE LOAD */ {
 		WaveHeader wave;
-        u32 fsize = 0;
+		u32 fsize = 0;
 		f = fopen(fileInput, MODE_READ);
 		fread(&wave, sizeof(WaveHeader), 1, f);
 		fclose(f);
@@ -407,11 +414,11 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate, s32 iMain) {
 		if (wav == NULL)
 			PrintFail("Malloc Fail\n");
 		fread(wav, wave.chunk.size + 8, 1, f);
-        
-        rewind(f);
-        fseek(f, 0L, SEEK_END);
-        fsize = ftell(f);
-        
+		
+		rewind(f);
+		fseek(f, 0L, SEEK_END);
+		fsize = ftell(f);
+		
 		fclose(f);
 		
 		wavDataChunk = (WaveChunk*)wav;
@@ -428,11 +435,11 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate, s32 iMain) {
 		}
 		
 		data = ((WaveData*)wavDataChunk)->data;
-        
+		
 		DebugPrint("ExtraData comparison result: %d > %d\n", fsize - ((intptr_t)data - (intptr_t)wav), wavDataChunk->size);
 		if (fsize - ((intptr_t)data - (intptr_t)wav) > wavDataChunk->size) {
 			gAudioState.instDataFlag[iMain] = true;
-        }
+		}
 	}
 	
 	if ((o = fopen(fname_AIFF, MODE_WRITE)) == NULL) {
@@ -542,9 +549,9 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate, s32 iMain) {
 	}
 	DebugPrint("CommonChunk\t\tDone\n");
 	
-	if (gAudioState.instDataFlag[iMain]) {      /* MARK && INST CHUNK */
+	if (gAudioState.instDataFlag[iMain]) { /* MARK && INST CHUNK */
 		chunkHeader = (ChunkHeader) {
-			.ckID = 0x4d41524b, // MARK
+			.ckID = 0x4d41524b,    // MARK
 			.ckSize = sizeof(Marker) * 2 + sizeof(u16)
 		};
 		BSWAP32(chunkHeader.ckID);
@@ -704,57 +711,57 @@ void Audio_Process(char* argv, s32 iMain, ALADPCMloop* _destLoop, InstrumentChun
 	
 	/* run tabledesign */
 	{
-#ifdef Z64AUDIO_EXTERNAL_DEPENDENCIES
-    	snprintf(buffer, sizeof(buffer), "tabledesign -i 30 \"%s%s\" > \"%s%s\"", path, fname_AIFF, path, fname_TABLE);
-    	if (system(buffer))
-    		PrintFail("tabledesign has failed...\n");
-#else
-    	strcpy(buffer, path); strcat(buffer, fname_TABLE);
-    	FILE* fp = fopen(buffer, "w");
-    	char* argv[] = {
-    		/*0*/ strdup("tabledesign")
-    		/*1*/, strdup("-i")
-    		/*2*/, strdup("30")
-    		/*3*/, buffer
-    		/*4*/, 0
-    	};
-    	snprintf(buffer, sizeof(buffer), "%s%s", path, fname_AIFF);
-    	if (tabledesign(4, argv, fp))
-    		PrintFail("tabledesign has failed...\n");
-    	DebugPrint("%s generated succesfully\n", fname_TABLE);
-    	fclose(fp);
-    	free(argv[0]);
-    	free(argv[1]);
-    	free(argv[2]);
-#endif
+		#ifdef Z64AUDIO_EXTERNAL_DEPENDENCIES
+			snprintf(buffer, sizeof(buffer), "tabledesign -i 30 \"%s%s\" > \"%s%s\"", path, fname_AIFF, path, fname_TABLE);
+			if (system(buffer))
+				PrintFail("tabledesign has failed...\n");
+		#else
+			strcpy(buffer, path); strcat(buffer, fname_TABLE);
+			FILE* fp = fopen(buffer, "w");
+			char* argv[] = {
+				/*0*/ strdup("tabledesign")
+				/*1*/, strdup("-i")
+				/*2*/, strdup("30")
+				/*3*/, buffer
+				/*4*/, 0
+			};
+			snprintf(buffer, sizeof(buffer), "%s%s", path, fname_AIFF);
+			if (tabledesign(4, argv, fp))
+				PrintFail("tabledesign has failed...\n");
+			DebugPrint("%s generated succesfully\n", fname_TABLE);
+			fclose(fp);
+			free(argv[0]);
+			free(argv[1]);
+			free(argv[2]);
+		#endif
 	}
 	
 	/* run vadpcm_enc */
 	{
-#ifdef Z64AUDIO_EXTERNAL_DEPENDENCIES
-		snprintf(buffer, sizeof(buffer), "vadpcm_enc -c \"%s%s\" \"%s%s\" \"%s%s\"", path, fname_TABLE, path, fname_AIFF, path, fname_AIFC);
-		if (system(buffer))
-			PrintFail("vadpcm_enc has failed...\n");
-#else
-		int i;
-		int pathMax = 1024;
-		char* argv[] = {
-			/*0*/ strdup("vadpcm_enc")
-			/*1*/, strdup("-c")
-			/*2*/, malloc(pathMax)
-			/*3*/, malloc(pathMax)
-			/*4*/, malloc(pathMax)
-			/*5*/, 0
-		};
-		snprintf(argv[2], pathMax, "%s%s", path, fname_TABLE);
-		snprintf(argv[3], pathMax, "%s%s", path, fname_AIFF);
-		snprintf(argv[4], pathMax, "%s%s", path, fname_AIFC);
-		if (vadpcm_enc(5, argv))
-			PrintFail("vadpcm_enc has failed...\n");
-		DebugPrint("%s converted to %s succesfully\n", fname_AIFF, fname_AIFC);
-		for (i = 0; argv[i]; ++i)
-			free(argv[i]);
-#endif
+		#ifdef Z64AUDIO_EXTERNAL_DEPENDENCIES
+			snprintf(buffer, sizeof(buffer), "vadpcm_enc -c \"%s%s\" \"%s%s\" \"%s%s\"", path, fname_TABLE, path, fname_AIFF, path, fname_AIFC);
+			if (system(buffer))
+				PrintFail("vadpcm_enc has failed...\n");
+		#else
+			int i;
+			int pathMax = 1024;
+			char* argv[] = {
+				/*0*/ strdup("vadpcm_enc")
+				/*1*/, strdup("-c")
+				/*2*/, malloc(pathMax)
+				/*3*/, malloc(pathMax)
+				/*4*/, malloc(pathMax)
+				/*5*/, 0
+			};
+			snprintf(argv[2], pathMax, "%s%s", path, fname_TABLE);
+			snprintf(argv[3], pathMax, "%s%s", path, fname_AIFF);
+			snprintf(argv[4], pathMax, "%s%s", path, fname_AIFC);
+			if (vadpcm_enc(5, argv))
+				PrintFail("vadpcm_enc has failed...\n");
+			DebugPrint("%s converted to %s succesfully\n", fname_AIFF, fname_AIFC);
+			for (i = 0; argv[i]; ++i)
+				free(argv[i]);
+		#endif
 	}
 	
 	FILE* f;
@@ -937,16 +944,16 @@ void Audio_GenerateInstrumentConf(char* file, s32 fileCount, InstrumentChunk* in
 	float pitch[3] = { 0 };
 	
 	for (s32 i = 0; i < fileCount; i++) {
-        s8 nn = instInfo[i].baseNote % 12;
-        u32 f = floor((double)instInfo[i].baseNote / 12);
-        
+		s8 nn = instInfo[i].baseNote % 12;
+		u32 f = floor((double)instInfo[i].baseNote / 12);
+		
 		pitch[i] = ((float)sampleRate[i]) / 32000.0f;
-        
-        if (gAudioState.instDataFlag[i]) {
-    		pitch[i] *= pow(pow(2, 1.0 / 12), 60 - instInfo[i].baseNote);
-        }
-        
-        DebugPrint("note %s%d\t%2.1f kHz\t%f\n", note[nn], (u32)f, (float)sampleRate[i] * 0.001, pitch[i]);
+		
+		if (gAudioState.instDataFlag[i]) {
+			pitch[i] *= pow(pow(2, 1.0 / 12), 60 - instInfo[i].baseNote);
+		}
+		
+		DebugPrint("note %s%d\t%2.1f kHz\t%f\n", note[nn], (u32)f, (float)sampleRate[i] * 0.001, pitch[i]);
 	}
 	
 	conf = fopen(buffer, MODE_WRITE);
@@ -983,8 +990,8 @@ void Audio_GenerateInstrumentConf(char* file, s32 fileCount, InstrumentChunk* in
 		    snprintf(floats[2], 9, "%08X", hexFloat(pitch[1]));
 		    snprintf(sampleID[2], 4, "%d", 0);
 		    
-            if (instInfo[0].highNote != 0)
-    		    snprintf(split[2], 9, "%d", instInfo[0].highNote - 21);
+		    if (instInfo[0].highNote != 0)
+			    snprintf(split[2], 4, "%d", instInfo[0].highNote - 21);
 	    } break;
 	    
 	    /* Prev Prim Secn */
@@ -998,10 +1005,10 @@ void Audio_GenerateInstrumentConf(char* file, s32 fileCount, InstrumentChunk* in
 		    snprintf(floats[2], 9, "%08X", hexFloat(pitch[1]));
 		    snprintf(sampleID[2], 5, "%d", 0);
 		    
-            if (instInfo[0].highNote != 0) {
-    		    snprintf(split[1], 9, "%d", instInfo[0].lowNote - 21);
-    		    snprintf(split[2], 9, "%d", instInfo[0].highNote - 21);
-            }
+		    if (instInfo[0].highNote != 0) {
+			    snprintf(split[1], 4, "%d", instInfo[0].lowNote - 21);
+			    snprintf(split[2], 4, "%d", instInfo[0].highNote - 21);
+		    }
 	    } break;
 	}
 	
