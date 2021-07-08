@@ -11,6 +11,9 @@ static void assertMode(z64audioMode mode);
 static z64audioMode requestMode(void);
 static void showArgs(void);
 static void shiftArgs(int* argc, char* argv[], int i);
+void z64audioAtExit(void);
+
+static int gWaitAtExit = 0;
 
 static inline void win32icon(void)
 {
@@ -51,7 +54,8 @@ static inline void win32icon(void)
 #endif
 }
 
-int main(int argc, char** argv) {
+int wow_main(argc, argv) {
+	wow_main_args(argc, argv);
 	s8 fileCount = 0;
 	int i;
 	char* file[3] = { 0 };
@@ -62,6 +66,8 @@ int main(int argc, char** argv) {
 	u32 sampleRate[3] = { 0 };
 	
 	win32icon();
+	
+	atexit(z64audioAtExit);
 	
 	STATE_DEBUG_PRINT = true;
 	STATE_FABULOUS = false;
@@ -81,6 +87,11 @@ int main(int argc, char** argv) {
 		" ******************************/\n\n"
 	);
 	
+	/*{
+	char cwd[1024];
+	DebugPrint("cwd: '%s'\n", wow_getcwd(cwd, sizeof(cwd)));
+	}*/
+	
 	if (argc == 1) {
 		showArgs();
 	}
@@ -90,6 +101,9 @@ int main(int argc, char** argv) {
 		// gAudioState.mode = requestMode();
 		gAudioState.mode = Z64AUDIOMODE_WAV_TO_ZZRTL; // For testing purposes
 		infile = argv[1];
+	#ifdef _WIN32
+		gWaitAtExit = true;
+	#endif
 	}
 	/* multiple arguments */
 	else{
@@ -143,14 +157,6 @@ int main(int argc, char** argv) {
 	
 	DebugPrint("File free\t\t\tOK\n");
 	
-	#ifdef _WIN32
-		if (argc == 2) {
-			fflush(stdin);
-			DebugPrint("\nPress ENTER to exit...\n");
-			getchar();
-		}
-	#endif
-	
 	return 0;
 }
 
@@ -201,6 +207,7 @@ static void showArgs(void) {
 		P("a .wav file directly onto the z64audio executable. If you use");
 		P("z64audio often, consider right-clicking a .wav, selecting");
 		P("'Open With', and then z64audio.");
+		fflush(stdin);
 		getchar();
 	#endif
 #undef P
@@ -215,3 +222,14 @@ static void shiftArgs(int* argc, char* argv[], int i) {
 		argv[k] = argv[i];
 	*argc = newArgc;
 }
+
+void z64audioAtExit(void)
+{
+	if (gWaitAtExit)
+	{
+		fflush(stdin);
+		DebugPrint("\nPress ENTER to exit...\n");
+		getchar();
+	}
+}
+

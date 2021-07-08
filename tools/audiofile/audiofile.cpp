@@ -620,6 +620,8 @@ extern "C" {
 #define __attribute__(x)
 #endif
 
+extern int wow_open(const char *path, int flags, int mode);
+
 void _af_error (int errorCode, const char *fmt, ...)
 	__attribute__((format(printf, 2, 3)));
 
@@ -8246,7 +8248,7 @@ File *File::open(const char *path, File::AccessMode mode)
 #if defined(_WIN32) || defined(__CYGWIN__)
 	flags |= O_BINARY;
 #endif
-	int fd = ::open(path, flags, 0666);
+	int fd = wow_open(path, flags, 0666);
 	if (fd == -1)
 		return NULL;
 	File *file = new FilePOSIX(fd, mode);
@@ -15913,3 +15915,5 @@ bool _af_unique_ids (const int *ids, int nids, const char *idname, int iderr)
 
 	return true;
 }
+
+

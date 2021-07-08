@@ -7,6 +7,11 @@
 #include "vadpcm.h"
 #include "wave.h"
 
+#define WOW_IMPLEMENTATION
+#include <wow.h>
+
+#define FILENAME_BUFFER 2048
+
 #ifndef __FLOAT80_SUCKS__
  #define __float80 float
 #endif
@@ -49,12 +54,6 @@ static z64audioState gAudioState = {
 	.ftype = NONE,
 	.mode = Z64AUDIOMODE_UNSET,
 	.instDataFlag = { 0, 0, 0 },
-};
-
-const char sHeaders[3][6] = {
-	{ ".aiff" },
-	{ ".table" },
-	{ ".aifc" }
 };
 
 extern int tabledesign(int argc, char** argv, FILE* outstream);
@@ -198,7 +197,7 @@ int FormatSampleNameExists(char* dst, const char* wav, const char* sample) {
 }
 
 void GetFilename(char* _src, char* _dest, char* _path, s32* sizeStore) {
-	char temporName[1024] = { 0 };
+	char temporName[FILENAME_BUFFER] = { 0 };
 	
 	strcpy(temporName, _src);
 	s32 sizeOfName = 0;
@@ -239,44 +238,32 @@ void GetFilename(char* _src, char* _dest, char* _path, s32* sizeStore) {
 void SetFilename(char* argv, char* fname, char* path, char* fname_AIFF, char* fname_AIFC, char* fname_TABLE) {
 	s32 fnameSize = 0;
 	
+	if (!argv || !fname || !path)
+		PrintFail("SetFilename line %d\n", __LINE__);
+	
 	GetFilename(argv, fname, path, &fnameSize);
 	
 	if (fname_AIFF == 0 && fname_AIFC == 0 && fname_TABLE == 0)
 		return;
-	
-	/* Get Filenames to nameVars */
-	for (s32 i = 0; i < fnameSize; i++) {
-		if (fname_AIFF != NULL)
-			fname_AIFF[i] = fname[i];
-		
-		if (fname_TABLE != NULL)
-			fname_TABLE[i] = fname[i];
-		
-		if (fname_AIFC != NULL)
-			fname_AIFC[i] = fname[i];
-		
-		if (i == fnameSize - 1) {
-			i++;
-			for (s32 j = 0; j < 6; j++) {
-				if (fname_AIFF != NULL)
-					fname_AIFF[i + j] = sHeaders[0][j];
-				
-				if (fname_TABLE != NULL)
-					fname_TABLE[i + j] = sHeaders[1][j];
-				
-				if (fname_AIFC != NULL)
-					fname_AIFC[i + j] = sHeaders[2][j];
-			}
-		}
-	}
+
+#define DO_FNAME(WHICH, EXTENSION) \
+   if (WHICH) {                    \
+      strcpy(WHICH, path);         \
+      strcat(WHICH, fname);        \
+      strcat(WHICH, EXTENSION);    \
+   }
+   DO_FNAME(fname_AIFF,  ".aiff" )
+   DO_FNAME(fname_AIFC,  ".aifc" )
+   DO_FNAME(fname_TABLE, ".table")
+#undef DO_FNAME
 }
 
 s8 File_GetAndSort(char* wav, char** file) {
 	s8 fileCount = 1;
 	char* wow = malloc(strlen(wav) + 32);
-	char fname[128];
-	char fnameT[128];
-	char path[128];
+	char fname[FILENAME_BUFFER];
+	char fnameT[FILENAME_BUFFER];
+	char path[FILENAME_BUFFER];
 	s32 temp = 0;
 	
 	/* primary */
@@ -341,9 +328,9 @@ s8 File_GetAndSort(char* wav, char** file) {
 }
 
 void Audio_Clean(char* file) {
-	char buffer[1024] = { 0 };
-	char fname[128] = { 0 };
-	char path[128] = { 0 };
+	char buffer[FILENAME_BUFFER] = { 0 };
+	char fname[FILENAME_BUFFER] = { 0 };
+	char path[FILENAME_BUFFER] = { 0 };
 	s32 siz = 0;
 	char state[2][8] = {
 		"FALSE\0",
@@ -393,12 +380,14 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate, s32 iMain) {
 	s32 channelProcess = 0;
 	ChunkHeader chunkHeader;
 	WaveChunk* wavDataChunk;
-	InstrumentHeader* waveInst;
-	SampleHeader* waveSmpl;
+	InstrumentHeader* waveInst = 0;
+	SampleHeader* waveSmpl = 0;
 	s16* data;
-	char fname[128] = { 0 };
-	char fname_AIFF[128] = { 0 };
-	char path[128] = { 0 };
+	char fname[FILENAME_BUFFER] = { 0 };
+	char fname_AIFF[FILENAME_BUFFER] = { 0 };
+	char path[FILENAME_BUFFER] = { 0 };
+	
+	DebugPrint("Audio_Convert_WavToAiff('%s')\n", fileInput);
 	
 	SetFilename(fileInput, fname, path, fname_AIFF, NULL, NULL);
 	
@@ -436,12 +425,13 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate, s32 iMain) {
 		
 		data = ((WaveData*)wavDataChunk)->data;
 		
-		DebugPrint("ExtraData comparison result: %d > %d\n", fsize - ((intptr_t)data - (intptr_t)wav), wavDataChunk->size);
+		DebugPrint("ExtraData comparison result: %d > %d\n", (int)(fsize - ((intptr_t)data - (intptr_t)wav)), wavDataChunk->size);
 		if (fsize - ((intptr_t)data - (intptr_t)wav) > wavDataChunk->size) {
 			gAudioState.instDataFlag[iMain] = true;
 		}
 	}
 	
+	DebugPrint("opening output file '%s'\n", fname_AIFF);
 	if ((o = fopen(fname_AIFF, MODE_WRITE)) == NULL) {
 		PrintFail("Output file [%s] could not be opened.\n", fname_AIFF);
 	}
@@ -594,6 +584,12 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate, s32 iMain) {
 		BSWAP32(chunkHeader.ckSize);
 		fwrite(&chunkHeader, sizeof(ChunkHeader), 1, o);
 		
+		if (!waveInst)
+			PrintFail("waveInst unintialized line %d\n", __LINE__);
+		
+		if (!waveSmpl)
+			PrintFail("waveSmpl unintialized line %d\n", __LINE__);
+		
 		InstrumentChunk instChunk = {
 			.baseNote = waveInst->note,
 			.detune = waveInst->fineTune,
@@ -687,12 +683,12 @@ void Audio_Convert_WavToAiff(char* fileInput, u32* _sampleRate, s32 iMain) {
 }
 
 void Audio_Process(char* argv, s32 iMain, ALADPCMloop* _destLoop, InstrumentChunk* _destInst, CommonChunk* _destComm, u32* _sr) {
-	char fname[64] = { 0 };
-	char path[128] = { 0 };
-	char fname_AIFF[64] = { 0 };
-	char fname_TABLE[64] = { 0 };
-	char fname_AIFC[64] = { 0 };
-	char buffer[1024];
+	char fname[FILENAME_BUFFER] = { 0 };
+	char path[FILENAME_BUFFER] = { 0 };
+	char fname_AIFF[FILENAME_BUFFER] = { 0 };
+	char fname_TABLE[FILENAME_BUFFER] = { 0 };
+	char fname_AIFC[FILENAME_BUFFER] = { 0 };
+	char buffer[FILENAME_BUFFER];
 	
 	SetFilename(argv,fname,path,fname_AIFF,fname_AIFC,fname_TABLE);
 	DebugPrint("Name: %s\n", fname);
@@ -712,11 +708,11 @@ void Audio_Process(char* argv, s32 iMain, ALADPCMloop* _destLoop, InstrumentChun
 	/* run tabledesign */
 	{
 		#ifdef Z64AUDIO_EXTERNAL_DEPENDENCIES
-			snprintf(buffer, sizeof(buffer), "tabledesign -i 30 \"%s%s\" > \"%s%s\"", path, fname_AIFF, path, fname_TABLE);
+			snprintf(buffer, sizeof(buffer), "tabledesign -i 30 \"%s\" > \"%s\"", fname_AIFF, fname_TABLE);
 			if (system(buffer))
 				PrintFail("tabledesign has failed...\n");
 		#else
-			strcpy(buffer, path); strcat(buffer, fname_TABLE);
+			strcpy(buffer, fname_TABLE);
 			FILE* fp = fopen(buffer, "w");
 			char* argv[] = {
 				/*0*/ strdup("tabledesign")
@@ -725,7 +721,7 @@ void Audio_Process(char* argv, s32 iMain, ALADPCMloop* _destLoop, InstrumentChun
 				/*3*/, buffer
 				/*4*/, 0
 			};
-			snprintf(buffer, sizeof(buffer), "%s%s", path, fname_AIFF);
+			snprintf(buffer, sizeof(buffer), "%s", fname_AIFF);
 			if (tabledesign(4, argv, fp))
 				PrintFail("tabledesign has failed...\n");
 			DebugPrint("%s generated succesfully\n", fname_TABLE);
@@ -739,23 +735,19 @@ void Audio_Process(char* argv, s32 iMain, ALADPCMloop* _destLoop, InstrumentChun
 	/* run vadpcm_enc */
 	{
 		#ifdef Z64AUDIO_EXTERNAL_DEPENDENCIES
-			snprintf(buffer, sizeof(buffer), "vadpcm_enc -c \"%s%s\" \"%s%s\" \"%s%s\"", path, fname_TABLE, path, fname_AIFF, path, fname_AIFC);
+			snprintf(buffer, sizeof(buffer), "vadpcm_enc -c \"%s\" \"%s\" \"%s\"", fname_TABLE, fname_AIFF, fname_AIFC);
 			if (system(buffer))
 				PrintFail("vadpcm_enc has failed...\n");
 		#else
 			int i;
-			int pathMax = 1024;
 			char* argv[] = {
 				/*0*/ strdup("vadpcm_enc")
 				/*1*/, strdup("-c")
-				/*2*/, malloc(pathMax)
-				/*3*/, malloc(pathMax)
-				/*4*/, malloc(pathMax)
+				/*2*/, strdup(fname_TABLE)
+				/*3*/, strdup(fname_AIFF)
+				/*4*/, strdup(fname_AIFC)
 				/*5*/, 0
 			};
-			snprintf(argv[2], pathMax, "%s%s", path, fname_TABLE);
-			snprintf(argv[3], pathMax, "%s%s", path, fname_AIFF);
-			snprintf(argv[4], pathMax, "%s%s", path, fname_AIFC);
 			if (vadpcm_enc(5, argv))
 				PrintFail("vadpcm_enc has failed...\n");
 			DebugPrint("%s converted to %s succesfully\n", fname_AIFF, fname_AIFC);
@@ -784,7 +776,7 @@ void Audio_Process(char* argv, s32 iMain, ALADPCMloop* _destLoop, InstrumentChun
 	fclose(f);
 	
 	/* PREDICTOR */
-	snprintf(buffer, sizeof(buffer), "%s%s.predictors.bin", path,fname);
+	snprintf(buffer, sizeof(buffer), "%s%s.predictors.bin", path, fname);
 	pred = fopen(buffer, MODE_WRITE);
 	p += 8;
 	while (!(p[-7] == 'C' && p[-6] == 'O' && p[-5] == 'D' && p[-4] == 'E' && p[-3] == 'S')) {
@@ -810,7 +802,7 @@ void Audio_Process(char* argv, s32 iMain, ALADPCMloop* _destLoop, InstrumentChun
 	fclose(pred);
 	
 	/* SAMPLE */
-	snprintf(buffer, sizeof(buffer), "%s%s.sample.bin", path,fname);
+	snprintf(buffer, sizeof(buffer), "%s%s.sample.bin", path, fname);
 	samp = fopen(buffer, MODE_WRITE);
 	p += 4;
 	
@@ -856,7 +848,7 @@ void Audio_Process(char* argv, s32 iMain, ALADPCMloop* _destLoop, InstrumentChun
 		BSWAP32(loopInfo->end);
 		BSWAP32(loopInfo->count);
 		
-		snprintf(buffer, sizeof(buffer), "%s.looppredictors.bin", fname);
+		snprintf(buffer, sizeof(buffer), "%s%s.looppredictors.bin", path, fname);
 		
 		FILE* fLoopPred = fopen(buffer, MODE_WRITE);
 		
@@ -912,9 +904,9 @@ void Audio_Process(char* argv, s32 iMain, ALADPCMloop* _destLoop, InstrumentChun
 }
 
 void Audio_GenerateInstrumentConf(char* file, s32 fileCount, InstrumentChunk* instInfo, u32* sampleRate) {
-	char buffer[1024] = { 0 };
-	char fname[128] = { 0 };
-	char path[128] = { 0 };
+	char buffer[FILENAME_BUFFER] = { 0 };
+	char fname[FILENAME_BUFFER] = { 0 };
+	char path[FILENAME_BUFFER] = { 0 };
 	FILE* conf;
 	char note[12][4] = {
 		"C",
@@ -1020,3 +1012,5 @@ void Audio_GenerateInstrumentConf(char* file, s32 fileCount, InstrumentChunk* in
 	
 	DebugPrint("inst.tsv\t\t\tOK\n");
 }
+
+
