@@ -1,7 +1,7 @@
 #ifndef _WAVE_H_
 #define _WAVE_H_
 
-#include "int.h"
+#include "types.h"
 
 typedef struct {
 	char ID[4];

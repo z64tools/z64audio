@@ -63,20 +63,15 @@ int wow_main(argc, argv) {
 	ALADPCMloop loopInfo[3] = { 0 };
 	InstrumentChunk instInfo[3] = { 0 };
 	CommonChunk commInfo[3] = { 0 };
-	u32 sampleRate[3] = { 0 };
 	
 	win32icon();
-	
 	atexit(z64audioAtExit);
 	
 	STATE_DEBUG_PRINT = true;
 	STATE_FABULOUS = false;
 	
 	#ifdef _WIN32
-		char magic[] = { " \0" };
-		// This fixes the coloring of text printed in CMD or PowerShell
-		if (system(magic) != 0)
-			PrintFail("Intro has failed.\n");
+		WIN32_CMD_FIX;
 	#endif
 	
 	fprintf(
@@ -88,9 +83,9 @@ int wow_main(argc, argv) {
 	);
 	
 	/*{
-	char cwd[1024];
-	DebugPrint("cwd: '%s'\n", wow_getcwd(cwd, sizeof(cwd)));
-	}*/
+	   char cwd[1024];
+	   DebugPrint("cwd: '%s'\n", wow_getcwd(cwd, sizeof(cwd)));
+	   }*/
 	
 	if (argc == 1) {
 		showArgs();
@@ -101,9 +96,9 @@ int wow_main(argc, argv) {
 		// gAudioState.mode = requestMode();
 		gAudioState.mode = Z64AUDIOMODE_WAV_TO_ZZRTL; // For testing purposes
 		infile = argv[1];
-	#ifdef _WIN32
-		gWaitAtExit = true;
-	#endif
+		#ifdef _WIN32
+			gWaitAtExit = true;
+		#endif
 	}
 	/* multiple arguments */
 	else{
@@ -141,7 +136,7 @@ int wow_main(argc, argv) {
 		PrintFail("Something has gone terribly wrong... fileCount == %d", fileCount);
 	
 	for (s32 i = 0; i < fileCount; i++)
-		Audio_Process(file[i], i, &loopInfo[i], &instInfo[i], &commInfo[i], &sampleRate[i]);
+		Audio_Process(file[i], i, &loopInfo[i], &instInfo[i], &commInfo[i]);
 	
 	DebugPrint("Starting clean for %d file(s)\n", fileCount);
 	
@@ -149,7 +144,7 @@ int wow_main(argc, argv) {
 		Audio_Clean(file[i]);
 	}
 	
-	Audio_GenerateInstrumentConf(file[0], fileCount, instInfo, sampleRate);
+	Audio_GenerateInstrumentConf(file[0], fileCount, instInfo);
 	
 	for (i = 0; i < (sizeof(file) / sizeof(*file)); ++i)
 		if (file[i])
@@ -223,13 +218,10 @@ static void shiftArgs(int* argc, char* argv[], int i) {
 	*argc = newArgc;
 }
 
-void z64audioAtExit(void)
-{
-	if (gWaitAtExit)
-	{
+void z64audioAtExit(void) {
+	if (gWaitAtExit) {
 		fflush(stdin);
 		DebugPrint("\nPress ENTER to exit...\n");
 		getchar();
 	}
 }
-

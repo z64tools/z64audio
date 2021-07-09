@@ -13,3 +13,5 @@ tools/*.exe
 z64audio
 *.exe
 *.o
+*.json
+uncrustify.cfg
