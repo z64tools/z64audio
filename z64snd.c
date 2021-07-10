@@ -131,12 +131,13 @@ int wow_main(argc, argv) {
 	
 	if ((fileCount = File_GetAndSort(infile, file)) <= 0)
 		PrintFail("Something has gone terribly wrong... fileCount == %d", fileCount);
-	
 	printf("\n");
+	
+	/* These variables are used for output */
+	char fname[FILENAME_BUFFER] = { 0 };
+	char path[FILENAME_BUFFER] = { 0 };
+	
 	for (s32 i = 0; i < fileCount; i++) {
-		char fname[FILENAME_BUFFER] = { 0 };
-		char path[FILENAME_BUFFER] = { 0 };
-		
 		GetFilename(file[i], fname, path);
 		
 		printf("\n");
@@ -149,27 +150,23 @@ int wow_main(argc, argv) {
 			    
 		    case WAV:
 			    DebugPrint("switch WAV");
-			    Audio_WavConvert(fname, path, i);
+			    Audio_WavConvert(file[i], fname, path, i);
 			    if (gAudioState.mode == Z64AUDIOMODE_WAV_TO_AIFF)
 				    break;
 		    case AIFF:
 			    DebugPrint("switch AIFF");
-			    Audio_AiffConvert(fname, path, i);
+			    Audio_AiffConvert(file[0], fname, path, i);
 			    if (gAudioState.mode == Z64AUDIOMODE_WAV_TO_AIFC)
 				    break;
 		    case AIFC:
 			    DebugPrint("switch AIFC");
-			    Audio_AifcParseZzrtl(fname, path, i);
+			    Audio_AifcParseZzrtl(file[0], fname, path, i);
 		}
+		
+		Audio_Clean(fname, path);
 	}
 	
-	DebugPrint("Starting clean for %d file(s)\n", fileCount);
-	
-	for (s32 i = 0; i < fileCount; i++) {
-		Audio_Clean(file[i]);
-	}
-	
-	Audio_GenerateInstrumentConf(file[0], fileCount);
+	Audio_GenerateInstrumentConf(file[0], path, fileCount);
 	
 	for (i = 0; i < (sizeof(file) / sizeof(*file)); ++i)
 		if (file[i])

@@ -20,12 +20,8 @@ ADSR Audio_ADSR(double release) {
 	return adsr;
 }
 
-void Audio_Clean(char* file) {
+void Audio_Clean(char* fname, char* path) {
 	char buffer[FILENAME_BUFFER] = { 0 };
-	char fname[FILENAME_BUFFER] = { 0 };
-	char path[FILENAME_BUFFER] = { 0 };
-	
-	GetFilename(file, fname, path);
 	
 	if (fname[0] == 0) {
 		PrintWarning("Failed to get filename for cleaning.");
@@ -71,7 +67,7 @@ void* Audio_WavDataLoad(const char* fname, u32* size) {
 	return out;
 }
 
-void Audio_WavConvert(char* fname, char* path, s32 iter) {
+void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 	FILE* AIFF;
 	char* WAV = 0;
 	char* wavAudioData = 0;
@@ -86,8 +82,7 @@ void Audio_WavConvert(char* fname, char* path, s32 iter) {
 	DebugPrint("filename:  [%s]", fname);
 	DebugPrint("path:      %s", path);
 	
-	BufferPrint("%s%s.wav", path, fname);
-	WAV = Audio_WavDataLoad(buffer, &size);
+	WAV = Audio_WavDataLoad(file, &size);
 	wavDataChunk = SearchByteString(WAV, size, "data", 4);
 	if (wavDataChunk == NULL)
 		PrintFail("Could not find 'data' from WAV-file.");
@@ -353,7 +348,7 @@ void Audio_WavConvert(char* fname, char* path, s32 iter) {
 	}
 }
 
-void Audio_RunTableDesign(char* fname, char* path) {
+void Audio_RunTableDesign(char* file, char* fname, char* path) {
 	char buffer[FILENAME_BUFFER];
 	
 	#ifdef Z64AUDIO_EXTERNAL_DEPENDENCIES
@@ -363,7 +358,10 @@ void Audio_RunTableDesign(char* fname, char* path) {
 	#else
 		BufferPrint("%s%s.table", path, fname);
 		FILE* fp = fopen(buffer, "w");
-		BufferPrint("%s%s.aiff", path, fname);
+		if (gAudioState.ftype == WAV)
+			BufferPrint("%s%s.aiff", path, fname);
+		else
+			BufferPrint("%s", file);
 		char* argv[] = {
 			/*0*/ strdup("tabledesign")
 			/*1*/, strdup("-i")
@@ -381,7 +379,7 @@ void Audio_RunTableDesign(char* fname, char* path) {
 	#endif
 }
 
-void Audio_RunVadpcmEnc(char* fname, char* path) {
+void Audio_RunVadpcmEnc(char* file, char* fname, char* path) {
 	#ifdef Z64AUDIO_EXTERNAL_DEPENDENCIES
 		char buffer[FILENAME_BUFFER];
 		BufferPrint(
@@ -401,7 +399,10 @@ void Audio_RunVadpcmEnc(char* fname, char* path) {
 		char fname_AIFC[FILENAME_BUFFER];
 		
 		snprintf(fname_TABLE, FILENAME_BUFFER, "%s%s.table", path, fname);
-		snprintf(fname_AIFF, FILENAME_BUFFER, "%s%s.aiff", path, fname);
+		if (gAudioState.ftype == WAV)
+			snprintf(fname_AIFF, FILENAME_BUFFER, "%s%s.aiff", path, fname);
+		else
+			snprintf(fname_AIFF, FILENAME_BUFFER, "%s", file);
 		snprintf(fname_AIFC, FILENAME_BUFFER, "%s%s.aifc", path, fname);
 		int i;
 		char* argv[] = {
@@ -420,15 +421,12 @@ void Audio_RunVadpcmEnc(char* fname, char* path) {
 	#endif
 }
 
-void Audio_AiffConvert(char* fname, char* path, s32 iter) {
-	char buffer[FILENAME_BUFFER];
-	
-	BufferPrint("%s%s.aiff", path, fname);
-	Audio_RunTableDesign(fname, path);
-	Audio_RunVadpcmEnc(fname, path);
+void Audio_AiffConvert(char* file, char* fname, char* path, s32 iter) {
+	Audio_RunTableDesign(file, fname, path);
+	Audio_RunVadpcmEnc(file, fname, path);
 }
 
-void Audio_AifcParseZzrtl(char* fname, char* path, s32 iter) {
+void Audio_AifcParseZzrtl(char* file, char* fname, char* path, s32 iter) {
 	char buffer[FILENAME_BUFFER];
 	FILE* AIFC;
 	char* vadpcm = 0;
@@ -441,7 +439,10 @@ void Audio_AifcParseZzrtl(char* fname, char* path, s32 iter) {
 	InstrumentChunk* instData;
 	CommonChunk* comm;
 	
-	BufferPrint("%s%s.aifc", path, fname);
+	if (gAudioState.ftype <= AIFF)
+		BufferPrint("%s%s.aifc", path, fname);
+	else
+		BufferPrint("%s", file);
 	AIFC = fopen(buffer, "rb");
 	if (AIFC == NULL)
 		PrintFail("Could not open %s", buffer);
@@ -590,10 +591,9 @@ void Audio_AifcParseZzrtl(char* fname, char* path, s32 iter) {
 		free(vadpcm);
 }
 
-void Audio_GenerateInstrumentConf(char* file, s32 fileCount) {
+void Audio_GenerateInstrumentConf(char* file, char* path, s32 fileCount) {
 	char buffer[FILENAME_BUFFER] = { 0 };
 	char fname[FILENAME_BUFFER] = { 0 };
-	char path[FILENAME_BUFFER] = { 0 };
 	FILE* conf;
 	char note[12][4] = {
 		"C",
@@ -613,7 +613,7 @@ void Audio_GenerateInstrumentConf(char* file, s32 fileCount) {
 	printf("\n");
 	ColorPrint(1, "Generating inst.tsv");
 	
-	GetFilename(file, fname, path);
+	GetFilename(file, fname, NULL);
 	BufferPrint("%s%s.inst.tsv", path, fname);
 	
 	float pitch[3] = { 0 };

@@ -179,11 +179,20 @@ s8 File_GetAndSort(char* wav, char** file) {
 	if (strstr(wav, ".wav")) {
 		gAudioState.ftype = WAV;
 		DebugPrint("Filetype: .wav");
+		// gAudioState.cleanState.aifc = true; Commented out for now.
+		// gAudioState.cleanState.aiff = true;
+		// gAudioState.cleanState.table = true;
 	} else if (strstr(wav, ".aiff")) {
 		gAudioState.ftype = AIFF;
 		DebugPrint("Filetype: .aiff");
+		// gAudioState.cleanState.aifc = true; Commented out for now.
+		// gAudioState.cleanState.aiff = false;
+		// gAudioState.cleanState.table = true;
 	} else if (strstr(wav, ".aifc")) {
 		gAudioState.ftype = AIFC;
+		gAudioState.cleanState.aifc = false;
+		gAudioState.cleanState.aiff = false;
+		gAudioState.cleanState.table = false;
 		DebugPrint("Filetype: .aifc");
 	}
 	
