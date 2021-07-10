@@ -60,9 +60,6 @@ int wow_main(argc, argv) {
 	int i;
 	char* file[3] = { 0 };
 	char* infile = 0;
-	ALADPCMloop loopInfo[3] = { 0 };
-	InstrumentChunk instInfo[3] = { 0 };
-	CommonChunk commInfo[3] = { 0 };
 	
 	win32icon();
 	atexit(z64audioAtExit);
@@ -135,8 +132,36 @@ int wow_main(argc, argv) {
 	if ((fileCount = File_GetAndSort(infile, file)) <= 0)
 		PrintFail("Something has gone terribly wrong... fileCount == %d", fileCount);
 	
-	for (s32 i = 0; i < fileCount; i++)
-		Audio_Process(file[i], i, &loopInfo[i], &instInfo[i], &commInfo[i]);
+	printf("\n");
+	for (s32 i = 0; i < fileCount; i++) {
+		char fname[FILENAME_BUFFER] = { 0 };
+		char path[FILENAME_BUFFER] = { 0 };
+		
+		GetFilename(file[i], fname, path);
+		
+		printf("\n");
+		ColorPrint(1, "[%s]", file[i]);
+		
+		switch (gAudioState.ftype) {
+		    case NONE:
+			    PrintFail("File you've given isn't something I can work with sadly");
+			    break;
+			    
+		    case WAV:
+			    DebugPrint("switch WAV");
+			    Audio_WavConvert(fname, path, i);
+			    if (gAudioState.mode == Z64AUDIOMODE_WAV_TO_AIFF)
+				    break;
+		    case AIFF:
+			    DebugPrint("switch AIFF");
+			    Audio_AiffConvert(fname, path, i);
+			    if (gAudioState.mode == Z64AUDIOMODE_WAV_TO_AIFC)
+				    break;
+		    case AIFC:
+			    DebugPrint("switch AIFC");
+			    Audio_AifcParseZzrtl(fname, path, i);
+		}
+	}
 	
 	DebugPrint("Starting clean for %d file(s)\n", fileCount);
 	
@@ -144,7 +169,7 @@ int wow_main(argc, argv) {
 		Audio_Clean(file[i]);
 	}
 	
-	Audio_GenerateInstrumentConf(file[0], fileCount, instInfo);
+	Audio_GenerateInstrumentConf(file[0], fileCount);
 	
 	for (i = 0; i < (sizeof(file) / sizeof(*file)); ++i)
 		if (file[i])

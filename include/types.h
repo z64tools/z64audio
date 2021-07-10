@@ -15,12 +15,14 @@ typedef enum {
 	NONE = 0
 	, WAV
 	, AIFF
+	, AIFC
 } FExt;
 
 typedef enum  {
 	Z64AUDIOMODE_UNSET = 0
 	, Z64AUDIOMODE_WAV_TO_ZZRTL
 	, Z64AUDIOMODE_WAV_TO_AIFF
+	, Z64AUDIOMODE_WAV_TO_AIFC
 	, Z64AUDIOMODE_LAST
 } z64audioMode;
 
@@ -35,10 +37,23 @@ typedef struct {
 	s32          sampleRate[3];
 	s8 instDataFlag[3];
 	s8 instLoop[3];
+	struct {
+		ALADPCMloop     loopInfo[3];
+		InstrumentChunk instChunk[3];
+		CommonChunk     commChunk[3];
+	} vadpcmInfo;
 } z64audioState;
 
 typedef struct {
-	u8 release;
+	s16 rate;
+	s16 lvl;
+} dcy;
+
+typedef struct {
+	u8  attack;
+	dcy decay1;
+	dcy decay2;
+	u8  release;
 } ADSR;
 
 #endif

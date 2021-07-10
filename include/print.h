@@ -65,4 +65,31 @@ void DebugPrint(const char* fmt, ...) {
 	va_end(args);
 }
 
+void ColorPrint(s8 c, const char* fmt, ...) {
+	static s8 i = 3;
+	va_list args;
+	
+	if (!STATE_DEBUG_PRINT)
+		return;
+	
+	const char colors[][64] = {
+		"\e[0;31m",
+		"\e[0;33m",
+		"\e[0;32m",
+		"\e[0;36m",
+		"\e[0;34m",
+		"\e[0;35m",
+	};
+	
+	i += STATE_FABULOUS ? i < 5 ? 1 : -5 : 0;
+	
+	va_start(args, fmt);
+	printf("\e[0;36m[<]: \e[m");
+	printf(colors[CLAMP(c, 0, 5)]);
+	vprintf(fmt, args);
+	printf("\e[m");
+	printf("\n");
+	va_end(args);
+}
+
 #endif

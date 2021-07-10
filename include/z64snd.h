@@ -23,15 +23,6 @@ static z64audioState gAudioState = {
 	},
 	.ftype = NONE,
 	.mode = Z64AUDIOMODE_UNSET,
-	.instDataFlag = { 0, 0, 0 },
-	.sampleRate = { 0, 0, 0 },
-	.instLoop = { 0, 0, 0 },
-};
-
-const char sFolder[3][6] = {
-	"prim\\",
-	"secn\\",
-	"prev\\"
 };
 
 #include "print.h"
@@ -91,7 +82,7 @@ char* GetPointer(void* _src, const char* fmt) {
 	return strstr(_src, fmt);
 }
 
-void GetFilename(char* _src, char* _dest, char* _path, s32* sizeStore) {
+void GetFilename(char* _src, char* _dest, char* _path) {
 	char temporName[FILENAME_BUFFER] = { 0 };
 	
 	strcpy(temporName, _src);
@@ -113,44 +104,19 @@ void GetFilename(char* _src, char* _dest, char* _path, s32* sizeStore) {
 	
 	if (slashPoint != 0)
 		slashPoint++;
-	else
+	else if (_path != NULL)
 		_path[0] = 0;
 	
 	for (s32 i = 0; i <= sizeOfName - slashPoint - 1 - extensionPoint; i++) {
 		_dest[i] = temporName[slashPoint + i];
-		*sizeStore = i;
 		_dest[i + 1] = '\0';
 	}
 	
-	for (s32 i = 0; i < slashPoint; i++) {
-		_path[i] = _src[i];
-		_path[i + 1] = '\0';
-	}
-	
-	*sizeStore += 1;
-}
-
-void SetFilename(char* argv, char* fname, char* path, char* fname_AIFF, char* fname_AIFC, char* fname_TABLE) {
-	s32 fnameSize = 0;
-	
-	if (!argv || !fname || !path)
-		PrintFail("SetFilename line %d", __LINE__);
-	
-	GetFilename(argv, fname, path, &fnameSize);
-	
-	if (fname_AIFF == 0 && fname_AIFC == 0 && fname_TABLE == 0)
-		return;
-	
-#define DO_FNAME(WHICH, EXTENSION) \
-	if (WHICH) {                    \
-		strcpy(WHICH, path);         \
-		strcat(WHICH, fname);        \
-		strcat(WHICH, EXTENSION);    \
-	}
-	DO_FNAME(fname_AIFF,  ".aiff" )
-	DO_FNAME(fname_AIFC,  ".aifc" )
-	DO_FNAME(fname_TABLE, ".table")
-#undef DO_FNAME
+	if (_path != NULL)
+		for (s32 i = 0; i < slashPoint; i++) {
+			_path[i] = _src[i];
+			_path[i + 1] = '\0';
+		}
 }
 
 s8 File_GetAndSort(char* wav, char** file) {
@@ -159,7 +125,6 @@ s8 File_GetAndSort(char* wav, char** file) {
 	char fname[FILENAME_BUFFER];
 	char fnameT[FILENAME_BUFFER];
 	char path[FILENAME_BUFFER];
-	s32 temp = 0;
 	
 	/* primary */
 	file[0] = strdup(wav);
@@ -173,8 +138,8 @@ s8 File_GetAndSort(char* wav, char** file) {
 			return fileCount;
 		}
 		
-		GetFilename(wav, fname, path, &temp);
-		GetFilename(wav, fnameT, path, &temp);
+		GetFilename(wav, fname, path);
+		GetFilename(wav, fnameT, path);
 		
 		fnameT[ptrDiff(p, wav) - strlen(path)] = '\0';
 		
@@ -214,9 +179,12 @@ s8 File_GetAndSort(char* wav, char** file) {
 	if (strstr(wav, ".wav")) {
 		gAudioState.ftype = WAV;
 		DebugPrint("Filetype: .wav");
-	}else if (strstr(wav, ".aiff")) {
+	} else if (strstr(wav, ".aiff")) {
 		gAudioState.ftype = AIFF;
 		DebugPrint("Filetype: .aiff");
+	} else if (strstr(wav, ".aifc")) {
+		gAudioState.ftype = AIFC;
+		DebugPrint("Filetype: .aifc");
 	}
 	
 	return fileCount;
