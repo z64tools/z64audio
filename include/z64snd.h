@@ -25,6 +25,13 @@ static z64audioState gAudioState = {
 	.mode = Z64AUDIOMODE_UNSET,
 	.instDataFlag = { 0, 0, 0 },
 	.sampleRate = { 0, 0, 0 },
+	.instLoop = { 0, 0, 0 },
+};
+
+const char sFolder[3][6] = {
+	"prim\\",
+	"secn\\",
+	"prev\\"
 };
 
 #include "print.h"

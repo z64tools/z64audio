@@ -30,10 +30,11 @@ typedef struct {
 		s8 aifc;
 		s8 table;
 	} cleanState;
-	FExt         ftype;
 	z64audioMode mode;
-	s8 instDataFlag[3];
+	FExt         ftype;
 	s32          sampleRate[3];
+	s8 instDataFlag[3];
+	s8 instLoop[3];
 } z64audioState;
 
 typedef struct {

@@ -134,6 +134,10 @@ void Audio_WavConvert(char* filename, s32 iter) {
 				PrintWarning("Could not find 'inst' from WAV-file.");
 				gAudioState.instDataFlag[iter] = false;
 			}
+			
+			if (smplHeader->numSampleLoops >= 1) {
+				gAudioState.instLoop[iter] = true;
+			}
 		}
 	}
 	
@@ -821,7 +825,6 @@ void Audio_Process(char* argv, s32 iter, ALADPCMloop* _destLoop, InstrumentChunk
 	ALADPCMloop* loopInfo = 0;
 	InstrumentChunk* instData;
 	CommonChunk* comm = (CommonChunk*)(adpcm + 0x14);
-	int lflag = true;
 	
 	memcpy(_destComm, comm, sizeof(CommonChunk));
 	
@@ -831,12 +834,12 @@ void Audio_Process(char* argv, s32 iter, ALADPCMloop* _destLoop, InstrumentChunk
 	while (!(p[-8] == 'O' && p[-7] == 'O' && p[-6] == 'P' && p[-5] == 'S')) {
 		p++;
 		if (ptrDiff(p, adpcm) > allocSize) {
-			lflag = false;
+			gAudioState.instLoop[iter] = 0;
 			break;
 		}
 	}
 	
-	if (lflag) {
+	if (gAudioState.instLoop[iter] == true) {
 		loopInfo = (ALADPCMloop*)p;
 		memcpy(_destLoop, loopInfo, sizeof(ALADPCMloop));
 		BSWAP32(loopInfo->start);
@@ -876,7 +879,7 @@ void Audio_Process(char* argv, s32 iter, ALADPCMloop* _destLoop, InstrumentChunk
 	numFrame = (numFrames[0] << 16) | numFrames[1];
 	
 	fprintf(conf, "precision\tloopstart\tloopend  \tloopcount\tlooptail \n%08X\t", 0);
-	if (lflag && loopInfo) {
+	if (gAudioState.instLoop[iter] == true && loopInfo) {
 		/* Found Loop */
 		fprintf(conf, "%08X\t", loopInfo->start);
 		fprintf(conf, "%08X\t", loopInfo->end);
