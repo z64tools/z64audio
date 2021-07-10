@@ -243,7 +243,7 @@ static void shiftArgs(int* argc, char* argv[], int i) {
 void z64audioAtExit(void) {
 	if (gWaitAtExit) {
 		fflush(stdin);
-		DebugPrint("\nPress ENTER to exit...\n");
+		DebugPrint("Press ENTER to exit...");
 		getchar();
 	}
 }
