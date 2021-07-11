@@ -77,7 +77,7 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 	WaveHeader* wavHeader = 0;
 	char buffer[FILENAME_BUFFER] = { 0 };
 	u32 size = 0;
-	s8 bitFlag, channelFlag = 0;
+	s8 bitDepth, channelFlag = 0;
 	
 	DebugPrint("filename:  [%s]", fname);
 	DebugPrint("path:      %s", path);
@@ -110,12 +110,12 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 	}
 	
 	wavHeader = (WaveHeader*)WAV;
-	bitFlag = wavHeader->bitsPerSamp != 16 ? 1 : 0;
+	bitDepth = wavHeader->bitsPerSamp;
 	channelFlag = wavHeader->numChannels != 1 ? 1 : 0;
 	gAudioState.sampleRate[iter] = wavHeader->sampleRate;
 	
-	if (wavHeader->bitsPerSamp != 16 && wavHeader->bitsPerSamp != 32)
-		PrintFail("Z64Audio does not support %d-bit audio.", wavHeader->bitsPerSamp);
+	if (bitDepth != 16 && bitDepth != 32)
+		PrintFail("Z64Audio does not support %d-bit audio.", bitDepth);
 	if (wavHeader->numChannels > 2)
 		PrintFail("Z64Audio does not support audio with %d channels.", wavHeader->numChannels);
 	
@@ -148,7 +148,7 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 		u32 chunkSize = wavDataChunk->size;
 		
 		chunkSize *= channelFlag == true ? 0.5 : 1;
-		chunkSize *= bitFlag == true ? 0.5 : 1;
+		chunkSize *= bitDepth == 32 ? 0.5 : bitDepth == 24 ? 0.75 : 1;
 		formChunk.ckSize += chunkSize;
 		if (gAudioState.instDataFlag[iter] == true)
 			formChunk.ckSize += sizeof(ChunkHeader) + sizeof(Marker) * 2 + sizeof(u16) + sizeof(ChunkHeader) + sizeof(InstrumentChunk);
@@ -181,9 +181,7 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 		if (channelFlag) {
 			*numFrames *= 0.5;
 		}
-		if (bitFlag) {
-			*numFrames *= 0.5;
-		}
+		*numFrames *= bitDepth == 32 ? 0.5 : bitDepth == 24 ? 0.75 : 1;
 		
 		BSWAP32(*numFrames);
 		
@@ -278,6 +276,7 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 	
 	ColorPrint(0, "SoundChunk");
 	{
+		u64 temp = 0;
 		chunkHeader = (ChunkHeader) {
 			.ckID = 0x53534E44, // SSND
 			.ckSize = wavDataChunk->size
@@ -285,52 +284,124 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 		
 		if (channelFlag)
 			chunkHeader.ckSize *= 0.5;
-		if (bitFlag)
-			chunkHeader.ckSize *= 0.5;
+		chunkHeader.ckSize *= bitDepth == 32 ? 0.5 : bitDepth == 24 ? 0.75 : 1;
 		
 		chunkHeader.ckSize += 8;
 		
 		BSWAP32(chunkHeader.ckID);
 		BSWAP32(chunkHeader.ckSize);
 		fwrite(&chunkHeader, sizeof(ChunkHeader), 1, AIFF);
-		
-		u64 temp = 0;
-		
 		fwrite(&temp, sizeof(u64), 1, AIFF);
 		
-		if (!bitFlag) {
+		s32 mallSize = wavDataChunk->size;
+		float* audioData;
+		float max = 0;
+		
+		mallSize *= channelFlag ? 0.5 : 1.0;
+		mallSize *= bitDepth == 32 ? 0.5 : bitDepth == 24 ? 0.75 : 1;
+		audioData = malloc(sizeof(float) * (mallSize / 2));
+		
+		if (bitDepth == 16) {
 			for (s32 i = 0; i < wavDataChunk->size / 2; i++) {
-				s16 tempData = ((s16*)wavAudioData)[i];
-				s16 medianator;
+				float tempData = ((s16*)wavAudioData)[i];
+				float medianator;
 				
 				if (channelFlag) {
 					medianator = ((s16*)wavAudioData)[i + 1];
-					tempData = ((float)tempData + (float)medianator) * 0.5;
+					tempData = (tempData + medianator) * 0.5;
 				}
 				
-				BSWAP16(tempData);
-				fwrite(&tempData, sizeof(s16), 1, AIFF);
+				if (ABS(tempData) > max)
+					max = ABS(tempData);
+				
+				audioData[i] = tempData;
 				
 				if (channelFlag)
-					i += 1;
+					i++;
 			}
-		} else {
-			for (s32 i = 0; i < wavDataChunk->size / 2 / 2; i++) {
-				float* f32 = (float*)wavAudioData;
-				s16 wow = f32[i] * 32766;
-				
-				if (channelFlag) {
-					s16 wow_2 = f32[i + 1] * 32766;
-					wow = ((float)wow + (float)wow_2) * 0.5;
-					
-					i += 1;
+			
+			for (s32 i = 0; i < mallSize / 2; i++) {
+				// Normalize
+				if (ABS(max) < 32767 || ABS(max) > 32768) {
+					float sample = audioData[i];
+					sample *= 32767.0 / max;
+					sample = CLAMP(sample, -32767, 32768);
+					audioData[i] = sample;
 				}
 				
-				BSWAP16(wow);
-				
-				fwrite(&wow, sizeof(s16), 1, AIFF);
+				s16 smpl = audioData[i];
+				BSWAP16(smpl);
+				fwrite(&smpl, sizeof(s16), 1, AIFF);
 			}
+		} else if (bitDepth == 32) {
+			for (s32 i = 0; i < wavDataChunk->size / 2 / 2; i++) {
+				float* f32 = (float*)wavAudioData;
+				float tempData = f32[i] * 32766;
+				
+				if (channelFlag) {
+					float wow_2 = f32[i + 1] * 32766;
+					tempData = ((float)tempData + (float)wow_2) * 0.5;
+				}
+				
+				if (ABS(tempData) > max)
+					max = ABS(tempData);
+				
+				audioData[i] = tempData;
+				
+				if(channelFlag)
+					i++;
+			}
+			
+			for (s32 i = 0; i < mallSize / 2; i++) {
+				// Normalize
+				if (ABS(max) < 32767 || ABS(max) > 32768) {
+					float sample = audioData[i];
+					sample *= 32767.0 / max;
+					sample = CLAMP(sample, -32767, 32768);
+					audioData[i] = sample;
+				}
+				
+				s16 smpl = audioData[i];
+				BSWAP16(smpl);
+				fwrite(&smpl, sizeof(s16), 1, AIFF);
+			}
+		} else if (bitDepth == 24) {
+			// for (s32 i = 0; i < wavDataChunk->size * 0.75; i++) {
+			// 	s32 s24 = (s32)(((s8*)wavAudioData)[i * 3]) & 0xFFFFFF00;
+			// 	float tempData = s24;
+			// 	float medianator;
+			
+			// 	if (channelFlag) {
+			// 		medianator = (s32)(((s8*)wavAudioData)[(i + 1) * 3]) & 0xFFFFFF00;
+			// 		tempData = (tempData + medianator) * 0.5;
+			// 	}
+			
+			// 	if (ABS(tempData) > max)
+			// 		max = ABS(tempData);
+			
+			// 	audioData[i] = tempData;
+			
+			// 	if (channelFlag)
+			// 		i++;
+			// }
+			
+			// for (s32 i = 0; i < mallSize / 2; i++) {
+			// 	// Normalize
+			// 	if (ABS(max) < 32767 || ABS(max) > 32768) {
+			// 		float sample = audioData[i];
+			// 		sample *= 32767.0 / max;
+			// 		sample = CLAMP(sample, -32767, 32768);
+			// 		audioData[i] = sample;
+			// 	}
+			
+			// 	s16 smpl = audioData[i];
+			// 	BSWAP16(smpl);
+			// 	fwrite(&smpl, sizeof(s16), 1, AIFF);
+			// }
 		}
+		
+		if (audioData)
+			free(audioData);
 	}
 	
 	fclose(AIFF);
