@@ -3,7 +3,7 @@
 #include "include/z64snd.h"
 
 #ifdef _WIN32
- #include <windows.h>
+#include <windows.h>
 #endif
 
 static void showModes(void);
@@ -15,43 +15,41 @@ void z64audioAtExit(void);
 
 static int gWaitAtExit = 0;
 
-static inline void win32icon(void)
-{
-#ifdef _WIN32
-#include "icon.h"
-{
-	HWND win = GetActiveWindow();
-	if( win )
-	{
-		SendMessage(
-			win
-			, WM_SETICON
-			, ICON_BIG
-			, (LPARAM)LoadImage(
-					GetModuleHandle(NULL)
-					, MAKEINTRESOURCE(IDI_ICON)
-					, IMAGE_ICON
-					, 32//GetSystemMetrics(SM_CXSMICON)
-					, 32//GetSystemMetrics(SM_CXSMICON)
-					, 0
-				)
-		);
-		SendMessage(
-			win
-			, WM_SETICON
-			, ICON_SMALL
-			, (LPARAM)LoadImage(
-					GetModuleHandle(NULL)
-					, MAKEINTRESOURCE(IDI_ICON)
-					, IMAGE_ICON
-					, 16//GetSystemMetrics(SM_CXSMICON)
-					, 16//GetSystemMetrics(SM_CXSMICON)
-					, 0
-				)
-		);
-	}
-}
-#endif
+static inline void win32icon(void) {
+	#ifdef _WIN32
+	#include "icon.h"
+		{
+			HWND win = GetActiveWindow();
+			if( win ) {
+				SendMessage(
+					win,
+					WM_SETICON,
+					ICON_BIG,
+					(LPARAM)LoadImage(
+						GetModuleHandle(NULL),
+						MAKEINTRESOURCE(IDI_ICON),
+						IMAGE_ICON,
+						32, //GetSystemMetrics(SM_CXSMICON)
+						32, //GetSystemMetrics(SM_CXSMICON)
+						0
+					)
+				);
+				SendMessage(
+					win,
+					WM_SETICON,
+					ICON_SMALL,
+					(LPARAM)LoadImage(
+						GetModuleHandle(NULL),
+						MAKEINTRESOURCE(IDI_ICON),
+						IMAGE_ICON,
+						16, //GetSystemMetrics(SM_CXSMICON)
+						16, //GetSystemMetrics(SM_CXSMICON)
+						0
+					)
+				);
+			}
+		}
+	#endif
 }
 
 int wow_main(argc, argv) {
@@ -178,10 +176,10 @@ int wow_main(argc, argv) {
 }
 
 static void showModes(void) {
-#define P(X) fprintf(stderr, X "\n")
+	#define P(X) fprintf(stderr, X "\n")
 	P("      1: wav to zzrtl instrument");
 	P("      2: wav to aiff");
-#undef P
+	#undef P
 }
 
 static void assertMode(z64audioMode mode) {
@@ -207,7 +205,7 @@ static z64audioMode requestMode(void) {
 }
 
 static void showArgs(void) {
-#define P(X) fprintf(stderr, X "\n")
+	#define P(X) fprintf(stderr, X "\n")
 	P("arguments:");
 	P("  guided mode:");
 	P("    z64audio \"input.wav\"");
@@ -227,7 +225,7 @@ static void showArgs(void) {
 		fflush(stdin);
 		getchar();
 	#endif
-#undef P
+	#undef P
 	exit(EXIT_FAILURE);
 }
 
