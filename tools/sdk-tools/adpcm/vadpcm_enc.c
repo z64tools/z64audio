@@ -6,6 +6,7 @@
 #include "vadpcm.h"
 
 #include <wow.h>
+#undef fread
 
 #define FREE_P(P) if (P) free(P);
 
