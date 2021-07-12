@@ -4,6 +4,7 @@ WIN_GCC     = ~/c/mxe/usr/bin/i686-w64-mingw32.static-gcc
 WIN_GPP     = ~/c/mxe/usr/bin/i686-w64-mingw32.static-g++
 MAGIC       = -Ofast
 ADPCM       = tools/sdk-tools/adpcm/
+DEP         = -mwindows -lgdi32 -luser32 -lkernel32 -lm
 
 .PHONY: objlinux objwin32 clean objects all
 
@@ -13,6 +14,7 @@ objects: objwin32 objlinux
 
 linux: z64audio
 win32: z64audio.exe
+win32cl: z64audio-cl.exe
 
 all: objects default
 
@@ -40,7 +42,13 @@ objwin32:
 z64audio.exe: z64snd.c include/z64snd.h
 	@$(WIN_GCC) -c z64snd.c -Wall -Os -s -flto -DNDEBUG -Iwowlib -DWOW_OVERLOAD_FILE -municode -DUNICODE -D_UNICODE -Wno-strict-aliasing -Wno-unused-function
 	@~/c/mxe/usr/bin/i686-w64-mingw32.static-windres icon.rc -o bin/o/win32/icon.o
-	@$(WIN_GPP) -o z64audio.exe z64snd.o bin/o/win32/*.o -Os -s -flto -DNDEBUG -municode -DUNICODE -D_UNICODE
+	@$(WIN_GPP) -o z64audio.exe z64snd.o bin/o/win32/*.o -Os -s -flto -DNDEBUG -municode -DUNICODE -D_UNICODE $(DEP)
+	@rm -f *.o
+
+z64audio-cl.exe: z64snd.c include/z64snd.h
+	@$(WIN_GCC) -c z64snd.c -Wall -Os -s -flto -DNDEBUG -Iwowlib -DWOW_OVERLOAD_FILE -municode -DUNICODE -D_UNICODE -Wno-strict-aliasing -Wno-unused-function -D__Z64AUDIO_TERMINAL__
+	@~/c/mxe/usr/bin/i686-w64-mingw32.static-windres icon_cl.rc -o bin/o/win32/icon.o
+	@$(WIN_GPP) -o z64audio-cl.exe z64snd.o bin/o/win32/*.o -Os -s -flto -DNDEBUG -municode -DUNICODE -D_UNICODE
 	@rm -f *.o
 
 clean:

@@ -7,14 +7,23 @@
 #include <math.h>
 #include "types.h"
 #include "macros.h"
-#define WOW_IMPLEMENTATION
-#include <wow.h>
+
+#ifndef __Z64AUDIO_TERMINAL__
+	#define WOW_GUI_IMPLEMENTATION
+	#define WOW_IMPLEMENTATION
+#include "../wowlib/wow_gui.h"
+#include "gui.h"
+#else
+	#define WOW_IMPLEMENTATION
+#include "../wowlib/wow.h"
+#endif
 
 extern int tabledesign(int argc, char** argv, FILE* outstream);
 extern int vadpcm_enc(int argc, char** argv);
 
 static s8 STATE_DEBUG_PRINT;
 static s8 STATE_FABULOUS;
+static s8 gWaitAtExit = 0;
 static z64audioState gAudioState = {
 	.cleanState = {
 		.aiff = false,
@@ -226,6 +235,114 @@ void* SearchByteString(const void* haystack, size_t haystackSize, const void* ne
 			return cur;
 	
 	return NULL;
+}
+
+static void showModes(void) {
+	#define P(X) fprintf(stderr, X "\n")
+	P("      1: wav to zzrtl instrument");
+	P("      2: wav to aiff");
+	#undef P
+}
+
+static void assertMode(z64audioMode mode) {
+	if (mode == Z64AUDIOMODE_UNSET
+	    || mode < 0
+	    || mode >= Z64AUDIOMODE_LAST
+	) {
+		fprintf(stderr, "invalid mode %d; valid modes are as follows:\n", mode);
+		showModes();
+		exit(EXIT_FAILURE);
+	}
+}
+
+static z64audioMode requestMode(void) {
+	int c;
+	
+	fprintf(stderr, "select one of the following modes:\n");
+	showModes();
+	c = getchar();
+	fflush(stdin);
+	
+	return 1 + (c - '1');
+}
+
+static void showArgs(void) {
+	#define P(X) fprintf(stderr, X "\n")
+	P("arguments:");
+	P("  guided mode:");
+	P("    z64audio \"input.wav\"");
+	P("  command line mode:");
+	P("    z64audio --wav \"input.wav\" --mode X");
+	P("    where X is one of the following modes:");
+	P("  extras:");
+	P("    --tabledesign");
+	P("    --vadpcm_enc");
+	P("    example: z64audio --tabledesign -i 30 \"wow.aiff\" > \"wow.table\"");
+	#ifdef _WIN32 /* helps users unfamiliar with command line */
+		P("");
+		P("Alternatively, Windows users can close this window and drop");
+		P("a .wav file directly onto the z64audio executable. If you use");
+		P("z64audio often, consider right-clicking a .wav, selecting");
+		P("'Open With', and then z64audio.");
+		fflush(stdin);
+		getchar();
+	#endif
+	#undef P
+	exit(EXIT_FAILURE);
+}
+
+static void shiftArgs(int* argc, char* argv[], int i) {
+	int newArgc = *argc - i;
+	int k;
+	
+	for (k = 0; i <= *argc; ++k, ++i)
+		argv[k] = argv[i];
+	*argc = newArgc;
+}
+
+void z64audioAtExit(void) {
+	if (gWaitAtExit) {
+		fflush(stdin);
+		DebugPrint("Press ENTER to exit...");
+		getchar();
+	}
+}
+
+static inline void win32icon(void) {
+	#ifdef _WIN32
+	#include "../icon.h"
+		{
+			HWND win = GetActiveWindow();
+			if( win ) {
+				SendMessage(
+					win,
+					WM_SETICON,
+					ICON_BIG,
+					(LPARAM)LoadImage(
+						GetModuleHandle(NULL),
+						MAKEINTRESOURCE(IDI_ICON),
+						IMAGE_ICON,
+						32, //GetSystemMetrics(SM_CXSMICON)
+						32, //GetSystemMetrics(SM_CXSMICON)
+						0
+					)
+				);
+				SendMessage(
+					win,
+					WM_SETICON,
+					ICON_SMALL,
+					(LPARAM)LoadImage(
+						GetModuleHandle(NULL),
+						MAKEINTRESOURCE(IDI_ICON),
+						IMAGE_ICON,
+						16, //GetSystemMetrics(SM_CXSMICON)
+						16, //GetSystemMetrics(SM_CXSMICON)
+						0
+					)
+				);
+			}
+		}
+	#endif
 }
 
 #include "audio.h"
