@@ -1,47 +1,62 @@
-#define __FLOAT80_SUCKS__
 
 #include "include/z64snd.h"
 
-#ifndef __Z64AUDIO_TERMINAL__
-	
-	int z64audio_Window(int argc, char** argv) {
-		wowGui_bind_init("z64audio", gApp.window.x, gApp.window.y * 5);
+#include "include/gui.h"
+
+int z64audio_Window(int argc, char** argv) {
+	#ifndef __Z64AUDIO_TERMINAL__
+		static s32 firstDraw = 0;
+		
+		wowGui_bind_init("z64audio", this.window.x, this.window.y * 5);
 		wow_windowicon(1);
 		wowGui_bind_set_fps(60);
 		
 		sWinData = (SWindowData*)__wowGui_mfbWindow;
 		sWinDataWin = (SWindowData_Win*)sWinData->specific;
 		
-		wowGui_update_window(0, 0, gApp.window.x, gApp.window.y);
+		wowGui_update_window(0, 0, this.window.x, this.window.y);
+		Setup_GuiFunc(Gui_InputFile);
 		
 		while (1) {
-			sBgBack.rect.w = gApp.scale.x;
-			sBgBack.rect.h = gApp.scale.y + 2;
-			s16 diffY = 0;
+			sWindowBackground.rect.w = this.scale.x;
+			sWindowBackground.rect.h = this.scale.y * 2;
+			wowGui_padding(24, 24);
+			wowGui_columns(3);
+			wowGui_row_height(24);
+			
 			wowGui_frame();
 			wowGui_bind_events();
+			wowGui_viewport(0, 0, this.scale.x, this.scale.y);
 			
-			if (gApp.scale.y != gApp.target.scale.y) {
-				diffY = Math_SmoothStepToS(&gApp.scale.y, gApp.target.scale.y, 7, 5, 1);
-				wowGui_update_window(0, -diffY * 0.02, gApp.scale.x, gApp.scale.y);
-			}
-			
-			if (wowGui_bind_should_redraw() || diffY) {
-				gApp.frame++;
-				Draw_Background();
+			if (wowGui_bind_should_redraw() || firstDraw != 10 || this.scale.y != this.targetScale.y) {
+				if (this.scale.y != this.targetScale.y) {
+					Math_SmoothStepToS(&this.scale.y, this.targetScale.y, 5, 8, 1);
+					wowGui_update_window(0, 0, this.scale.x, this.scale.y);
+				}
+				
+				if (firstDraw != 2)
+					firstDraw++;
+				
+				if (wowGui_window(&sWindowBackground)) {
+					wowGui_window_end();
+				}
+				
+				this.func();
+				
+				Draw_Corner();
 			}
 			
 			wowGui_bind_result();
 			if (wowGui_bind_endmainloop())
 				break;
 		}
-		
-		return 0;
-	}
+	#endif
 	
-#else
-	
-	int z64audio_Terminal(int argc, char** argv) {
+	return 0;
+}
+
+int z64audio_Terminal(int argc, char** argv) {
+	#ifdef __Z64AUDIO_TERMINAL__
 		s8 fileCount = 0;
 		int i;
 		char* file[3] = { 0 };
@@ -158,11 +173,10 @@
 				free(file[i]);
 		
 		DebugPrint("File free\t\t\tOK\n");
-		
-		return 0;
-	}
+	#endif
 	
-#endif
+	return 0;
+}
 
 int wow_main(argc, argv) {
 	wow_main_args(argc, argv);

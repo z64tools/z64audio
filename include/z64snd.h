@@ -12,7 +12,6 @@
 	#define WOW_GUI_IMPLEMENTATION
 	#define WOW_IMPLEMENTATION
 #include "../wowlib/wow_gui.h"
-#include "gui.h"
 #else
 	#define WOW_IMPLEMENTATION
 #include "../wowlib/wow.h"

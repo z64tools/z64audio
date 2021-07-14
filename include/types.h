@@ -42,6 +42,7 @@ typedef struct {
 		InstrumentChunk instChunk[3];
 		CommonChunk     commChunk[3];
 	} vadpcmInfo;
+	u16 sampleID[3];
 } z64audioState;
 
 typedef struct {

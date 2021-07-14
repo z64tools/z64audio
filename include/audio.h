@@ -78,6 +78,7 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 	char buffer[FILENAME_BUFFER] = { 0 };
 	u32 size = 0;
 	s8 bitDepth, channelFlag = 0;
+	u32 frames = 0;
 	
 	DebugPrint("filename:  [%s]", fname);
 	DebugPrint("path:      %s", path);
@@ -148,7 +149,7 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 		u32 chunkSize = wavDataChunk->size;
 		
 		chunkSize *= channelFlag == true ? 0.5 : 1;
-		chunkSize *= bitDepth == 32 ? 0.5 : bitDepth == 24 ? 0.75 : 1;
+		chunkSize *= bitDepth == 32 ? 0.5 : 1;
 		formChunk.ckSize += chunkSize;
 		if (gAudioState.instDataFlag[iter] == true)
 			formChunk.ckSize += sizeof(ChunkHeader) + sizeof(Marker) * 2 + sizeof(u16) + sizeof(ChunkHeader) + sizeof(InstrumentChunk);
@@ -181,8 +182,8 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 		if (channelFlag) {
 			*numFrames *= 0.5;
 		}
-		*numFrames *= bitDepth == 32 ? 0.5 : bitDepth == 24 ? 0.75 : 1;
-		
+		*numFrames *= bitDepth == 32 ? 0.5 : 1;
+		frames = *numFrames;
 		BSWAP32(*numFrames);
 		
 		float80 longDouble = wavHeader->sampleRate;
@@ -284,7 +285,7 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 		
 		if (channelFlag)
 			chunkHeader.ckSize *= 0.5;
-		chunkHeader.ckSize *= bitDepth == 32 ? 0.5 : bitDepth == 24 ? 0.75 : 1;
+		chunkHeader.ckSize *= bitDepth == 32 ? 0.5 : 1;
 		
 		chunkHeader.ckSize += 8;
 		
@@ -293,16 +294,16 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 		fwrite(&chunkHeader, sizeof(ChunkHeader), 1, AIFF);
 		fwrite(&temp, sizeof(u64), 1, AIFF);
 		
-		s32 mallSize = wavDataChunk->size;
+		s32 mallSize = frames;
 		float* audioData;
 		float max = 0;
 		
-		mallSize *= channelFlag ? 0.5 : 1.0;
-		mallSize *= bitDepth == 32 ? 0.5 : bitDepth == 24 ? 0.75 : 1;
-		audioData = malloc(sizeof(float) * (mallSize / 2));
+		// mallSize *= bitDepth == 32 ? 0.5 : 1;
+		audioData = malloc(sizeof(float) * (mallSize));
 		
 		if (bitDepth == 16) {
-			for (s32 i = 0; i < wavDataChunk->size / 2; i++) {
+			s32 a = 0;
+			for (s32 i = 0; i < frames; i++) {
 				float tempData = ((s16*)wavAudioData)[i];
 				float medianator;
 				
@@ -314,13 +315,14 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 				if (ABS(tempData) > max)
 					max = ABS(tempData);
 				
-				audioData[i] = tempData;
+				audioData[a] = tempData;
 				
 				if (channelFlag)
 					i++;
+				a++;
 			}
 			
-			for (s32 i = 0; i < mallSize / 2; i++) {
+			for (s32 i = 0; i < frames; i++) {
 				// Normalize
 				if (ABS(max) < 32767 || ABS(max) > 32768) {
 					float sample = audioData[i];
@@ -334,7 +336,8 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 				fwrite(&smpl, sizeof(s16), 1, AIFF);
 			}
 		} else if (bitDepth == 32) {
-			for (s32 i = 0; i < wavDataChunk->size / 2 / 2; i++) {
+			s32 a = 0;
+			for (s32 i = 0; i < frames * 2; i++) {
 				float* f32 = (float*)wavAudioData;
 				float tempData = f32[i] * 32766;
 				
@@ -346,13 +349,14 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 				if (ABS(tempData) > max)
 					max = ABS(tempData);
 				
-				audioData[i] = tempData;
+				audioData[a] = tempData;
 				
 				if(channelFlag)
 					i++;
+				a++;
 			}
 			
-			for (s32 i = 0; i < mallSize / 2; i++) {
+			for (s32 i = 0; i < frames; i++) {
 				// Normalize
 				if (ABS(max) < 32767 || ABS(max) > 32768) {
 					float sample = audioData[i];
@@ -365,43 +369,30 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 				BSWAP16(smpl);
 				fwrite(&smpl, sizeof(s16), 1, AIFF);
 			}
-		} else if (bitDepth == 24) {
-			// for (s32 i = 0; i < wavDataChunk->size * 0.75; i++) {
-			// 	s32 s24 = (s32)(((s8*)wavAudioData)[i * 3]) & 0xFFFFFF00;
-			// 	float tempData = s24;
-			// 	float medianator;
-			
-			// 	if (channelFlag) {
-			// 		medianator = (s32)(((s8*)wavAudioData)[(i + 1) * 3]) & 0xFFFFFF00;
-			// 		tempData = (tempData + medianator) * 0.5;
-			// 	}
-			
-			// 	if (ABS(tempData) > max)
-			// 		max = ABS(tempData);
-			
-			// 	audioData[i] = tempData;
-			
-			// 	if (channelFlag)
-			// 		i++;
-			// }
-			
-			// for (s32 i = 0; i < mallSize / 2; i++) {
-			// 	// Normalize
-			// 	if (ABS(max) < 32767 || ABS(max) > 32768) {
-			// 		float sample = audioData[i];
-			// 		sample *= 32767.0 / max;
-			// 		sample = CLAMP(sample, -32767, 32768);
-			// 		audioData[i] = sample;
-			// 	}
-			
-			// 	s16 smpl = audioData[i];
-			// 	BSWAP16(smpl);
-			// 	fwrite(&smpl, sizeof(s16), 1, AIFF);
-			// }
 		}
 		
 		if (audioData)
 			free(audioData);
+	}
+	
+	{
+		rewind(AIFF);
+		formChunk = (Chunk) {
+			.ckID = 0x464F524D,    // FORM
+			.ckSize = sizeof(Chunk) + sizeof(ChunkHeader) + sizeof(CommonChunk) + sizeof(ChunkHeader),
+			.formType = 0x41494646 // AIFF
+		};
+		u32 chunkSize = frames * sizeof(s16);
+		
+		formChunk.ckSize += chunkSize;
+		if (gAudioState.instDataFlag[iter] == true)
+			formChunk.ckSize += sizeof(ChunkHeader) + sizeof(Marker) * 2 + sizeof(u16) + sizeof(ChunkHeader) + sizeof(InstrumentChunk);
+		
+		BSWAP32(formChunk.ckID);
+		BSWAP32(formChunk.ckSize);
+		BSWAP32(formChunk.formType);
+		
+		fwrite(&formChunk, sizeof(Chunk), 1, AIFF);
 	}
 	
 	fclose(AIFF);
@@ -553,7 +544,11 @@ void Audio_AifcParseZzrtl(char* file, char* fname, char* path, s32 iter) {
 		void* endOfPredTable;
 		s8 predictorHead[8] = { 0 };
 		
-		BufferPrint("%s%s.predictors.bin", path, fname);
+		#ifndef __Z64AUDIO_TERMINAL__
+			BufferPrint("%spredictors.bin", path);
+		#else
+			BufferPrint("%s%s.predictors.bin", path, fname);
+		#endif
 		PRED = fopen(buffer, MODE_WRITE);
 		if (PRED == NULL)
 			PrintFail("Could not create/open %s", buffer);
@@ -577,7 +572,11 @@ void Audio_AifcParseZzrtl(char* file, char* fname, char* path, s32 iter) {
 	ColorPrint(0, "SAMPLE"); {
 		u32 ssndSize;
 		
-		BufferPrint("%s%s.sample.bin", path, fname);
+		#ifndef __Z64AUDIO_TERMINAL__
+			BufferPrint("%ssample.bin", path);
+		#else
+			BufferPrint("%s%s.sample.bin", path, fname);
+		#endif
 		SMPL = fopen(buffer, MODE_WRITE);
 		if (SMPL == NULL)
 			PrintFail("Could not create/open %s", buffer);
@@ -608,7 +607,11 @@ void Audio_AifcParseZzrtl(char* file, char* fname, char* path, s32 iter) {
 				BSWAP32(loopInfo->end);
 				BSWAP32(loopInfo->count);
 				
-				BufferPrint("%s%s.looppredictors.bin", path, fname);
+				#ifndef __Z64AUDIO_TERMINAL__
+					BufferPrint("%slooppredictors.bin", path);
+				#else
+					BufferPrint("%s%s.looppredictors.bin", path, fname);
+				#endif
 				LOOPRD = fopen(buffer, MODE_WRITE);
 				for (s32 i = 0; i < 16; i++)
 					fwrite(&loopInfo->state[i], sizeof(s16), 1, LOOPRD);
@@ -625,7 +628,11 @@ void Audio_AifcParseZzrtl(char* file, char* fname, char* path, s32 iter) {
 			comm->numFramesL
 		};
 		
-		BufferPrint("%s%s.config.tsv", path, fname);
+		#ifndef __Z64AUDIO_TERMINAL__
+			BufferPrint("%sconfig.tsv", path);
+		#else
+			BufferPrint("%s%s.config.tsv", path, fname);
+		#endif
 		CONF = fopen(buffer, MODE_WRITE);
 		
 		w = SearchByteString(vadpcm, size, "INST\0\0", 6);
@@ -662,7 +669,13 @@ void Audio_AifcParseZzrtl(char* file, char* fname, char* path, s32 iter) {
 		free(vadpcm);
 }
 
-void Audio_GenerateInstrumentConf(char* file, char* path, s32 fileCount) {
+void Audio_GenerateInstrumentConf(char* file,
+    char* path
+    , s32 fileCount
+#ifndef __Z64AUDIO_TERMINAL__
+	    , char* outputFile
+#endif
+) {
 	char buffer[FILENAME_BUFFER] = { 0 };
 	char fname[FILENAME_BUFFER] = { 0 };
 	FILE* conf;
@@ -701,8 +714,12 @@ void Audio_GenerateInstrumentConf(char* file, char* path, s32 fileCount) {
 		
 		DebugPrint("note %s%d\t%2.1f kHz\t%f", note[nn], (u32)f, (float)gAudioState.sampleRate[i] * 0.001, pitch[i]);
 	}
+	#ifndef __Z64AUDIO_TERMINAL__
+		conf = fopen(outputFile, MODE_WRITE);
+	#else
+		conf = fopen(buffer, MODE_WRITE);
+	#endif
 	
-	conf = fopen(buffer, MODE_WRITE);
 	fprintf(conf, "split1\tsplit2\tsplit3\trelease\tatkrate\tatklvl\tdcy1rt\tdcy1lvl\tdcy2rt\tdcy2lvl\n");
 	char floats[3][9] = {
 		"NULLNULL\0",
@@ -725,16 +742,16 @@ void Audio_GenerateInstrumentConf(char* file, char* path, s32 fileCount) {
 	    /* NULL Prim NULL */
 	    case 1: {
 		    snprintf(floats[1], 9, "%08X", hexFloat(pitch[0]));
-		    snprintf(sampleID[1], 5, "%d", 0);
+		    snprintf(sampleID[1], 5, "%d", gAudioState.sampleID[0]);
 	    } break;
 	    
 	    /* NULL Prim Secn */
 	    case 2: {
 		    snprintf(floats[1], 9, "%08X", hexFloat(pitch[0]));
-		    snprintf(sampleID[1], 5, "%d", 0);
+		    snprintf(sampleID[1], 5, "%d", gAudioState.sampleID[0]);
 		    
 		    snprintf(floats[2], 9, "%08X", hexFloat(pitch[1]));
-		    snprintf(sampleID[2], 4, "%d", 0);
+		    snprintf(sampleID[2], 4, "%d", gAudioState.sampleID[1]);
 		    
 		    if (gAudioState.vadpcmInfo.instChunk[0].highNote != 0)
 			    snprintf(split[2], 4, "%d", gAudioState.vadpcmInfo.instChunk[0].highNote - 21);
@@ -743,13 +760,13 @@ void Audio_GenerateInstrumentConf(char* file, char* path, s32 fileCount) {
 	    /* Prev Prim Secn */
 	    case 3: {
 		    snprintf(floats[0], 9, "%08X", hexFloat(pitch[2]));
-		    snprintf(sampleID[0], 5, "%d", 0);
+		    snprintf(sampleID[0], 5, "%d", gAudioState.sampleID[2]);
 		    
 		    snprintf(floats[1], 9, "%08X", hexFloat(pitch[0]));
-		    snprintf(sampleID[1], 5, "%d", 0);
+		    snprintf(sampleID[1], 5, "%d", gAudioState.sampleID[0]);
 		    
 		    snprintf(floats[2], 9, "%08X", hexFloat(pitch[1]));
-		    snprintf(sampleID[2], 5, "%d", 0);
+		    snprintf(sampleID[2], 5, "%d", gAudioState.sampleID[1]);
 		    
 		    if (gAudioState.vadpcmInfo.instChunk[0].highNote != 0) {
 			    snprintf(split[1], 4, "%d", gAudioState.vadpcmInfo.instChunk[0].lowNote - 21);
