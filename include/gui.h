@@ -34,7 +34,7 @@ typedef struct {
 } z64audio;
 
 void Gui_InputFile();
-void Gui_OutputFile();
+void Gui_OutputSamples();
 
 static z64audio this = {
 	.scale = {
@@ -104,7 +104,7 @@ static struct wowGui_fileDropper sGetFileBox = {
 
 static struct wowGui_fileDropper sSaveFileBox[3] = {
 	{
-		.label = "Primary"
+		.label = "Sample"
 		, .labelWidth = 64 + 32 - 24
 		, .filenameWidth = 64 + 32 + 24
 		, .extension = "bin"
@@ -112,7 +112,7 @@ static struct wowGui_fileDropper sSaveFileBox[3] = {
 		, .isCreateMode = 1
 	},
 	{
-		.label = "Secondary"
+		.label = "Sample High"
 		, .labelWidth = 64 + 32 - 24
 		, .filenameWidth = 64 + 52 + 32 + 24
 		, .extension = "bin"
@@ -120,7 +120,7 @@ static struct wowGui_fileDropper sSaveFileBox[3] = {
 		, .isCreateMode = 1
 	},
 	{
-		.label = "Previous"
+		.label = "Sample Low"
 		, .labelWidth = 64 + 32 - 24
 		, .filenameWidth = 64 + 52 + 32 + 24
 		, .extension = "bin"
@@ -144,7 +144,7 @@ void Gui_InputFile() {
 					strcpy(this.files.file[i], files[i]);
 				}
 				
-				Setup_GuiFunc(Gui_OutputFile);
+				Setup_GuiFunc(Gui_OutputSamples);
 			}
 		}
 	}
@@ -158,7 +158,7 @@ const char fileExtension[4][6] = {
 };
 
 static struct wowGui_fileDropper sInstFileBox = {
-	.label = "Instrument"
+	.label = "Bank Instr."
 	, .labelWidth = 64 + 32 - 24
 	, .filenameWidth = 64 + 52 + 32 + 24
 	, .extension = "tsv"
@@ -166,7 +166,7 @@ static struct wowGui_fileDropper sInstFileBox = {
 	, .isCreateMode = 1
 };
 
-void Gui_OutputFile() {
+void Gui_OutputSamples() {
 	static char fname[4][FILENAME_BUFFER] = { 0 };
 	static char path[4][FILENAME_BUFFER] = { 0 };
 	
@@ -197,7 +197,7 @@ void Gui_OutputFile() {
 	if (wowGui_clickable(proc)) {
 		for (s32 i = 0; i < this.files.fileCount; i++) {
 			if (sSaveFileBox[i].filename[0] == 0 || sInstFileBox.filename[0] == 0) {
-				wowGui_popup(WOWGUI_POPUP_ICON_ERR, 0, 0, "Error", "Wow!");
+				wowGui_popup(WOWGUI_POPUP_ICON_ERR, 0, 0, "Error", "Please select path for sample(s) and instrument.");
 				
 				return;
 			}
@@ -235,6 +235,7 @@ void Gui_OutputFile() {
 		};
 		
 		for(s32 i = 0; i < this.files.fileCount; i++) {
+			char numbuffer[4] = "000\0";
 			s32 h = strlen(path[i]);
 			h--;
 			while (path[i][h - 1] != '/' && path[i][h - 1] != '\\' ) {
@@ -244,19 +245,13 @@ void Gui_OutputFile() {
 			while (path[i][e] != ' ' && path[i][e] != '-') {
 				e++;
 			}
+			s32 size = e - h;
 			
-			if (path[h] >= '0' || path[h] <= '9') {
-				if (e - h == 1) {
-					gAudioState.sampleID[i] += (path[i][h] - '0');
-				} else if (e - h == 2) {
-					gAudioState.sampleID[i] += (path[i][h + 1] - '0');
-					gAudioState.sampleID[i] += (path[i][h] - '0') * 10;
-				} else if (e - h == 3) {
-					gAudioState.sampleID[i] += (path[i][h + 2] - '0');
-					gAudioState.sampleID[i] += (path[i][h + 1] - '0') * 10;
-					gAudioState.sampleID[i] += (path[i][h] - '0') * 100;
-				}
-			}
+			memcpy(&numbuffer[3 - size], &path[i][h], size);
+			
+			gAudioState.sampleID[i] += numbuffer[2] - '0';
+			gAudioState.sampleID[i] += (numbuffer[1] - '0') * 10;
+			gAudioState.sampleID[i] += (numbuffer[0] - '0') * 100;
 		}
 		
 		GetFilename(sInstFileBox.filename, fname[3], path[3]);

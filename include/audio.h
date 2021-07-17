@@ -48,13 +48,13 @@ void Audio_Clean(char* fname, char* path) {
 	}
 }
 
-void* Audio_WavDataLoad(const char* fname, u32* size) {
+void* Audio_WavDataLoad(const char* file, u32* size) {
 	FILE* getF;
 	void* out = 0;
 	
-	getF = fopen(fname, MODE_READ);
+	getF = fopen(file, MODE_READ);
 	if (!getF)
-		PrintFail("Could not open %s", fname);
+		PrintFail("audio.h %d: Could not open %s", __LINE__, file);
 	fseek(getF, 0L, SEEK_END);
 	*size = ftell(getF);
 	rewind(getF);
@@ -299,11 +299,11 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 		float max = 0;
 		
 		// mallSize *= bitDepth == 32 ? 0.5 : 1;
-		audioData = malloc(sizeof(float) * (mallSize));
+		audioData = malloc(sizeof(float) * (mallSize) * 2);
 		
 		if (bitDepth == 16) {
 			s32 a = 0;
-			for (s32 i = 0; i < frames; i++) {
+			for (s32 i = 0; a < frames; i++) {
 				float tempData = ((s16*)wavAudioData)[i];
 				float medianator;
 				
@@ -337,7 +337,7 @@ void Audio_WavConvert(char* file, char* fname, char* path, s32 iter) {
 			}
 		} else if (bitDepth == 32) {
 			s32 a = 0;
-			for (s32 i = 0; i < frames * 2; i++) {
+			for (s32 i = 0; a < frames; i++) {
 				float* f32 = (float*)wavAudioData;
 				float tempData = f32[i] * 32766;
 				
@@ -709,7 +709,7 @@ void Audio_GenerateInstrumentConf(char* file,
 		pitch[i] = ((float)gAudioState.sampleRate[i]) / 32000.0f;
 		
 		if (gAudioState.instDataFlag[i]) {
-			pitch[i] *= pow(pow(2, 1.0 / 12), 60 - gAudioState.vadpcmInfo.instChunk[i].baseNote);
+			pitch[i] *= pow(pow(2, 1.0 / 12), 60.0 - (double)gAudioState.vadpcmInfo.instChunk[i].baseNote - 0.01 * gAudioState.vadpcmInfo.instChunk[i].detune);
 		}
 		
 		DebugPrint("note %s%d\t%2.1f kHz\t%f", note[nn], (u32)f, (float)gAudioState.sampleRate[i] * 0.001, pitch[i]);

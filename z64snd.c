@@ -1,10 +1,13 @@
 
 #include "include/z64snd.h"
 
+#ifndef __Z64AUDIO_TERMINAL__
 #include "include/gui.h"
+#endif
 
 int z64audio_Window(int argc, char** argv) {
 	#ifndef __Z64AUDIO_TERMINAL__
+		
 		static s32 firstDraw = 0;
 		
 		wowGui_bind_init("z64audio", this.window.x, this.window.y * 5);

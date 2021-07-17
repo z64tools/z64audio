@@ -127,31 +127,36 @@ void GetFilename(char* _src, char* _dest, char* _path) {
 		}
 }
 
-s8 File_GetAndSort(char* wav, char** file) {
-	s8 fileCount = 1;
-	char* wow = malloc(strlen(wav) + 32);
+s8 File_FindAdditionalSamples(const char* prev, const char* secn, char* wav, char* wow, char* file[3], s8 f) {
+	s8 fileCount = f;
 	char fname[FILENAME_BUFFER];
 	char fnameT[FILENAME_BUFFER];
 	char path[FILENAME_BUFFER];
 	
-	/* primary */
-	file[0] = strdup(wav);
-	
-	if (strstr(wav, ".previous") || strstr(wav, ".secondary")) {
-		char* p = strstr(wav, ".previous");
+	if (strstr(wav, prev) || strstr(wav, secn)) {
+		char* p = strstr(wav, prev);
 		
-		if (p == NULL && (*p = strstr(wav, ".secondary") == NULL)) {
-			PrintWarning("Could not confirm filename. Processing only one file");
-			
-			return fileCount;
+		if (p == NULL) {
+			p = strstr(wav, secn);
+			if (p == NULL) {
+				PrintWarning("Could not confirm filename. Processing only one file");
+				
+				return fileCount;
+			}
 		}
 		
+		DebugPrint("GetFilenames");
 		GetFilename(wav, fname, path);
 		GetFilename(wav, fnameT, path);
 		
-		fnameT[ptrDiff(p, wav) - strlen(path)] = '\0';
+		for (s32 i = 0; i < strlen(fnameT); i++) {
+			if (fnameT[i] == '.') {
+				fnameT[i] = '\0';
+				break;
+			}
+		}
 		
-		snprintf(fname, 5 + strlen(fname), "%s.wav", fnameT);
+		snprintf(fname, strlen(wav), "%s%s.wav", path, fnameT);
 		DebugPrint("Looking for %s", fname);
 		
 		if (File_TestIfExists(fname) == 0) {
@@ -165,17 +170,44 @@ s8 File_GetAndSort(char* wav, char** file) {
 	}
 	
 	/* secondary */
-	if (FormatSampleNameExists(wow, wav, "secondary")) {
+	if (FormatSampleNameExists(wow, wav, secn)) {
 		++fileCount;
 		file[1] = strdup(wow);
-		//fprintf(stderr, "secondary = '%s'\n", wow);
 	}
 	
 	/* previous */
-	if (FormatSampleNameExists(wow, wav, "previous")) {
+	if (FormatSampleNameExists(wow, wav, prev)) {
 		++fileCount;
 		file[2] = strdup(wow);
-		//fprintf(stderr, "previous = '%s'\n", wow);
+	}
+	
+	return fileCount;
+}
+
+s8 File_GetAndSort(char* wav, char* file[3]) {
+	s8 fileCount = 1;
+	char* wow = malloc(strlen(wav) + 32);
+	char prevAlias[4][64] = {
+		"previous\0"
+		,"prev\0"
+		, "low\0"
+		, "lo\0"
+	};
+	char secnAlias[4][64] = {
+		"secondary\0"
+		, "sec\0"
+		, "high\0"
+		, "hi\0"
+	};
+	
+	/* primary */
+	file[0] = strdup(wav);
+	for (s32 i = 0; i < 4; i++) {
+		s8 f = fileCount;
+		fileCount = File_FindAdditionalSamples(prevAlias[i], secnAlias[i], wav, wow, file, fileCount);
+		if (fileCount > f) {
+			break;
+		}
 	}
 	
 	/* TODO logic for handling 'previous' without 'secondary' */
