@@ -669,6 +669,49 @@ void Audio_AifcParseZzrtl(char* file, char* fname, char* path, s32 iter) {
 		free(vadpcm);
 }
 
+#include "audiobank.h"
+
+void Audio_AifcParseC(char* file, char* fname, char* path, s32 iter) {
+	char buffer[FILENAME_BUFFER];
+	FILE* AIFC;
+	char* vadpcm = 0;
+	char* w;
+	FILE* PRED;
+	FILE* SMPL;
+	FILE* CONF;
+	s32 size;
+	ALADPCMloop* loopInfo;
+	InstrumentChunk* instData;
+	CommonChunk* comm;
+	
+	ALADPCMLoopMain loopMain = { 0 };
+	ALADPCMLoopTail loopTail = { 0 };
+	ALADPCMBook* book;
+	ABSample sample = { 0 };
+	ABEnvelope envelope = { 0 };
+	ABInstrument instrument = { 0 };
+	
+	if (gAudioState.ftype <= AIFF)
+		BufferPrint("%s%s.aifc", path, fname);
+	else
+		BufferPrint("%s", file);
+	AIFC = fopen(buffer, "rb");
+	if (AIFC == NULL)
+		PrintFail("Could not open %s", buffer);
+	fseek(AIFC, 0, SEEK_END);
+	size = ftell(AIFC);
+	rewind(AIFC);
+	w = vadpcm = malloc(size);
+	if (vadpcm == NULL)
+		PrintFail("Could not malloc vadpcm");
+	fread(vadpcm, size, 1, AIFC);
+	fclose(AIFC);
+	
+	comm = (CommonChunk*)(vadpcm + 0x14);
+	
+	w = SearchByteString(vadpcm, size, "VADPCMLOOPS", 11);
+}
+
 void Audio_GenerateInstrumentConf(char* file,
     char* path
     , s32 fileCount
@@ -709,7 +752,7 @@ void Audio_GenerateInstrumentConf(char* file,
 		pitch[i] = ((float)gAudioState.sampleRate[i]) / 32000.0f;
 		
 		if (gAudioState.instDataFlag[i]) {
-			pitch[i] *= pow(pow(2, 1.0 / 12), 60.0 - (double)gAudioState.vadpcmInfo.instChunk[i].baseNote - 0.01 * gAudioState.vadpcmInfo.instChunk[i].detune);
+			pitch[i] *= pow(pow(2, 1.0 / 12), 60.0 - (double)gAudioState.vadpcmInfo.instChunk[i].baseNote + 0.01 * gAudioState.vadpcmInfo.instChunk[i].detune);
 		}
 		
 		DebugPrint("note %s%d\t%2.1f kHz\t%f", note[nn], (u32)f, (float)gAudioState.sampleRate[i] * 0.001, pitch[i]);
