@@ -70,7 +70,10 @@ static struct wowGui_window sWindowBackground = {
 void wowGui_update_window(s16 x, s16 y, s16 sx, s16 sy) {
 	RECT pos = { 0 };
 	s32 addY = (GetSystemMetrics(SM_CYFRAME) + GetSystemMetrics(SM_CYCAPTION));
-	s32 addX =  + GetSystemMetrics(SM_CXPADDEDBORDER);
+	s32 addX = (GetSystemMetrics(SM_CXFRAME)) - 2;
+
+	// if (IsWindowsXPOrGreater() && !IsWindowsVistaOrGreater())
+	// 	addY += GetSystemMetrics(SM_CYFRAME);
 
 	GetWindowRect(sWinDataWin->window, &pos);
 	MoveWindow(sWinDataWin->window, pos.left + x, pos.top + y, sx + addX, sy + addY, TRUE);

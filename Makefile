@@ -40,7 +40,7 @@ objwin32:
 	@mv *.o bin/o/win32
 
 z64audio.exe: z64snd.c include/z64snd.h
-	@$(WIN_GCC) -c z64snd.c -Wall -Os -s -flto -DNDEBUG -Iwowlib -DWOW_OVERLOAD_FILE -municode -DUNICODE -D_UNICODE -Wno-strict-aliasing -Wno-unused-function
+	@$(WIN_GCC) -c z64snd.c -Wall -Os -s -flto -DNDEBUG -Iwowlib -DWOW_OVERLOAD_FILE -municode -DUNICODE -D_UNICODE $(DEP)
 	@~/c/mxe/usr/bin/i686-w64-mingw32.static-windres icon.rc -o bin/o/win32/icon.o
 	@$(WIN_GPP) -o z64audio.exe z64snd.o bin/o/win32/*.o -Os -s -flto -DNDEBUG -municode -DUNICODE -D_UNICODE $(DEP)
 	@rm -f *.o
