@@ -253,7 +253,7 @@ void Gui_OutputSamples() {
 			
 			memcpy(&numbuffer[3 - size], &path[i][h], size);
 			
-			gAudioState.sampleID[i] += numbuffer[2] - '0';
+			gAudioState.sampleID[i] = numbuffer[2] - '0';
 			gAudioState.sampleID[i] += (numbuffer[1] - '0') * 10;
 			gAudioState.sampleID[i] += (numbuffer[0] - '0') * 100;
 		}
