@@ -62,9 +62,13 @@ void printf_info(const char* fmt, ...);
 
 // Lib
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
+void* Lib_Malloc(s32 size);
 
 // File
-void File_LoadToMem(void** dest, char* src, int* retSize);
+s32 File_LoadToMem(void** dst, char* src);
+s32 File_WriteToFromMem(char* dst, void* src, s32 size);
+s32 File_LoadToMem_ReqExt(void** dst, char* src, const char* ext);
+s32 File_WriteToFromMem_ReqExt(char* dst, void* src, s32 size, const char* ext);
 
 // string
 u32 String_ToHex(char* string);
@@ -76,4 +80,3 @@ void String_CaseToUp(char* s, s32 i);
 void String_GetPath(char* dst, char* src);
 void String_GetBasename(char* dst, char* src);
 void String_GetFilename(char* dst, char* src);
-

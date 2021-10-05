@@ -99,31 +99,81 @@ void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, 
 	return NULL;
 }
 
+void* Lib_Malloc(s32 size) {
+	void* data = malloc(size);
+        
+	if (data == NULL) {
+		printf_warning("Lib_Malloc: Failed to malloc 0x%X bytes.", size);
+                
+		return NULL;
+	}
+        
+	bzero(data, size);
+        
+	return data;
+}
+
 // File
-void File_LoadToMem(void** dest, char* src, int* retSize) {
+s32 File_LoadToMem(void** dst, char* src) {
 	s32 size;
         
 	FILE* file = fopen(src, "r");
         
 	if (file == NULL) {
-		printf_error("File_LoadToMem: Failed to fopen file [%s].", src);
+		printf_warning("File_LoadToMem: Failed to fopen file [%s].", src);
+                
+		return 0;
 	}
         
 	fseek(file, 0, SEEK_END);
 	size = ftell(file);
-	if (*dest == NULL) {
-		*dest = malloc(size);
-		if (*dest == NULL) {
-			printf_error("File_LoadToMem: Failed to malloc 0x%X bytes to store data from [%s].", size, src);
+	if (*dst == NULL) {
+		*dst = Lib_Malloc(size);
+		if (*dst == NULL) {
+			printf_warning("File_LoadToMem: Failed to malloc 0x%X bytes to store data from [%s].", size, src);
+                        
+			return 0;
 		}
 	}
 	rewind(file);
-	fread(*dest, sizeof(char), size, file);
+	fread(*dst, sizeof(char), size, file);
 	fclose(file);
         
-	if (retSize) {
-		*retSize = size;
+	return size;
+}
+
+s32 File_WriteToFromMem(char* dst, void* src, s32 size) {
+	FILE* file = fopen(dst, "w");
+        
+	if (file == NULL) {
+		printf_error("File_LoadToMem: Failed to fopen file [%s].", dst);
+                
+		return 0;
 	}
+        
+	fwrite(src, sizeof(u8), size, file);
+	fclose(file);
+        
+	return 1;
+}
+
+s32 File_LoadToMem_ReqExt(void** dst, char* src, const char* ext) {
+	if (Lib_MemMem(src, strlen(src), ext, strlen(ext) - 1)) {
+		return File_LoadToMem(dst, src);
+	}
+	printf_warning("File_LoadToMem_ReqExt: [%s] does not match extension [%s]", src, ext);
+        
+	return 0;
+}
+
+s32 File_WriteToFromMem_ReqExt(char* dst, void* src, s32 size, const char* ext) {
+	if (Lib_MemMem(dst, strlen(dst), ext, strlen(ext) - 1)) {
+		return File_WriteToFromMem(src, dst, size);
+	}
+        
+	printf_warning("File_WriteToFromMem_ReqExt: [%s] does not match extension [%s]", src, ext);
+        
+	return 0;
 }
 
 // string
