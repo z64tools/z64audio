@@ -13,13 +13,18 @@ typedef long double f80;
 #ifndef __Z64AUDIO_HEADER__
 #define __Z64AUDIO_HEADER__
 
-typedef enum {
-	BIG,
-	LITTLE
-} Z64Endianess;
+typedef union {
+	u8*  data;
+	s16* data16;
+	s32* data32;
+	f32* dataFloat;
+} AudioSample;
 
 typedef struct {
-} Z64Loop;
+	u32 start;
+	u32 end;
+	u32 count;
+} AudioLoop;
 
 typedef struct {
 	s8 note;
@@ -27,17 +32,18 @@ typedef struct {
 	u8 highNote;
 	u8 lowNote;
 	u8 loopNum;
-	Z64Loop* loop;
-} Z64Instrument;
+	AudioLoop loop;
+} AudioInstrument;
 
 typedef struct {
 	u8  channelNum;
 	u8  bit;
 	u32 sampleRate;
-	Z64Endianess   dataEndianess;
-	Z64Instrument* instrument;
-	void* data;
-} Z64Audio;
+	u32 samplesNum;
+	u32 size;
+	AudioSample audio;
+	AudioInstrument* instrument;
+} AudioSampleInfo;
 
 #endif
 
@@ -61,7 +67,7 @@ typedef struct {
 
 typedef struct {
 	WaveChunk chunk;
-	void* data;
+	u8 data[];
 } WaveData;
 
 typedef struct {
@@ -173,4 +179,6 @@ typedef struct {
 
 #endif
 
-u32 Audio_BSwapFloat80(f80* float80);
+void Audio_ByteSwapFloat80(f80* float80);
+void Audio_ByteSwapData(AudioSampleInfo* audioInfo);
+void Audio_LoadWav(void** dst, char* file, AudioSampleInfo* sampleInfo);

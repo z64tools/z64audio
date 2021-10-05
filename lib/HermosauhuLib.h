@@ -54,7 +54,7 @@ typedef enum {
 } PrintfSuppressLevel;
 
 // printf
-void printf_SetPrintfSuppressLevel(PrintfSuppressLevel lvl);
+void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_debug(const char* fmt, ...);
 void printf_warning(const char* fmt, ...);
 void printf_error(const char* fmt, ...);
@@ -63,6 +63,7 @@ void printf_info(const char* fmt, ...);
 // Lib
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
 void* Lib_Malloc(s32 size);
+void Lib_ByteSwap(void* src, s32 size);
 
 // File
 s32 File_LoadToMem(void** dst, char* src);
@@ -80,3 +81,7 @@ void String_CaseToUp(char* s, s32 i);
 void String_GetPath(char* dst, char* src);
 void String_GetBasename(char* dst, char* src);
 void String_GetFilename(char* dst, char* src);
+
+#define ByteSwap16(x) x = __bswap_16(x)
+#define ByteSwap32(x) x = __bswap_32(x)
+#define ByteSwap64(x) x = __bswap_64(x)

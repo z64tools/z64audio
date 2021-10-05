@@ -3,3 +3,6 @@
 z64audio
 .vscode/*
 uncrustify.cfg
+__include/*
+compile_flags.txt
+test.wav
