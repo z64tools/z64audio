@@ -31,7 +31,7 @@ static struct sigaction int_act = {
 
 #endif
 
-s32 main(s32 argc, char **argv)
+s32 vadpcm_dec(s32 argc, char **argv)
 {
     s32 c;
     u8 cc;

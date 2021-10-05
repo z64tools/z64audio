@@ -5,9 +5,6 @@
 #include <getopt.h>
 #include "vadpcm.h"
 
-#include <wow.h>
-#undef fread
-
 #define FREE_P(P) if (P) free(P);
 
 static char usage[] = "[-t -l min_loop_length] -c codebook aifcfile compressedfile";

@@ -1,4 +1,0 @@
-#include "icon.h"
-
-IDI_ICON ICON "icon.ico"
-
