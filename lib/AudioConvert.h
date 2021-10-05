@@ -18,31 +18,30 @@ typedef union {
 	s16* data16;
 	s32* data32;
 	f32* dataFloat;
-} AudioSample;
+} Sample;
 
 typedef struct {
 	u32 start;
 	u32 end;
 	u32 count;
-} AudioLoop;
+} SampleLoop;
 
 typedef struct {
 	s8 note;
 	s8 fineTune;
 	u8 highNote;
 	u8 lowNote;
-	u8 loopNum;
-	AudioLoop loop;
-} AudioInstrument;
+	SampleLoop loop;
+} SampleInstrument;
 
 typedef struct {
-	u8  channelNum;
-	u8  bit;
-	u32 sampleRate;
-	u32 samplesNum;
-	u32 size;
-	AudioSample audio;
-	AudioInstrument* instrument;
+	u8     channelNum;
+	u8     bit;
+	u32    sampleRate;
+	u32    samplesNum;
+	u32    size;
+	Sample audio;
+	SampleInstrument instrument;
 } AudioSampleInfo;
 
 #endif
@@ -68,7 +67,7 @@ typedef struct {
 typedef struct {
 	WaveChunk chunk;
 	u8 data[];
-} WaveData;
+} WaveDataInfo;
 
 typedef struct {
 	WaveChunk chunk;
@@ -120,65 +119,60 @@ typedef struct {
 } AiffChunk;
 
 typedef struct {
-	AiffChunk chunk;
-	u32 formType;
-} AiffChunkHeader;
+	AiffChunk chunk; // FORM
+	char formType[4]; // AIFF
+} AiffHeader;
 
 typedef struct {
-	s16 numChannels;
-	u16 numFramesH;
-	u16 numFramesL;
-	s16 sampleSize;
-	s8  sampleRate[10]; // 80-bit float
-	u16 compressionTypeH;
-	u16 compressionTypeL;
-} CommonChunk;
+	AiffChunk chunk; // COMM
+	u16 channelNum;
+	u16 sampleNumH;
+	u16 sampleNumL;
+	u16 bit;
+	u8  sampleRate[10]; // 80-bit float
+} AiffInfo;
 
 typedef struct {
-	s16 MarkerID;
-	u16 positionH;
-	u16 positionL;
+	s16 index;
+	u32 position;
 	u16 string;
-} Marker;
+} AiffMarker;
+
+typedef struct {
+	AiffChunk  chunk; // MARK
+	u16 markerNum;
+	AiffMarker marker[];
+} AiffMarkerInfo;
 
 typedef struct {
 	s16 playMode;
-	s16 beginLoop;
-	s16 endLoop;
-} Loop;
+	s16 start;
+	s16 end;
+} AiffLoop;
 
 typedef struct {
-	s8   baseNote;
-	s8   detune;
-	s8   lowNote;
-	s8   highNote;
-	s8   lowVelocity;
-	s8   highVelocity;
-	s16  gain;
-	Loop sustainLoop;
-	Loop releaseLoop;
-} InstrumentChunk;
+	AiffChunk chunk; // INST
+	s8  baseNote;
+	s8  detune;
+	s8  lowNote;
+	s8  highNote;
+	s8  lowVelocity;
+	s8  highVelocity;
+	s16 gain;
+	AiffLoop sustainLoop;
+	AiffLoop releaseLoop;
+} AiffInstrumentInfo;
 
 typedef struct {
-	s32 offset;
-	s32 blockSize;
-} SoundDataChunk;
-
-typedef struct {
-	s16 version;
-	s16 order;
-	s16 nEntries;
-} CodeChunk;
-
-typedef struct {
-	u32 start;
-	u32 end;
-	u32 count;
-	s16 state[16];
-} ALADPCMloop;
+	AiffChunk chunk; // SSND
+	u32 offset;
+	u32 blockSize;
+	u8  data[];
+} AiffDataInfo;
 
 #endif
 
 void Audio_ByteSwapFloat80(f80* float80);
 void Audio_ByteSwapData(AudioSampleInfo* audioInfo);
 void Audio_LoadWav(void** dst, char* file, AudioSampleInfo* sampleInfo);
+void Audio_LoadAiff(void** dst, char* file, AudioSampleInfo* sampleInfo);

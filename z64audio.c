@@ -3,31 +3,23 @@
 #include "lib/AudioTools.h"
 
 s32 main(const s32 argc, const char* argv[]) {
-	void* audio = NULL;
+	void* wav = NULL;
+	void* aiff = NULL;
 	AudioSampleInfo sampleInfo = { 0 };
 	
 	printf_SetSuppressLevel(PSL_DEBUG);
-	Audio_LoadWav(&audio, "test.wav", &sampleInfo);
+	Audio_LoadWav(&wav, "test.wav", &sampleInfo);
+	Audio_LoadAiff(&aiff, "test.aiff", &sampleInfo);
 	
-	printf_debug(
-		"SampleInfo:\n"
-		"\t\tChannels:   %d\n"
-		"\t\tBit:        %d\n"
-		"\t\tSampleRate: %d\n"
-		"\t\tSamplesNum: %d\n"
-		"\t\tSize:       0x%X\n"
-		"\t\tData:       %p\n"
-		"\t\tInstrument: %p",
-		sampleInfo.channelNum,
-		sampleInfo.bit,
-		sampleInfo.sampleRate,
-		sampleInfo.samplesNum,
-		sampleInfo.size,
-		sampleInfo.audio.data,
-		sampleInfo.instrument
+	printf_info(
+		"%d - %d\n%d-bit\n",
+		sampleInfo.instrument.loop.start,
+		sampleInfo.instrument.loop.end,
+		sampleInfo.bit
 	);
 	
-	free(audio);
+	free(wav);
+	free(aiff);
 	
 	return 0;
 }

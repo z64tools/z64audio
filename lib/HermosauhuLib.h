@@ -53,6 +53,14 @@ typedef enum {
 	PSL_NO_ERROR,
 } PrintfSuppressLevel;
 
+typedef enum {
+	SWAP_U8  = 1,
+	SWAP_U16 = 2,
+	SWAP_U32 = 4,
+	SWAP_U64 = 8,
+	SWAP_F80 = 10
+} SwapSize;
+
 // printf
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_debug(const char* fmt, ...);
