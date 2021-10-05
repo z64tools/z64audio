@@ -1,13 +1,4 @@
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short int s16;
-typedef unsigned short int u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef signed long long int s64;
-typedef unsigned long long int u64;
-typedef float f32;
-typedef double f64;
+#include "HermosauhuLib.h"
 typedef long double f80;
 
 #ifndef __Z64AUDIO_HEADER__
@@ -40,11 +31,11 @@ typedef struct {
 	u32    sampleRate;
 	u32    samplesNum;
 	u32    size;
-	Sample audio;
+	Sample audio; // Stored endianess: BIG
 	SampleInstrument instrument;
 } AudioSampleInfo;
 
-#endif
+#endif /* __Z64AUDIO_HEADER__ */
 
 #ifndef __WAVE_HEADER__
 #define __WAVE_HEADER__
@@ -108,7 +99,7 @@ typedef struct {
 	s8 hiVel;
 } WaveInstrumentInfo;
 
-#endif
+#endif /* __WAVE_HEADER__ */
 
 #ifndef __AIFF_HEADER__
 #define __AIFF_HEADER__
@@ -130,6 +121,8 @@ typedef struct {
 	u16 sampleNumL;
 	u16 bit;
 	u8  sampleRate[10]; // 80-bit float
+	u16 compressionTypeH;
+	u16 compressionTypeL;
 } AiffInfo;
 
 typedef struct {
@@ -170,9 +163,10 @@ typedef struct {
 	u8  data[];
 } AiffDataInfo;
 
-#endif
+#endif /* __AIFF_HEADER__ */
 
 void Audio_ByteSwapFloat80(f80* float80);
 void Audio_ByteSwapData(AudioSampleInfo* audioInfo);
-void Audio_LoadWav(void** dst, char* file, AudioSampleInfo* sampleInfo);
-void Audio_LoadAiff(void** dst, char* file, AudioSampleInfo* sampleInfo);
+void Audio_LoadWav(MemFile* d, char* file, AudioSampleInfo* sampleInfo);
+void Audio_LoadAiff(MemFile* d, char* file, AudioSampleInfo* sampleInfo);
+void Audio_WriteAiff(MemFile* d, AudioSampleInfo* sampleInfo);

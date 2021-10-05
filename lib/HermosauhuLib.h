@@ -1,3 +1,6 @@
+#ifndef __HERMOSAUHU_LIB_H__
+#define __HERMOSAUHU_LIB_H__
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -61,6 +64,25 @@ typedef enum {
 	SWAP_F80 = 10
 } SwapSize;
 
+#ifndef __HERMOSAUHU_DATA_T__
+#define __HERMOSAUHU_DATA_T__
+
+typedef struct {
+	union {
+		void* data;
+		union {
+			u8*  u8;
+			u16* u16;
+			u32* u32;
+			u64* u64;
+		} d;
+	};
+	u32 memSize;
+	u32 dataSize;
+} MemFile;
+
+#endif
+
 // printf
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_debug(const char* fmt, ...);
@@ -75,9 +97,13 @@ void Lib_ByteSwap(void* src, s32 size);
 
 // File
 s32 File_LoadToMem(void** dst, char* src);
-s32 File_WriteToFromMem(char* dst, void* src, s32 size);
+void File_WriteToFromMem(char* dst, void* src, s32 size);
 s32 File_LoadToMem_ReqExt(void** dst, char* src, const char* ext);
-s32 File_WriteToFromMem_ReqExt(char* dst, void* src, s32 size, const char* ext);
+void File_WriteToFromMem_ReqExt(char* dst, void* src, s32 size, const char* ext);
+void File_LoadToData(MemFile* dst, char* src);
+void File_WriteToFromData(char* dst, MemFile* src);
+void File_LoadToData_ReqExt(MemFile* dst, char* src, const char* ext);
+void File_WriteToFromData_ReqExt(char* dst, MemFile* src, s32 size, const char* ext);
 
 // string
 u32 String_ToHex(char* string);
@@ -93,3 +119,5 @@ void String_GetFilename(char* dst, char* src);
 #define ByteSwap16(x) x = __bswap_16(x)
 #define ByteSwap32(x) x = __bswap_32(x)
 #define ByteSwap64(x) x = __bswap_64(x)
+
+#endif /* __HERMOSAUHU_LIB_H__ */

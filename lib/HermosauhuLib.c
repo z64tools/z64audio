@@ -143,34 +143,30 @@ s32 File_LoadToMem(void** dst, char* src) {
 	size = ftell(file);
 	if (*dst == NULL) {
 		*dst = Lib_Malloc(size);
+		printf_info("File_LoadToMem: dst is NULL, mallocing [0x%X] bytes", size);
 		if (*dst == NULL) {
-			printf_warning("File_LoadToMem: Failed to malloc 0x%X bytes to store data from [%s].", size, src);
+			printf_warning("File_LoadToMem: Failed to malloc [0x%X] bytes to store data from [%s].", size, src);
 			
 			return 0;
 		}
 	}
+	printf_info("File_LoadToMem: dst is not null NULL, skipping malloc");
 	rewind(file);
 	fread(*dst, sizeof(char), size, file);
 	fclose(file);
 	
 	return size;
 }
-
-s32 File_WriteToFromMem(char* dst, void* src, s32 size) {
+void File_WriteToFromMem(char* dst, void* src, s32 size) {
 	FILE* file = fopen(dst, "w");
 	
 	if (file == NULL) {
 		printf_error("File_LoadToMem: Failed to fopen file [%s].", dst);
-		
-		return 0;
 	}
 	
 	fwrite(src, sizeof(u8), size, file);
 	fclose(file);
-	
-	return 1;
 }
-
 s32 File_LoadToMem_ReqExt(void** dst, char* src, const char* ext) {
 	if (Lib_MemMem(src, strlen(src), ext, strlen(ext) - 1)) {
 		return File_LoadToMem(dst, src);
@@ -179,15 +175,78 @@ s32 File_LoadToMem_ReqExt(void** dst, char* src, const char* ext) {
 	
 	return 0;
 }
-
-s32 File_WriteToFromMem_ReqExt(char* dst, void* src, s32 size, const char* ext) {
+void File_WriteToFromMem_ReqExt(char* dst, void* src, s32 size, const char* ext) {
 	if (Lib_MemMem(dst, strlen(dst), ext, strlen(ext) - 1)) {
-		return File_WriteToFromMem(src, dst, size);
+		File_WriteToFromMem(dst, src, size);
+		
+		return;
 	}
 	
 	printf_warning("File_WriteToFromMem_ReqExt: [%s] does not match extension [%s]", src, ext);
+}
+
+void File_LoadToData(MemFile* dst, char* src) {
+	u32 tempSize;
+	FILE* file = fopen(src, "r");
 	
-	return 0;
+	if (file == NULL) {
+		printf_warning("File_LoadToMem: Failed to fopen file [%s].", src);
+		
+		return;
+	}
+	
+	fseek(file, 0, SEEK_END);
+	tempSize = ftell(file);
+	if (dst->data == NULL) {
+		dst->data = Lib_Malloc(tempSize);
+		dst->memSize = dst->dataSize = tempSize;
+		printf_info("File_LoadToMem: dst is NULL, mallocing [0x%X] bytes", tempSize);
+		if (dst->data == NULL) {
+			printf_warning("File_LoadToMem: Failed to malloc [0x%X] bytes to store data from [%s].", tempSize, src);
+			
+			return;
+		}
+	} else if (dst->memSize < tempSize) {
+		/* Realloc */
+		void* tempData = Lib_Malloc(tempSize);
+		
+		free(dst->data);
+		printf_info("File_LoadToMem: Recalloced from [%X] to [%X]", dst->memSize, tempSize);
+		dst->data = tempData;
+		dst->memSize = tempSize;
+	}
+	dst->dataSize = tempSize;
+	
+	rewind(file);
+	fread(dst->data, sizeof(char), dst->dataSize, file);
+	fclose(file);
+}
+void File_WriteToFromData(char* dst, MemFile* src) {
+	FILE* file = fopen(dst, "w");
+	
+	if (file == NULL) {
+		printf_error("File_LoadToMem: Failed to fopen file [%s].", dst);
+	}
+	
+	fwrite(src, sizeof(u8), src->dataSize, file);
+	fclose(file);
+}
+void File_LoadToData_ReqExt(MemFile* dst, char* src, const char* ext) {
+	if (Lib_MemMem(src, strlen(src), ext, strlen(ext) - 1)) {
+		File_LoadToData(dst, src);
+		
+		return;
+	}
+	printf_warning("File_LoadToMem_ReqExt: [%s] does not match extension [%s]", src, ext);
+}
+void File_WriteToFromData_ReqExt(char* dst, MemFile* src, s32 size, const char* ext) {
+	if (Lib_MemMem(dst, strlen(dst), ext, strlen(ext) - 1)) {
+		File_WriteToFromData(dst, src);
+		
+		return;
+	}
+	
+	printf_warning("File_WriteToFromMem_ReqExt: [%s] does not match extension [%s]", src, ext);
 }
 
 // string
