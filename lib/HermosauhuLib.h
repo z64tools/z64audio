@@ -53,20 +53,27 @@ typedef enum {
 	PSL_NO_ERROR,
 } PrintfSuppressLevel;
 
-void Lib_SetPrinfSuppressLevel(PrintfSuppressLevel lvl);
-
+// printf
+void printf_SetPrintfSuppressLevel(PrintfSuppressLevel lvl);
 void printf_debug(const char* fmt, ...);
 void printf_warning(const char* fmt, ...);
 void printf_error(const char* fmt, ...);
 void printf_info(const char* fmt, ...);
 
-u32 Lib_Str_HexToInt(char* string);
-s32 Lib_Str_GetLineCount(char* str);
-char* Lib_Str_GetLine(char* str, s32 line);
-char* Lib_Str_GetWord(char* str, s32 word);
-void Lib_Str_CaseToLow(char* s, s32 i);
-void Lib_Str_CaseToUpper(char* s, s32 i);
-void Lib_Str_GetFilePathAndName(char* _src, char* _dest, char* _path);
-
+// Lib
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
-void* Lib_GetFile(char* filename, int* size);
+
+// File
+void File_LoadToMem(void** dest, char* src, int* retSize);
+
+// string
+u32 String_ToHex(char* string);
+s32 String_GetLineCount(char* str);
+char* String_GetLine(char* str, s32 line);
+char* String_GetWord(char* str, s32 word);
+void String_CaseToLow(char* s, s32 i);
+void String_CaseToUp(char* s, s32 i);
+void String_GetPath(char* dst, char* src);
+void String_GetBasename(char* dst, char* src);
+void String_GetFilename(char* dst, char* src);
+

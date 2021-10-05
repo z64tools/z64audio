@@ -1,3 +1,5 @@
 
 *.o
 z64audio
+.vscode/*
+uncrustify.cfg
