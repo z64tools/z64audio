@@ -95,4 +95,8 @@ void String_GetFilename(char* dst, char* src);
 #define ByteSwap32(x) x = __bswap_32(x)
 #define ByteSwap64(x) x = __bswap_64(x)
 
+#define String_Copy(dst, src)    strcpy(dst, src)
+#define String_Combine(dst, src) strcat(dst, src)
+#define String_Generate(string)  strdup(string)
+
 #endif /* __HERMOSAUHU_LIB_H__ */

@@ -387,6 +387,10 @@ void String_GetPath(char* dst, char* src) {
 	s32 slash = 0;
 	
 	String_GetSlashAndPoint(src, &slash, &point);
+	
+	if (slash == 0)
+		slash = -1;
+	
 	bzero(dst, slash + 2);
 	memcpy(dst, src, slash + 1);
 }
@@ -395,6 +399,10 @@ void String_GetBasename(char* dst, char* src) {
 	s32 slash = 0;
 	
 	String_GetSlashAndPoint(src, &slash, &point);
+	
+	if (slash == 0)
+		slash = -1;
+	
 	bzero(dst, point - slash);
 	memcpy(dst, &src[slash + 1], point - slash - 1);
 }
@@ -403,6 +411,10 @@ void String_GetFilename(char* dst, char* src) {
 	s32 slash = 0;
 	
 	String_GetSlashAndPoint(src, &slash, &point);
+	
+	if (slash == 0)
+		slash = -1;
+	
 	bzero(dst, strlen(src) - slash);
 	memcpy(dst, &src[slash + 1], strlen(src) - slash - 1);
 }
