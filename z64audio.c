@@ -3,17 +3,14 @@
 #include "lib/AudioTools.h"
 
 s32 main(const s32 argc, const char* argv[]) {
-	MemFile wav = { 0 };
-	MemFile aiff = { 0 };
-	AudioSampleInfo sampleInfo = { 0 };
+	AudioSampleInfo sample;
 	
-	printf_SetSuppressLevel(PSL_DEBUG);
-	
-	Audio_LoadWav(&wav, "test.wav", &sampleInfo);
-	Audio_WriteAiff(&wav, &sampleInfo);
-	
-	free(wav.data);
-	free(aiff.data);
+	Audio_InitSampleInfo(&sample, "test.wav", "new_file.aiff");
+	Audio_LoadSample(&sample);
+	Audio_ConvertToMono(&sample);
+	Audio_Normalize(&sample);
+	Audio_SaveSample_Aiff(&sample);
+	Audio_FreeSample(&sample);
 	
 	return 0;
 }

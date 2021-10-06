@@ -1,24 +1,23 @@
 #include "AudioConvert.h"
 #include "HermosauhuLib.h"
 
-void Audio_ByteSwapData(AudioSampleInfo* sampleInfo) {
-	printf_debug("Audio_ByteSwapData: SampleNum 0x%X", sampleInfo->samplesNum);
-	printf_debug("Audio_ByteSwapData: Size 0x%X", sampleInfo->size);
-	
+void Audio_ByteSwap(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->bit == 16) {
 		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
 			Lib_ByteSwap(&sampleInfo->audio.data16[i], sampleInfo->bit / 8);
 		}
-	} else if (sampleInfo->bit == 32) {
+		
+		return;
+	}
+	if (sampleInfo->bit == 32) {
 		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
 			Lib_ByteSwap(&sampleInfo->audio.data32[i], sampleInfo->bit / 8);
 		}
+		
+		return;
 	}
-	
-	printf_debug("Audio_ByteSwapData: Swap done");
 }
-
-u32 Audio_ConvertFloat80(AiffInfo* aiffInfo) {
+u32 Audio_ConvertBigEndianFloat80(AiffInfo* aiffInfo) {
 	f80 float80 = 0;
 	u8* pointer = (u8*)&float80;
 	
@@ -28,75 +27,154 @@ u32 Audio_ConvertFloat80(AiffInfo* aiffInfo) {
 	
 	return (s32)float80;
 }
+void Audio_Normalize(AudioSampleInfo* sampleInfo) {
+	u32 sampleNum = sampleInfo->samplesNum;
+	u32 channelNum = sampleInfo->channelNum;
+	f32 max;
+	f32 mult;
+	
+	if (sampleInfo->bit == 16) {
+		max = 0;
+		
+		for (s32 i = 0; i < sampleNum * channelNum; i++) {
+			if (sampleInfo->audio.data16[i] > max) {
+				max = ABS(sampleInfo->audio.data16[i]);
+			}
+			
+			if (max >= __INT16_MAX__) {
+				return;
+			}
+		}
+		
+		mult = __INT16_MAX__ / max;
+		
+		for (s32 i = 0; i < sampleNum * channelNum; i++) {
+			sampleInfo->audio.data16[i] *= mult;
+		}
+		
+		return;
+	}
+	
+	if (sampleInfo->bit == 32) {
+		max = 0;
+		
+		for (s32 i = 0; i < sampleNum * channelNum; i++) {
+			if (sampleInfo->audio.dataFloat[i] > max) {
+				max = fabsf(sampleInfo->audio.dataFloat[i]);
+			}
+			
+			if (max == 1.0f) {
+				return;
+			}
+		}
+		
+		mult = 1.0f / max;
+		
+		for (s32 i = 0; i < sampleNum * channelNum; i++) {
+			sampleInfo->audio.dataFloat[i] *= mult;
+		}
+		
+		return;
+	}
+}
+void Audio_ConvertToMono(AudioSampleInfo* sampleInfo) {
+	if (sampleInfo->channelNum != 2)
+		return;
+	
+	if (sampleInfo->bit == 16) {
+		for (s32 i = 0, j = 0; i < sampleInfo->samplesNum; i++, j += 2) {
+			sampleInfo->audio.data16[i] = ((f32)sampleInfo->audio.data16[j] + (f32)sampleInfo->audio.data16[j + 1]) * 0.5f;
+		}
+	}
+	
+	if (sampleInfo->bit == 32) {
+		for (s32 i = 0, j = 0; i < sampleInfo->samplesNum; i++, j += 2) {
+			sampleInfo->audio.dataFloat[i] = (sampleInfo->audio.dataFloat[j] + sampleInfo->audio.dataFloat[j + 1]) * 0.5f;
+		}
+	}
+	
+	sampleInfo->size /= 2;
+	sampleInfo->channelNum = 1;
+}
 
-void Audio_LoadWav_GetSampleInfo(WaveInstrumentInfo** waveInstInfo, WaveSampleInfo** waveSampleInfo, WaveHeader* header, u32 fileSize) {
+void Audio_InitSampleInfo(AudioSampleInfo* sampleInfo, char* input, char* output) {
+	memset(sampleInfo, 0, sizeof(*sampleInfo));
+	sampleInfo->input = input;
+	sampleInfo->output = output;
+}
+void Audio_FreeSample(AudioSampleInfo* sampleInfo) {
+	MemFile_Free(&sampleInfo->memFile);
+	
+	*sampleInfo = (AudioSampleInfo) { 0 };
+}
+
+void Audio_GetSampleInfo_Wav(WaveInstrumentInfo** waveInstInfo, WaveSampleInfo** waveSampleInfo, WaveHeader* header, u32 fileSize) {
 	WaveInfo* wavInfo = Lib_MemMem(header, fileSize, "fmt ", 4);
 	WaveDataInfo* wavData = Lib_MemMem(header, fileSize, "data", 4);
 	u32 startOffset = sizeof(WaveHeader) + sizeof(WaveChunk) + wavInfo->chunk.size + sizeof(WaveChunk) + wavData->chunk.size;
 	u32 searchLength = header->chunk.size - startOffset;
 	u8* hayStart = ((u8*)header) + startOffset;
 	
-	printf_debug("Audio_LoadWav_GetSampleInfo: StartOffset  [0x%08X]", startOffset);
-	printf_debug("Audio_LoadWav_GetSampleInfo: SearchLength [0x%08X]", searchLength);
+	printf_debug("Audio_GetSampleInfo_Wav: StartOffset  [0x%08X]", startOffset);
+	printf_debug("Audio_GetSampleInfo_Wav: SearchLength [0x%08X]", searchLength);
 	
 	*waveInstInfo = Lib_MemMem(hayStart, searchLength, "inst", 4);
 	*waveSampleInfo = Lib_MemMem(hayStart, searchLength, "smpl", 4);
 	
 	if (*waveInstInfo) {
-		printf_debug("Audio_LoadWav_GetSampleInfo: Found WaveInstrumentInfo");
+		printf_debug("Audio_GetSampleInfo_Wav: Found WaveInstrumentInfo");
 	}
 	
 	if (*waveSampleInfo) {
-		printf_debug("Audio_LoadWav_GetSampleInfo: Found WaveSampleInfo");
+		printf_debug("Audio_GetSampleInfo_Wav: Found WaveSampleInfo");
 	}
 }
-
-void Audio_LoadAiff_GetSampleInfo(AiffInstrumentInfo** aiffInstInfo, AiffMarkerInfo** aiffMarkerInfo, AiffHeader* header, u32 fileSize) {
+void Audio_GetSampleInfo_Aiff(AiffInstrumentInfo** aiffInstInfo, AiffMarkerInfo** aiffMarkerInfo, AiffHeader* header, u32 fileSize) {
 	AiffInfo* aiffInfo = Lib_MemMem(header, fileSize, "COMM", 4);
 	u32 startOffset = sizeof(AiffHeader) + aiffInfo->chunk.size;
 	u32 searchLength = header->chunk.size - startOffset;
 	u8* hayStart = ((u8*)header) + startOffset;
 	
-	printf_debug("Audio_LoadAiff_GetSampleInfo: StartOffset  [0x%08X]", startOffset);
-	printf_debug("Audio_LoadAiff_GetSampleInfo: SearchLength [0x%08X]", searchLength);
+	printf_debug("Audio_GetSampleInfo_Aiff: StartOffset  [0x%08X]", startOffset);
+	printf_debug("Audio_GetSampleInfo_Aiff: SearchLength [0x%08X]", searchLength);
 	
 	*aiffInstInfo = Lib_MemMem(hayStart, searchLength, "INST", 4);
 	*aiffMarkerInfo = Lib_MemMem(hayStart, searchLength, "MARK", 4);
 	
 	if (*aiffInstInfo) {
-		printf_debug("Audio_LoadAiff_GetSampleInfo: Found WaveInstrumentInfo");
+		printf_debug("Audio_GetSampleInfo_Aiff: Found WaveInstrumentInfo");
 	}
 	
 	if (*aiffMarkerInfo) {
-		printf_debug("Audio_LoadAiff_GetSampleInfo: Found WaveSampleInfo");
+		printf_debug("Audio_GetSampleInfo_Aiff: Found WaveSampleInfo");
 	}
 }
 
-void Audio_LoadWav(MemFile* d, char* file, AudioSampleInfo* sampleInfo) {
-	File_LoadToData_ReqExt(d, file, ".wav");
-	WaveHeader* waveHeader = d->data;
+void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
+	MemFile_LoadToMemFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".wav");
+	WaveHeader* waveHeader = sampleInfo->memFile.data;
 	WaveDataInfo* waveData;
 	WaveInfo* waveInfo;
 	
-	printf_debug("Audio_LoadWav: File [%s] loaded to memory", file);
+	printf_debug("Audio_LoadSample_Wav: File [%s] loaded to memory", sampleInfo->input);
 	
-	if (d->dataSize == 0)
-		printf_error("Audio_LoadWav: Something has gone wrong loading file [%s]", file);
-	waveInfo = Lib_MemMem(waveHeader, d->dataSize, "fmt ", 4);
-	waveData = Lib_MemMem(waveHeader, d->dataSize, "data", 4);
+	if (sampleInfo->memFile.dataSize == 0)
+		printf_error("Audio_LoadSample_Wav: Something has gone wrong loading file [%s]", sampleInfo->input);
+	waveInfo = Lib_MemMem(waveHeader, sampleInfo->memFile.dataSize, "fmt ", 4);
+	waveData = Lib_MemMem(waveHeader, sampleInfo->memFile.dataSize, "data", 4);
 	if (!Lib_MemMem(waveHeader->chunk.name, 4, "RIFF", 4))
-		printf_error("Audio_LoadWav: Chunk header [%c%c%c%c] instead of [RIFF]",waveHeader->chunk.name[0],waveHeader->chunk.name[1],waveHeader->chunk.name[2],waveHeader->chunk.name[3]);
+		printf_error("Audio_LoadSample_Wav: Chunk header [%c%c%c%c] instead of [RIFF]",waveHeader->chunk.name[0],waveHeader->chunk.name[1],waveHeader->chunk.name[2],waveHeader->chunk.name[3]);
 	if (!waveInfo || !waveData) {
 		if (!waveData) {
 			printf_error(
-				"Audio_LoadWav: could not locate [data] from [%s]",
-				file
+				"Audio_LoadSample_Wav: could not locate [data] from [%s]",
+				sampleInfo->input
 			);
 		}
 		if (!waveInfo) {
 			printf_error(
-				"Audio_LoadWav: could not locate [fmt] from [%s]",
-				file
+				"Audio_LoadSample_Wav: could not locate [fmt] from [%s]",
+				sampleInfo->input
 			);
 		}
 	}
@@ -112,8 +190,7 @@ void Audio_LoadWav(MemFile* d, char* file, AudioSampleInfo* sampleInfo) {
 	WaveInstrumentInfo* waveInstInfo;
 	WaveSampleInfo* waveSampleInfo;
 	
-	Audio_LoadWav_GetSampleInfo(&waveInstInfo, &waveSampleInfo, waveHeader, d->dataSize);
-	Audio_ByteSwapData(sampleInfo);
+	Audio_GetSampleInfo_Wav(&waveInstInfo, &waveSampleInfo, waveHeader, sampleInfo->memFile.dataSize);
 	
 	if (waveInstInfo) {
 		sampleInfo->instrument.fineTune = waveInstInfo->fineTune;
@@ -128,22 +205,24 @@ void Audio_LoadWav(MemFile* d, char* file, AudioSampleInfo* sampleInfo) {
 		}
 	}
 }
-
-void Audio_LoadAiff(MemFile* d, char* file, AudioSampleInfo* sampleInfo) {
-	File_LoadToData_ReqExt(d, file, ".aiff");
-	AiffHeader* aiffHeader = d->data;
+void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
+	MemFile_LoadToMemFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".aiff");
+	AiffHeader* aiffHeader = sampleInfo->memFile.data;
 	AiffDataInfo* aiffData;
 	AiffInfo* aiffInfo;
 	
-	printf_debug("Audio_LoadAiff: File [%s] loaded to memory", file);
+	// Set data to zero
+	*sampleInfo = (AudioSampleInfo) { 0 };
 	
-	if (d->dataSize == 0)
-		printf_error("Audio_LoadAiff: Something has gone wrong loading file [%s]", file);
-	aiffInfo = Lib_MemMem(aiffHeader, d->dataSize, "COMM", 4);
-	aiffData = Lib_MemMem(aiffHeader, d->dataSize, "SSND", 4);
+	printf_debug("Audio_LoadSample_Aiff: File [%s] loaded to memory", sampleInfo->input);
+	
+	if (sampleInfo->memFile.dataSize == 0)
+		printf_error("Audio_LoadSample_Aiff: Something has gone wrong loading file [%s]", sampleInfo->input);
+	aiffInfo = Lib_MemMem(aiffHeader, sampleInfo->memFile.dataSize, "COMM", 4);
+	aiffData = Lib_MemMem(aiffHeader, sampleInfo->memFile.dataSize, "SSND", 4);
 	if (!Lib_MemMem(aiffHeader->formType, 4, "AIFF", 4)) {
 		printf_error(
-			"Audio_LoadAiff: Chunk header [%c%c%c%c] instead of [AIFF]",
+			"Audio_LoadSample_Aiff: Chunk header [%c%c%c%c] instead of [AIFF]",
 			aiffHeader->formType[0],
 			aiffHeader->formType[1],
 			aiffHeader->formType[2],
@@ -153,14 +232,14 @@ void Audio_LoadAiff(MemFile* d, char* file, AudioSampleInfo* sampleInfo) {
 	if (!aiffInfo || !aiffData) {
 		if (!aiffData) {
 			printf_error(
-				"Audio_LoadAiff: could not locate [SSND] from [%s]",
-				file
+				"Audio_LoadSample_Aiff: could not locate [SSND] from [%s]",
+				sampleInfo->input
 			);
 		}
 		if (!aiffInfo) {
 			printf_error(
-				"Audio_LoadAiff: could not locate [COMM] from [%s]",
-				file
+				"Audio_LoadSample_Aiff: could not locate [COMM] from [%s]",
+				sampleInfo->input
 			);
 		}
 	}
@@ -184,7 +263,7 @@ void Audio_LoadAiff(MemFile* d, char* file, AudioSampleInfo* sampleInfo) {
 	
 	sampleInfo->channelNum = aiffInfo->channelNum;
 	sampleInfo->bit = aiffInfo->bit;
-	sampleInfo->sampleRate = Audio_ConvertFloat80(aiffInfo);
+	sampleInfo->sampleRate = Audio_ConvertBigEndianFloat80(aiffInfo);
 	sampleInfo->samplesNum = sampleNum;
 	sampleInfo->size = sampleNum * sampleInfo->channelNum * (sampleInfo->bit / 8);
 	sampleInfo->audio.data = aiffData->data;
@@ -194,7 +273,8 @@ void Audio_LoadAiff(MemFile* d, char* file, AudioSampleInfo* sampleInfo) {
 	AiffInstrumentInfo* aiffInstInfo;
 	AiffMarkerInfo* aiffMarkerInfo;
 	
-	Audio_LoadAiff_GetSampleInfo(&aiffInstInfo, &aiffMarkerInfo, aiffHeader, d->dataSize);
+	Audio_GetSampleInfo_Aiff(&aiffInstInfo, &aiffMarkerInfo, aiffHeader, sampleInfo->memFile.dataSize);
+	Audio_ByteSwap(sampleInfo);
 	
 	if (aiffInstInfo) {
 		sampleInfo->instrument.note = aiffInstInfo->baseNote;
@@ -211,14 +291,26 @@ void Audio_LoadAiff(MemFile* d, char* file, AudioSampleInfo* sampleInfo) {
 		sampleInfo->instrument.loop.count = 0xFFFFFFFF;
 	}
 }
+void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
+	if (!sampleInfo->input)
+		printf_error("Audio_LoadSample: No input file set");
+	
+	if (Lib_MemMem(sampleInfo->input, strlen(sampleInfo->input), ".wav", 4))
+		Audio_LoadSample_Wav(sampleInfo);
+	
+	if (Lib_MemMem(sampleInfo->input, strlen(sampleInfo->input), ".aiff", 4))
+		Audio_LoadSample_Aiff(sampleInfo);
+}
 
-void Audio_WriteAiff(MemFile* d, AudioSampleInfo* sampleInfo) {
+void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 	AiffHeader header = { 0 };
 	AiffInfo info = { 0 };
 	AiffDataInfo dataInfo = { 0 };
 	AiffMarker marker[2] = { 0 };
 	AiffMarkerInfo markerInfo = { 0 };
 	AiffInstrumentInfo instrument = { 0 };
+	
+	Audio_ByteSwap(sampleInfo);
 	
 	/* Write chunk headers */ {
 		info.chunk.size = sizeof(AiffInfo) - sizeof(AiffChunk) - 2;
@@ -246,8 +338,6 @@ void Audio_WriteAiff(MemFile* d, AudioSampleInfo* sampleInfo) {
 		for (s32 i = 0; i < 10; i++) {
 			info.sampleRate[i] = p[9 - i];
 		}
-		
-		printf("SamplesNum: %X\n", sampleInfo->samplesNum);
 		
 		info.channelNum = sampleInfo->channelNum;
 		info.sampleNumH = ((sampleInfo->samplesNum & 0xFFFF0000) >> 16);
@@ -289,17 +379,17 @@ void Audio_WriteAiff(MemFile* d, AudioSampleInfo* sampleInfo) {
 		Lib_ByteSwap(&instrument.sustainLoop.end, SWAP_U16);
 		Lib_ByteSwap(&instrument.sustainLoop.playMode, SWAP_U16);
 	}
-	memmove(header.chunk.name, "FORM", 4);
-	memmove(header.formType, "AIFF", 4);
-	memmove(info.chunk.name, "COMM", 4);
-	memmove(dataInfo.chunk.name, "SSND", 4);
-	memmove(markerInfo.chunk.name, "MARK", 4);
-	memmove(instrument.chunk.name, "INST", 4);
+	memcpy(header.chunk.name, "FORM", 4);
+	memcpy(header.formType, "AIFF", 4);
+	memcpy(info.chunk.name, "COMM", 4);
+	memcpy(dataInfo.chunk.name, "SSND", 4);
+	memcpy(markerInfo.chunk.name, "MARK", 4);
+	memcpy(instrument.chunk.name, "INST", 4);
 	
-	FILE* output = fopen("new_audio.aiff", "w");
+	FILE* output = fopen(sampleInfo->output, "w");
 	
 	if (output == NULL)
-		printf_error("Audio_WriteAiff: Could not open outputfile");
+		printf_error("Audio_SaveSample_Aiff: Could not open outputfile [%s]", sampleInfo->output);
 	
 	fwrite(&header, 1, sizeof(header), output);
 	fwrite(&info, 1, 0x16 + sizeof(AiffChunk), output);

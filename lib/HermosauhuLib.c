@@ -2,7 +2,7 @@
 
 static PrintfSuppressLevel sPrintfSuppress = 0;
 
-// printf
+/* 👺 PRINTF 👺 */
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
 	sPrintfSuppress = lvl;
 }
@@ -21,7 +21,6 @@ void printf_debug(const char* fmt, ...) {
 	printf("\n");
 	va_end(args);
 }
-
 void printf_warning(const char* fmt, ...) {
 	if (sPrintfSuppress >= PSL_NO_WARNING)
 		return;
@@ -36,7 +35,6 @@ void printf_warning(const char* fmt, ...) {
 	printf("\n");
 	va_end(args);
 }
-
 void printf_error(const char* fmt, ...) {
 	if (sPrintfSuppress < PSL_NO_ERROR) {
 		va_list args;
@@ -52,7 +50,6 @@ void printf_error(const char* fmt, ...) {
 	}
 	exit(EXIT_FAILURE);
 }
-
 void printf_info(const char* fmt, ...) {
 	if (sPrintfSuppress >= PSL_NO_INFO)
 		return;
@@ -68,7 +65,7 @@ void printf_info(const char* fmt, ...) {
 	va_end(args);
 }
 
-// Lib
+/* 👺 LIB 👺 */
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize) {
 	if (haystack == NULL || needle == NULL)
 		return NULL;
@@ -99,20 +96,6 @@ void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, 
 	return NULL;
 }
 
-void* Lib_Malloc(s32 size) {
-	void* data = malloc(size);
-	
-	if (data == NULL) {
-		printf_warning("Lib_Malloc: Failed to malloc 0x%X bytes.", size);
-		
-		return NULL;
-	}
-	
-	bzero(data, size);
-	
-	return data;
-}
-
 void Lib_ByteSwap(void* src, s32 size) {
 	u32 buffer[16] = { 0 };
 	u8* temp = (u8*)buffer;
@@ -127,14 +110,52 @@ void Lib_ByteSwap(void* src, s32 size) {
 	}
 }
 
-// File
-s32 File_LoadToMem(void** dst, char* src) {
+void* Lib_Malloc(s32 size) {
+	void* data = malloc(size);
+	
+	if (data == NULL) {
+		printf_warning("Lib_Malloc: Failed to malloc 0x%X bytes.", size);
+		
+		return NULL;
+	}
+	
+	return data;
+}
+void Lib_MallocMemFile(MemFile* memFile, u32 size) {
+	memFile->data = malloc(size);
+	
+	if (memFile->data == NULL) {
+		printf_warning("Lib_MallocMemFile: Failed to malloc 0x%X bytes.", size);
+		
+		return;
+	}
+	
+	memFile->memSize = size;
+}
+void Lib_ReallocMemFile(MemFile* memFile, u32 size) {
+	if (memFile->data == NULL) {
+		printf_warning("Lib_ReallocMemFile: data is null, can't realloc", size);
+		
+		return;
+	}
+	
+	// Make sure to have enough space
+	if (size < memFile->memSize + 0x10000) {
+		size += 0x10000;
+	}
+	
+	memFile->data = realloc(memFile->data, size);
+	memFile->memSize = size;
+}
+
+/* 👺 FILE 👺 */
+s32 File_LoadToMem(void** dst, char* filepath) {
 	s32 size;
 	
-	FILE* file = fopen(src, "r");
+	FILE* file = fopen(filepath, "r");
 	
 	if (file == NULL) {
-		printf_warning("File_LoadToMem: Failed to fopen file [%s].", src);
+		printf_warning("File_LoadToMem: Failed to fopen file [%s].", filepath);
 		
 		return 0;
 	}
@@ -143,9 +164,9 @@ s32 File_LoadToMem(void** dst, char* src) {
 	size = ftell(file);
 	if (*dst == NULL) {
 		*dst = Lib_Malloc(size);
-		printf_info("File_LoadToMem: dst is NULL, mallocing [0x%X] bytes", size);
+		printf_debug("File_LoadToMem: dst is NULL, mallocing [0x%X] bytes", size);
 		if (*dst == NULL) {
-			printf_warning("File_LoadToMem: Failed to malloc [0x%X] bytes to store data from [%s].", size, src);
+			printf_warning("File_LoadToMem: Failed to malloc [0x%X] bytes to store data from [%s].", size, filepath);
 			
 			return 0;
 		}
@@ -157,27 +178,27 @@ s32 File_LoadToMem(void** dst, char* src) {
 	
 	return size;
 }
-void File_WriteToFromMem(char* dst, void* src, s32 size) {
-	FILE* file = fopen(dst, "w");
+void File_WriteToFromMem(char* filepath, void* src, s32 size) {
+	FILE* file = fopen(filepath, "w");
 	
 	if (file == NULL) {
-		printf_error("File_LoadToMem: Failed to fopen file [%s].", dst);
+		printf_error("File_LoadToMem: Failed to fopen file [%s].", filepath);
 	}
 	
 	fwrite(src, sizeof(u8), size, file);
 	fclose(file);
 }
-s32 File_LoadToMem_ReqExt(void** dst, char* src, const char* ext) {
-	if (Lib_MemMem(src, strlen(src), ext, strlen(ext) - 1)) {
-		return File_LoadToMem(dst, src);
+s32 File_LoadToMem_ReqExt(void** dst, char* filepath, const char* ext) {
+	if (Lib_MemMem(filepath, strlen(filepath), ext, strlen(ext) - 1)) {
+		return File_LoadToMem(dst, filepath);
 	}
-	printf_warning("File_LoadToMem_ReqExt: [%s] does not match extension [%s]", src, ext);
+	printf_warning("File_LoadToMem_ReqExt: [%s] does not match extension [%s]", filepath, ext);
 	
 	return 0;
 }
-void File_WriteToFromMem_ReqExt(char* dst, void* src, s32 size, const char* ext) {
-	if (Lib_MemMem(dst, strlen(dst), ext, strlen(ext) - 1)) {
-		File_WriteToFromMem(dst, src, size);
+void File_WriteToFromMem_ReqExt(char* filepath, void* src, s32 size, const char* ext) {
+	if (Lib_MemMem(filepath, strlen(filepath), ext, strlen(ext) - 1)) {
+		File_WriteToFromMem(filepath, src, size);
 		
 		return;
 	}
@@ -185,71 +206,80 @@ void File_WriteToFromMem_ReqExt(char* dst, void* src, s32 size, const char* ext)
 	printf_warning("File_WriteToFromMem_ReqExt: [%s] does not match extension [%s]", src, ext);
 }
 
-void File_LoadToData(MemFile* dst, char* src) {
+/* 👺 MEMFILE 👺 */
+void MemFile_LoadToMemFile(MemFile* memFile, char* filepath) {
 	u32 tempSize;
-	FILE* file = fopen(src, "r");
+	FILE* file = fopen(filepath, "r");
 	
 	if (file == NULL) {
-		printf_warning("File_LoadToMem: Failed to fopen file [%s].", src);
+		printf_warning("File_LoadToMem: Failed to fopen file [%s].", filepath);
 		
 		return;
 	}
 	
 	fseek(file, 0, SEEK_END);
 	tempSize = ftell(file);
-	if (dst->data == NULL) {
-		dst->data = Lib_Malloc(tempSize);
-		dst->memSize = dst->dataSize = tempSize;
-		printf_info("File_LoadToMem: dst is NULL, mallocing [0x%X] bytes", tempSize);
-		if (dst->data == NULL) {
-			printf_warning("File_LoadToMem: Failed to malloc [0x%X] bytes to store data from [%s].", tempSize, src);
+	
+	if (memFile->data == NULL) {
+		Lib_MallocMemFile(memFile, tempSize);
+		memFile->memSize = memFile->dataSize = tempSize;
+		printf_debug("File_LoadToMem: dst is NULL, mallocing [0x%X] bytes", tempSize);
+		if (memFile->data == NULL) {
+			printf_warning("File_LoadToMem: Failed to malloc [0x%X] bytes to store data from [%s].", tempSize, filepath);
 			
 			return;
 		}
-	} else if (dst->memSize < tempSize) {
-		/* Realloc */
-		void* tempData = Lib_Malloc(tempSize);
-		
-		free(dst->data);
-		printf_info("File_LoadToMem: Recalloced from [%X] to [%X]", dst->memSize, tempSize);
-		dst->data = tempData;
-		dst->memSize = tempSize;
+	} else if (memFile->memSize < tempSize) {
+		Lib_ReallocMemFile(memFile, tempSize);
 	}
-	dst->dataSize = tempSize;
+	memFile->dataSize = tempSize;
 	
 	rewind(file);
-	fread(dst->data, sizeof(char), dst->dataSize, file);
+	fread(memFile->data, sizeof(char), memFile->dataSize, file);
 	fclose(file);
+	printf_debug("File_LoadToMem: [%s] Loaded to MemFile succefully", filepath);
 }
-void File_WriteToFromData(char* dst, MemFile* src) {
-	FILE* file = fopen(dst, "w");
+void MemFile_WriteToFromMemFile(MemFile* memFile, char* filepath) {
+	FILE* file = fopen(filepath, "w");
 	
 	if (file == NULL) {
-		printf_error("File_LoadToMem: Failed to fopen file [%s].", dst);
+		printf_error("File_LoadToMem: Failed to fopen file [%s].", filepath);
 	}
 	
-	fwrite(src, sizeof(u8), src->dataSize, file);
+	fwrite(memFile, sizeof(u8), memFile->dataSize, file);
 	fclose(file);
 }
-void File_LoadToData_ReqExt(MemFile* dst, char* src, const char* ext) {
-	if (Lib_MemMem(src, strlen(src), ext, strlen(ext) - 1)) {
-		File_LoadToData(dst, src);
+void MemFile_LoadToMemFile_ReqExt(MemFile* memFile, char* filepath, const char* ext) {
+	if (Lib_MemMem(filepath, strlen(filepath), ext, strlen(ext) - 1)) {
+		MemFile_LoadToMemFile(memFile, filepath);
 		
 		return;
 	}
-	printf_warning("File_LoadToMem_ReqExt: [%s] does not match extension [%s]", src, ext);
+	printf_warning("File_LoadToMem_ReqExt: [%s] does not match extension [%s]", filepath, ext);
 }
-void File_WriteToFromData_ReqExt(char* dst, MemFile* src, s32 size, const char* ext) {
-	if (Lib_MemMem(dst, strlen(dst), ext, strlen(ext) - 1)) {
-		File_WriteToFromData(dst, src);
+void MemFile_WriteToFromMemFile_ReqExt(MemFile* memFile, char* filepath, s32 size, const char* ext) {
+	if (Lib_MemMem(filepath, strlen(filepath), ext, strlen(ext) - 1)) {
+		MemFile_WriteToFromMemFile(memFile, filepath);
 		
 		return;
 	}
 	
-	printf_warning("File_WriteToFromMem_ReqExt: [%s] does not match extension [%s]", src, ext);
+	printf_warning("File_WriteToFromMem_ReqExt: [%s] does not match extension [%s]", filepath, ext);
+}
+void MemFile_Free(MemFile* memFile) {
+	if (memFile->data) {
+		free(memFile->data);
+		
+		memFile->data = NULL;
+		memFile->dataSize = memFile->memSize = 0;
+	}
 }
 
-// string
+/* 👺 STRING 👺 */
+u32 String_ToHex(char* string) {
+	return strtol(string, NULL, 16);
+}
+
 s32 String_GetLineCount(char* str) {
 	s32 line = 1;
 	s32 i = 0;
@@ -261,11 +291,6 @@ s32 String_GetLineCount(char* str) {
 	
 	return line;
 }
-
-u32 String_ToHex(char* string) {
-	return strtol(string, NULL, 16);
-}
-
 char* String_GetLine(char* str, s32 line) {
 	static char buffer[1024] = { 0 };
 	s32 iLine = 0;
@@ -293,11 +318,10 @@ char* String_GetLine(char* str, s32 line) {
 		}
 	}
 	
-	memmove(buffer, &str[i], j);
+	memcpy(buffer, &str[i], j);
 	
 	return buffer;
 }
-
 char* String_GetWord(char* str, s32 word) {
 	static char buffer[1024] = { 0 };
 	s32 iWord = 0;
@@ -325,7 +349,7 @@ char* String_GetWord(char* str, s32 word) {
 		}
 	}
 	
-	memmove(buffer, &str[i], j);
+	memcpy(buffer, &str[i], j);
 	
 	return buffer;
 }
@@ -337,7 +361,6 @@ void String_CaseToLow(char* s, s32 i) {
 		}
 	}
 }
-
 void String_CaseToUp(char* s, s32 i) {
 	for (s32 k = 0; k < i; k++) {
 		if (s[k] >= 'a' && s[k] <= 'z') {
@@ -359,30 +382,27 @@ void String_GetSlashAndPoint(char* src, s32* slash, s32* point) {
 		}
 	}
 }
-
 void String_GetPath(char* dst, char* src) {
 	s32 point = 0;
 	s32 slash = 0;
 	
 	String_GetSlashAndPoint(src, &slash, &point);
 	bzero(dst, slash + 2);
-	memmove(dst, src, slash + 1);
+	memcpy(dst, src, slash + 1);
 }
-
 void String_GetBasename(char* dst, char* src) {
 	s32 point = 0;
 	s32 slash = 0;
 	
 	String_GetSlashAndPoint(src, &slash, &point);
 	bzero(dst, point - slash);
-	memmove(dst, &src[slash + 1], point - slash - 1);
+	memcpy(dst, &src[slash + 1], point - slash - 1);
 }
-
 void String_GetFilename(char* dst, char* src) {
 	s32 point = 0;
 	s32 slash = 0;
 	
 	String_GetSlashAndPoint(src, &slash, &point);
 	bzero(dst, strlen(src) - slash);
-	memmove(dst, &src[slash + 1], strlen(src) - slash - 1);
+	memcpy(dst, &src[slash + 1], strlen(src) - slash - 1);
 }

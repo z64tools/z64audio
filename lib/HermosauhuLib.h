@@ -6,36 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
-
-/* 👺
-      `..........................`
-   `-:///////:---://////////////:-``
-   `:////////-````.-////////////-.````
-   ://///////:.`````.:////////:.`````.-
-   ///////////:.``````-//////-``````-::
-   ////////+syys/.`````.://:.`````-+o+:
-   ///////smMMMMNd/`````.:-`````.omMNms
-   //////+dMMMMMMMNy-````:-````:yNMMMMd
-   //////+dMMMMMMMMMmy::://:/ohNMMMMMMd
-   ///////smMMMMMMNs/+s////+dy+/yNMMMNs
-   ////////sdMMMMNy```:////oy:``-yMMNy:
-   /////////+ymNMMm:.-+++++oo+///oyyso+////////.         `
-   ///////////+syhdhoooooooooooooooooooooooooooo.    ./+oso+-
-   ///////////////++++oooooooooooooooooooooooooo+`  `os/://oso:
-   //////::///////////+oooooooooooooooooooooooo+.   /h/ ````-hy
-   /////-``.-::------::/+++//::::::::::::::::::`    -oo/os: .hs
-   .////.`````````..--://+/::-..```````              `.:/.`.+y-
-   :///.``````.-:/+ssyyyyysooo+/-.````                `-/sys-
-   -///-````.:/+syyyyyyyyyssssssso+/---`          `:+++os+-.
-    ://:.`.-/+oyyyyyyyyyysssssssssssydmyyo-.`     ohs-
-    `://////+syyyyyyo++//+ossssssssshNmmmmmmdss/`.o/`
-     -//////+syyyys+///////++osssssymmmmmmmmmmNy/:--.`
-      -//////+osso////////////+oo/:/sddmmmmmmNd+:::::-`
-       `://////////////////////:`   ``.:oohmmmo::::::.
-        `-////////////////////-`          `..:--::::-`
-          `.-//////////////-.`                  ````
-             ``````````````
- */
+#include <math.h>
 
 typedef signed char s8;
 typedef unsigned char u8;
@@ -75,7 +46,7 @@ typedef struct {
 			u16* u16;
 			u32* u32;
 			u64* u64;
-		} d;
+		} cast;
 	};
 	u32 memSize;
 	u32 dataSize;
@@ -83,29 +54,32 @@ typedef struct {
 
 #endif
 
-// printf
+/* 👺 PRINTF 👺 */
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_debug(const char* fmt, ...);
 void printf_warning(const char* fmt, ...);
 void printf_error(const char* fmt, ...);
 void printf_info(const char* fmt, ...);
 
-// Lib
+/* 👺 LIB 👺 */
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
 void* Lib_Malloc(s32 size);
 void Lib_ByteSwap(void* src, s32 size);
 
-// File
-s32 File_LoadToMem(void** dst, char* src);
-void File_WriteToFromMem(char* dst, void* src, s32 size);
-s32 File_LoadToMem_ReqExt(void** dst, char* src, const char* ext);
-void File_WriteToFromMem_ReqExt(char* dst, void* src, s32 size, const char* ext);
-void File_LoadToData(MemFile* dst, char* src);
-void File_WriteToFromData(char* dst, MemFile* src);
-void File_LoadToData_ReqExt(MemFile* dst, char* src, const char* ext);
-void File_WriteToFromData_ReqExt(char* dst, MemFile* src, s32 size, const char* ext);
+/* 👺 FILE 👺 */
+s32 File_LoadToMem(void** dst, char* filepath);
+void File_WriteToFromMem(char* filepath, void* src, s32 size);
+s32 File_LoadToMem_ReqExt(void** dst, char* filepath, const char* ext);
+void File_WriteToFromMem_ReqExt(char* filepath, void* src, s32 size, const char* ext);
 
-// string
+/* 👺 MEMFILE 👺 */
+void MemFile_LoadToMemFile(MemFile* memFile, char* filepath);
+void MemFile_WriteToFromMemFile(MemFile* memFile, char* filepath);
+void MemFile_LoadToMemFile_ReqExt(MemFile* memFile, char* filepath, const char* ext);
+void MemFile_WriteToFromMemFile_ReqExt(MemFile* memFile, char* filepath, s32 size, const char* ext);
+void MemFile_Free(MemFile* memFile);
+
+/* 👺 STRING 👺 */
 u32 String_ToHex(char* string);
 s32 String_GetLineCount(char* str);
 char* String_GetLine(char* str, s32 line);
@@ -116,6 +90,7 @@ void String_GetPath(char* dst, char* src);
 void String_GetBasename(char* dst, char* src);
 void String_GetFilename(char* dst, char* src);
 
+#define ABS(val)      (val < 0 ? -val : val)
 #define ByteSwap16(x) x = __bswap_16(x)
 #define ByteSwap32(x) x = __bswap_32(x)
 #define ByteSwap64(x) x = __bswap_64(x)

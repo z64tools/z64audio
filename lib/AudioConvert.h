@@ -9,7 +9,7 @@ typedef union {
 	s16* data16;
 	s32* data32;
 	f32* dataFloat;
-} Sample;
+} SampleAudio;
 
 typedef struct {
 	u32 start;
@@ -26,12 +26,15 @@ typedef struct {
 } SampleInstrument;
 
 typedef struct {
-	u8     channelNum;
-	u8     bit;
-	u32    sampleRate;
-	u32    samplesNum;
-	u32    size;
-	Sample audio; // Stored endianess: BIG
+	char*   input;
+	char*   output;
+	MemFile memFile;
+	u8  channelNum;
+	u8  bit;
+	u32 sampleRate;
+	u32 samplesNum;
+	u32 size;
+	SampleAudio audio;
 	SampleInstrument instrument;
 } AudioSampleInfo;
 
@@ -166,7 +169,13 @@ typedef struct {
 #endif /* __AIFF_HEADER__ */
 
 void Audio_ByteSwapFloat80(f80* float80);
-void Audio_ByteSwapData(AudioSampleInfo* audioInfo);
-void Audio_LoadWav(MemFile* d, char* file, AudioSampleInfo* sampleInfo);
-void Audio_LoadAiff(MemFile* d, char* file, AudioSampleInfo* sampleInfo);
-void Audio_WriteAiff(MemFile* d, AudioSampleInfo* sampleInfo);
+void Audio_ByteSwap(AudioSampleInfo* audioInfo);
+void Audio_Normalize(AudioSampleInfo* sampleInfo);
+void Audio_ConvertToMono(AudioSampleInfo* sampleInfo);
+
+void Audio_InitSampleInfo(AudioSampleInfo* sampleInfo, char* input, char* output);
+void Audio_FreeSample(AudioSampleInfo* sampleInfo);
+void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo);
+void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo);
+void Audio_LoadSample(AudioSampleInfo* sampleInfo);
+void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo);
