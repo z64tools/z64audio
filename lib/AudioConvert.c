@@ -97,6 +97,19 @@ void Audio_ConvertToMono(AudioSampleInfo* sampleInfo) {
 	sampleInfo->size /= 2;
 	sampleInfo->channelNum = 1;
 }
+u32 Audio_ByteSwap_FromHighLow(u16* h, u16* l) {
+	Lib_ByteSwap(h, SWAP_U16);
+	Lib_ByteSwap(l, SWAP_U16);
+	
+	return (*h << 16) | *l;
+}
+void Audio_ByteSwap_ToHighLow(u32* source, u16* h) {
+	h[0] = (source[0] & 0xFFFF0000) >> 16;
+	h[1] = source[0] & 0x0000FFFF;
+	
+	Lib_ByteSwap(h, SWAP_U16);
+	Lib_ByteSwap(&h[1], SWAP_U16);
+}
 
 void Audio_TableDesign(AudioSampleInfo* sampleInfo) {
 	char basename[256];
@@ -305,9 +318,6 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	AiffDataInfo* aiffData;
 	AiffInfo* aiffInfo;
 	
-	// Set data to zero
-	*sampleInfo = (AudioSampleInfo) { 0 };
-	
 	printf_debug("Audio_LoadSample_Aiff: File [%s] loaded to memory", sampleInfo->input);
 	
 	if (sampleInfo->memFile.dataSize == 0)
@@ -380,8 +390,13 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	if (aiffMarkerInfo && aiffInstInfo && aiffInstInfo->sustainLoop.playMode >= 1) {
 		s32 startIndex = aiffInstInfo->sustainLoop.start - 1;
 		s32 endIndex = aiffInstInfo->sustainLoop.end - 1;
-		sampleInfo->instrument.loop.start = aiffMarkerInfo->marker[startIndex].position;
-		sampleInfo->instrument.loop.end = aiffMarkerInfo->marker[endIndex].position;
+		u16 loopStartH = aiffMarkerInfo->marker[startIndex].positionH;
+		u16 loopStartL = aiffMarkerInfo->marker[startIndex].positionL;
+		u16 loopEndH = aiffMarkerInfo->marker[endIndex].positionH;
+		u16 loopEndL = aiffMarkerInfo->marker[endIndex].positionL;
+		
+		sampleInfo->instrument.loop.start = Audio_ByteSwap_FromHighLow(&loopStartH, &loopStartL);
+		sampleInfo->instrument.loop.end = Audio_ByteSwap_FromHighLow(&loopEndH, &loopEndL);
 		sampleInfo->instrument.loop.count = 0xFFFFFFFF;
 	}
 }
@@ -434,28 +449,21 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 		}
 		
 		info.channelNum = sampleInfo->channelNum;
-		info.sampleNumH = ((sampleInfo->samplesNum & 0xFFFF0000) >> 16);
-		info.sampleNumL = (sampleInfo->samplesNum & 0x0000FFFF);
+		Audio_ByteSwap_ToHighLow(&sampleInfo->samplesNum, &info.sampleNumH);
 		info.bit = sampleInfo->bit;
-		info.compressionTypeH = 0x4E4F;
-		info.compressionTypeL = 0x4E45;
 		Lib_ByteSwap(&info.channelNum, SWAP_U16);
-		Lib_ByteSwap(&info.sampleNumH, SWAP_U16);
-		Lib_ByteSwap(&info.sampleNumL, SWAP_U16);
 		Lib_ByteSwap(&info.bit, SWAP_U16);
-		Lib_ByteSwap(&info.compressionTypeH, SWAP_U16);
-		Lib_ByteSwap(&info.compressionTypeL, SWAP_U16);
 		
 		markerInfo.markerNum = 2;
 		marker[0].index = 0;
-		marker[0].position = sampleInfo->instrument.loop.start;
 		marker[1].index = 1;
-		marker[1].position = sampleInfo->instrument.loop.end;
+		
+		Audio_ByteSwap_ToHighLow(&sampleInfo->instrument.loop.start, &marker[0].positionH);
+		Audio_ByteSwap_ToHighLow(&sampleInfo->instrument.loop.end, &marker[1].positionH);
+		
 		Lib_ByteSwap(&markerInfo.markerNum, SWAP_U16);
 		Lib_ByteSwap(&marker[0].index, SWAP_U16);
-		Lib_ByteSwap(&marker[0].position, SWAP_U32);
 		Lib_ByteSwap(&marker[1].index, SWAP_U16);
-		Lib_ByteSwap(&marker[1].position, SWAP_U32);
 		
 		instrument.baseNote = sampleInfo->instrument.note;
 		instrument.detune = sampleInfo->instrument.fineTune;
@@ -476,6 +484,7 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 	memcpy(header.chunk.name, "FORM", 4);
 	memcpy(header.formType, "AIFF", 4);
 	memcpy(info.chunk.name, "COMM", 4);
+	memcpy(info.compressionType, "NONE", 4);
 	memcpy(dataInfo.chunk.name, "SSND", 4);
 	memcpy(markerInfo.chunk.name, "MARK", 4);
 	memcpy(instrument.chunk.name, "INST", 4);

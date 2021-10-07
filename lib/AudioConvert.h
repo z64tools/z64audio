@@ -124,14 +124,13 @@ typedef struct {
 	u16 sampleNumL;
 	u16 bit;
 	u8  sampleRate[10]; // 80-bit float
-	u16 compressionTypeH;
-	u16 compressionTypeL;
+	char compressionType[4];
 } AiffInfo;
 
 typedef struct {
-	s16 index;
-	u32 position;
-	u16 string;
+	u16 index;
+	u16 positionH;
+	u16 positionL;
 } AiffMarker;
 
 typedef struct {
