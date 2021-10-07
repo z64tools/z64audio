@@ -62,6 +62,8 @@ typedef struct {
 
 /* 👺 PRINTF 👺 */
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
+void printf_SetPrefix(char* fmt);
+void printf_toolinfo(const char* toolname, const char* fmt, ...);
 void printf_debug(const char* fmt, ...);
 void printf_warning(const char* fmt, ...);
 void printf_error(const char* fmt, ...);
@@ -78,6 +80,7 @@ s32 File_LoadToMem(void** dst, char* filepath);
 void File_WriteToFromMem(char* filepath, void* src, s32 size);
 s32 File_LoadToMem_ReqExt(void** dst, char* filepath, const char* ext);
 void File_WriteToFromMem_ReqExt(char* filepath, void* src, s32 size, const char* ext);
+s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg);
 
 /* 👺 MEMFILE 👺 */
 void MemFile_LoadToMemFile(MemFile* memFile, char* filepath);

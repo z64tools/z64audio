@@ -1,8 +1,9 @@
-#include "HermosauhuLib.h"
-typedef long double f80;
+#ifndef __AUDIOCONVERT_H__
+#define __AUDIOCONVERT_H__
 
-#ifndef __Z64AUDIO_HEADER__
-#define __Z64AUDIO_HEADER__
+#include "HermosauhuLib.h"
+
+typedef long double f80;
 
 struct AudioSampleInfo;
 
@@ -183,10 +184,7 @@ void Audio_Normalize(AudioSampleInfo* sampleInfo);
 void Audio_ConvertToMono(AudioSampleInfo* sampleInfo);
 void Audio_Resample(AudioSampleInfo* sampleInfo);
 
-void Audio_TableDesign(AudioSampleInfo* sampleInfo);
-void Audio_VadpcmEnc(AudioSampleInfo* sampleInfo);
-
-void Audio_InitSampleInfo(AudioSampleInfo* sampleInfo, char* input, char* output, char* targetBit);
+void Audio_InitSampleInfo(AudioSampleInfo* sampleInfo, char* input, char* output);
 void Audio_FreeSample(AudioSampleInfo* sampleInfo);
 
 void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo);

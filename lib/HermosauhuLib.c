@@ -1,19 +1,53 @@
 #include "HermosauhuLib.h"
 
-static PrintfSuppressLevel sPrintfSuppress = 0;
-
 /* 👺 PRINTF 👺 */
+static PrintfSuppressLevel sPrintfSuppress = 0;
+static char* sPrintfPrefix = "👺🚬";
+
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
 	sPrintfSuppress = lvl;
 }
+void printf_SetPrefix(char* fmt) {
+	sPrintfPrefix = fmt;
+}
 
+void printf_toolinfo(const char* toolname, const char* fmt, ...) {
+	if (sPrintfSuppress >= PSL_NO_INFO)
+		return;
+	va_list args;
+	
+	// [0;36m%s\e[m
+	va_start(args, fmt);
+	printf(
+		"\e[90;2m"
+		"╔══════════════════════════════════╗\n"
+		"║                                  ║\n"
+	);
+	printf("\033[1A" "\033[3C");
+	printf("\e[0;96m%s\e[90;2m", toolname);
+	printf(
+		"\n"
+		"╚══════════════════════════════════╝\e[m\n"
+	);
+	vprintf(
+		fmt,
+		args
+	);
+	va_end(args);
+}
 void printf_debug(const char* fmt, ...) {
 	if (sPrintfSuppress > PSL_DEBUG)
 		return;
 	va_list args;
 	
 	va_start(args, fmt);
-	printf("👺🚬 [\e[0;90mdebug\e[m]:\t");
+	printf(
+		"%s"
+		"\e[90;2m"
+		"[\e[0;90mdebg\e[90;2m]:\t"
+		"\e[m",
+		sPrintfPrefix
+	);
 	vprintf(
 		fmt,
 		args
@@ -27,7 +61,13 @@ void printf_warning(const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	printf("👺🚬 [\e[0;93mwarning\e[m]:\t");
+	printf(
+		"%s"
+		"\e[90;2m"
+		"[\e[0;93mwarn\e[90;2m]:\t"
+		"\e[m",
+		sPrintfPrefix
+	);
 	vprintf(
 		fmt,
 		args
@@ -40,7 +80,13 @@ void printf_error(const char* fmt, ...) {
 		va_list args;
 		
 		va_start(args, fmt);
-		printf("👺🚬 [\e[0;91mERROR\e[m]:\t");
+		printf(
+			"%s"
+			"\e[90;2m"
+			"[\e[0;91merr!\e[90;2m]:\t"
+			"\e[m",
+			sPrintfPrefix
+		);
 		vprintf(
 			fmt,
 			args
@@ -56,7 +102,13 @@ void printf_info(const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	printf("👺🚬 [\e[0;94minfo\e[m]:\t");
+	printf(
+		"%s"
+		"\e[90;2m"
+		"[\e[0;94minfo\e[90;2m]:\t"
+		"\e[m",
+		sPrintfPrefix
+	);
 	vprintf(
 		fmt,
 		args
@@ -147,6 +199,24 @@ void Lib_ReallocMemFile(MemFile* memFile, u32 size) {
 	
 	memFile->data = realloc(memFile->data, size);
 	memFile->memSize = size;
+}
+
+s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg) {
+	s32 i = 1;
+	
+	*parArg = 0;
+	
+	while (argv[i] != NULL) {
+		if (Lib_MemMem(argv[i], strlen(arg), arg, strlen(arg))) {
+			*parArg =  i + 1;
+			
+			return i + 1;
+		}
+		
+		i++;
+	}
+	
+	return 0;
 }
 
 /* 👺 FILE 👺 */
