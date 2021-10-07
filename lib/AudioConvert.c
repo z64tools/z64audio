@@ -28,11 +28,27 @@ u32 Audio_ConvertBigEndianFloat80(AiffInfo* aiffInfo) {
 	
 	return (s32)float80;
 }
+u32 Audio_ByteSwap_FromHighLow(u16* h, u16* l) {
+	Lib_ByteSwap(h, SWAP_U16);
+	Lib_ByteSwap(l, SWAP_U16);
+	
+	return (*h << 16) | *l;
+}
+void Audio_ByteSwap_ToHighLow(u32* source, u16* h) {
+	h[0] = (source[0] & 0xFFFF0000) >> 16;
+	h[1] = source[0] & 0x0000FFFF;
+	
+	Lib_ByteSwap(h, SWAP_U16);
+	Lib_ByteSwap(&h[1], SWAP_U16);
+}
+
 void Audio_Normalize(AudioSampleInfo* sampleInfo) {
 	u32 sampleNum = sampleInfo->samplesNum;
 	u32 channelNum = sampleInfo->channelNum;
 	f32 max;
 	f32 mult;
+	
+	printf_info("Normalizing.");
 	
 	if (sampleInfo->bit == 16) {
 		max = 0;
@@ -82,6 +98,8 @@ void Audio_ConvertToMono(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->channelNum != 2)
 		return;
 	
+	printf_info("Converting to mono.");
+	
 	if (sampleInfo->bit == 16) {
 		for (s32 i = 0, j = 0; i < sampleInfo->samplesNum; i++, j += 2) {
 			sampleInfo->audio.data16[i] = ((f32)sampleInfo->audio.data16[j] + (f32)sampleInfo->audio.data16[j + 1]) * 0.5f;
@@ -97,18 +115,24 @@ void Audio_ConvertToMono(AudioSampleInfo* sampleInfo) {
 	sampleInfo->size /= 2;
 	sampleInfo->channelNum = 1;
 }
-u32 Audio_ByteSwap_FromHighLow(u16* h, u16* l) {
-	Lib_ByteSwap(h, SWAP_U16);
-	Lib_ByteSwap(l, SWAP_U16);
+void Audio_ConvertFrom24bit(AudioSampleInfo* sampleInfo, u32 bigEnd) {
+	if (sampleInfo->bit != 24)
+		return;
 	
-	return (*h << 16) | *l;
-}
-void Audio_ByteSwap_ToHighLow(u32* source, u16* h) {
-	h[0] = (source[0] & 0xFFFF0000) >> 16;
-	h[1] = source[0] & 0x0000FFFF;
+	printf_info("24-bit rate detected. Converting to 16-bit.");
 	
-	Lib_ByteSwap(h, SWAP_U16);
-	Lib_ByteSwap(&h[1], SWAP_U16);
+	if (bigEnd) {
+		bigEnd = 1;
+	}
+	for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
+		u16 samp = *(u16*)&sampleInfo->audio.data[3 * i + bigEnd];
+		sampleInfo->audio.data16[i] = samp;
+	}
+	
+	sampleInfo->bit = 16;
+	sampleInfo->size *= (2.0 / 3.0);
+	// sampleInfo->instrument.loop.start *= (2.0 / 3.0);
+	// sampleInfo->instrument.loop.end *= (2.0 / 3.0);
 }
 
 void Audio_TableDesign(AudioSampleInfo* sampleInfo) {
@@ -311,6 +335,8 @@ void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
 			sampleInfo->instrument.loop.count = waveSampleInfo->loopData[0].count;
 		}
 	}
+	
+	Audio_ConvertFrom24bit(sampleInfo, true);
 }
 void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	MemFile_LoadToMemFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".aiff");
@@ -378,7 +404,6 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	AiffMarkerInfo* aiffMarkerInfo;
 	
 	Audio_GetSampleInfo_Aiff(&aiffInstInfo, &aiffMarkerInfo, aiffHeader, sampleInfo->memFile.dataSize);
-	Audio_ByteSwap(sampleInfo);
 	
 	if (aiffInstInfo) {
 		sampleInfo->instrument.note = aiffInstInfo->baseNote;
@@ -399,16 +424,38 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 		sampleInfo->instrument.loop.end = Audio_ByteSwap_FromHighLow(&loopEndH, &loopEndL);
 		sampleInfo->instrument.loop.count = 0xFFFFFFFF;
 	}
+	
+	Audio_ConvertFrom24bit(sampleInfo, false);
+	Audio_ByteSwap(sampleInfo);
 }
 void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
+	char* keyword[] = {
+		".wav",
+		".aiff",
+		".ogg",
+	};
+	AudioFunc loadSample[] = {
+		Audio_LoadSample_Wav,
+		Audio_LoadSample_Aiff,
+		NULL
+	};
+	
 	if (!sampleInfo->input)
 		printf_error("Audio_LoadSample: No input file set");
+	if (!sampleInfo->output)
+		printf_error("Audio_LoadSample: No output file set");
 	
-	if (Lib_MemMem(sampleInfo->input, strlen(sampleInfo->input), ".wav", 4))
-		Audio_LoadSample_Wav(sampleInfo);
-	
-	if (Lib_MemMem(sampleInfo->input, strlen(sampleInfo->input), ".aiff", 4))
-		Audio_LoadSample_Aiff(sampleInfo);
+	for (s32 i = 0; i < ARRAY_COUNT(loadSample); i++) {
+		if (Lib_MemMem(sampleInfo->input, strlen(sampleInfo->input), keyword[i], strlen(keyword[i]) - 1)) {
+			char basename[128];
+			
+			String_GetBasename(basename, sampleInfo->input);
+			printf_info("Loading [%s%s]", basename, keyword[i]);
+			
+			loadSample[i](sampleInfo);
+			break;
+		}
+	}
 }
 
 void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
@@ -418,6 +465,11 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 	AiffMarker marker[2] = { 0 };
 	AiffMarkerInfo markerInfo = { 0 };
 	AiffInstrumentInfo instrument = { 0 };
+	
+	char basename[128];
+	
+	String_GetBasename(basename, sampleInfo->output);
+	printf_info("Saving [%s.aiff]", basename);
 	
 	Audio_ByteSwap(sampleInfo);
 	
@@ -455,10 +507,9 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 		Lib_ByteSwap(&info.bit, SWAP_U16);
 		
 		markerInfo.markerNum = 2;
-		marker[0].index = 0;
-		marker[1].index = 1;
-		
+		marker[0].index = 1;
 		Audio_ByteSwap_ToHighLow(&sampleInfo->instrument.loop.start, &marker[0].positionH);
+		marker[1].index = 2;
 		Audio_ByteSwap_ToHighLow(&sampleInfo->instrument.loop.end, &marker[1].positionH);
 		
 		Lib_ByteSwap(&markerInfo.markerNum, SWAP_U16);
@@ -474,8 +525,8 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 		instrument.gain = __INT16_MAX__;
 		Lib_ByteSwap(&instrument.gain, SWAP_U16);
 		
-		instrument.sustainLoop.start = 0;
-		instrument.sustainLoop.end = 1;
+		instrument.sustainLoop.start = 1;
+		instrument.sustainLoop.end = 2;
 		instrument.sustainLoop.playMode = 1;
 		Lib_ByteSwap(&instrument.sustainLoop.start, SWAP_U16);
 		Lib_ByteSwap(&instrument.sustainLoop.end, SWAP_U16);
@@ -503,4 +554,6 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 	fwrite(&dataInfo, 1, 16, output);
 	fwrite(sampleInfo->audio.data, 1, sampleInfo->size, output);
 	fclose(output);
+}
+void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo) {
 }

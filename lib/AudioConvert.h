@@ -4,6 +4,10 @@ typedef long double f80;
 #ifndef __Z64AUDIO_HEADER__
 #define __Z64AUDIO_HEADER__
 
+struct AudioSampleInfo;
+
+typedef void (* AudioFunc)(struct AudioSampleInfo*);
+
 typedef union {
 	u8*  data;
 	s16* data16;
@@ -25,7 +29,7 @@ typedef struct {
 	SampleLoop loop;
 } SampleInstrument;
 
-typedef struct {
+typedef struct AudioSampleInfo {
 	char*   input;
 	char*   output;
 	MemFile memFile;
@@ -119,11 +123,11 @@ typedef struct {
 
 typedef struct {
 	AiffChunk chunk; // COMM
-	u16 channelNum;
-	u16 sampleNumH;
-	u16 sampleNumL;
-	u16 bit;
-	u8  sampleRate[10]; // 80-bit float
+	u16  channelNum;
+	u16  sampleNumH;
+	u16  sampleNumL;
+	u16  bit;
+	u8   sampleRate[10]; // 80-bit float
 	char compressionType[4];
 } AiffInfo;
 
@@ -131,6 +135,7 @@ typedef struct {
 	u16 index;
 	u16 positionH;
 	u16 positionL;
+	u16 pad;
 } AiffMarker;
 
 typedef struct {
@@ -140,9 +145,9 @@ typedef struct {
 } AiffMarkerInfo;
 
 typedef struct {
-	s16 playMode;
-	s16 start;
-	s16 end;
+	u16 playMode;
+	u16 start;
+	u16 end;
 } AiffLoop;
 
 typedef struct {

@@ -20,6 +20,11 @@ typedef float f32;
 typedef double f64;
 
 typedef enum {
+	false,
+	true
+} CheckStatement;
+
+typedef enum {
 	PSL_DEBUG = -1,
 	PSL_NONE,
 	PSL_NO_INFO,
@@ -90,10 +95,8 @@ void String_GetPath(char* dst, char* src);
 void String_GetBasename(char* dst, char* src);
 void String_GetFilename(char* dst, char* src);
 
-#define ABS(val)      (val < 0 ? -val : val)
-#define ByteSwap16(x) x = __bswap_16(x)
-#define ByteSwap32(x) x = __bswap_32(x)
-#define ByteSwap64(x) x = __bswap_64(x)
+#define ARRAY_COUNT(arr) (s32)(sizeof(arr) / sizeof(arr[0]))
+#define ABS(val)         (val < 0 ? -val : val)
 
 #define String_Copy(dst, src)    strcpy(dst, src)
 #define String_Combine(dst, src) strcat(dst, src)

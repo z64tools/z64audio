@@ -2,12 +2,12 @@
 #include "lib/HermosauhuLib.h"
 #include "lib/AudioTools.h"
 
-s32 main(const s32 argc, const char* argv[]) {
+s32 main(s32 argc, char* argv[]) {
 	AudioSampleInfo sample;
 	
-	printf_SetSuppressLevel(PSL_DEBUG);
+	// printf_SetSuppressLevel(PSL_DEBUG);
 	
-	Audio_InitSampleInfo(&sample, "test.wav", "new_file.aiff");
+	Audio_InitSampleInfo(&sample, argv[1], argv[2]);
 	Audio_LoadSample(&sample);
 	Audio_ConvertToMono(&sample);
 	Audio_Normalize(&sample);
