@@ -69,6 +69,7 @@ void printf_info(const char* fmt, ...);
 /* 👺 LIB 👺 */
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
 void* Lib_Malloc(s32 size);
+void Lib_MallocMemFile(MemFile* memFile, u32 size);
 void Lib_ByteSwap(void* src, s32 size);
 
 /* 👺 FILE 👺 */

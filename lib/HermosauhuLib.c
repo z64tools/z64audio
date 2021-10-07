@@ -122,6 +122,7 @@ void* Lib_Malloc(s32 size) {
 	return data;
 }
 void Lib_MallocMemFile(MemFile* memFile, u32 size) {
+	memset(memFile, 0, sizeof(MemFile));
 	memFile->data = malloc(size);
 	
 	if (memFile->data == NULL) {
@@ -189,7 +190,7 @@ void File_WriteToFromMem(char* filepath, void* src, s32 size) {
 	fclose(file);
 }
 s32 File_LoadToMem_ReqExt(void** dst, char* filepath, const char* ext) {
-	if (Lib_MemMem(filepath, strlen(filepath), ext, strlen(ext) - 1)) {
+	if (Lib_MemMem(filepath, strlen(filepath), ext, strlen(ext))) {
 		return File_LoadToMem(dst, filepath);
 	}
 	printf_warning("File_LoadToMem_ReqExt: [%s] does not match extension [%s]", filepath, ext);
@@ -197,7 +198,7 @@ s32 File_LoadToMem_ReqExt(void** dst, char* filepath, const char* ext) {
 	return 0;
 }
 void File_WriteToFromMem_ReqExt(char* filepath, void* src, s32 size, const char* ext) {
-	if (Lib_MemMem(filepath, strlen(filepath), ext, strlen(ext) - 1)) {
+	if (Lib_MemMem(filepath, strlen(filepath), ext, strlen(ext))) {
 		File_WriteToFromMem(filepath, src, size);
 		
 		return;
@@ -250,7 +251,7 @@ void MemFile_WriteToFromMemFile(MemFile* memFile, char* filepath) {
 	fclose(file);
 }
 void MemFile_LoadToMemFile_ReqExt(MemFile* memFile, char* filepath, const char* ext) {
-	if (Lib_MemMem(filepath, strlen(filepath), ext, strlen(ext) - 1)) {
+	if (Lib_MemMem(filepath, strlen(filepath), ext, strlen(ext))) {
 		MemFile_LoadToMemFile(memFile, filepath);
 		
 		return;
@@ -258,7 +259,7 @@ void MemFile_LoadToMemFile_ReqExt(MemFile* memFile, char* filepath, const char* 
 	printf_warning("File_LoadToMem_ReqExt: [%s] does not match extension [%s]", filepath, ext);
 }
 void MemFile_WriteToFromMemFile_ReqExt(MemFile* memFile, char* filepath, s32 size, const char* ext) {
-	if (Lib_MemMem(filepath, strlen(filepath), ext, strlen(ext) - 1)) {
+	if (Lib_MemMem(filepath, strlen(filepath), ext, strlen(ext))) {
 		MemFile_WriteToFromMemFile(memFile, filepath);
 		
 		return;

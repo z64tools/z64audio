@@ -9,6 +9,7 @@ s32 main(s32 argc, char* argv[]) {
 	
 	Audio_InitSampleInfo(&sample, argv[1], argv[2]);
 	Audio_LoadSample(&sample);
+	Audio_Resample(&sample);
 	Audio_ConvertToMono(&sample);
 	Audio_Normalize(&sample);
 	Audio_SaveSample_Aiff(&sample);

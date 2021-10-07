@@ -2,22 +2,6 @@
 #include "HermosauhuLib.h"
 #include "AudioTools.h"
 
-void Audio_ByteSwap(AudioSampleInfo* sampleInfo) {
-	if (sampleInfo->bit == 16) {
-		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
-			Lib_ByteSwap(&sampleInfo->audio.data16[i], sampleInfo->bit / 8);
-		}
-		
-		return;
-	}
-	if (sampleInfo->bit == 32) {
-		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
-			Lib_ByteSwap(&sampleInfo->audio.data32[i], sampleInfo->bit / 8);
-		}
-		
-		return;
-	}
-}
 u32 Audio_ConvertBigEndianFloat80(AiffInfo* aiffInfo) {
 	f80 float80 = 0;
 	u8* pointer = (u8*)&float80;
@@ -42,6 +26,30 @@ void Audio_ByteSwap_ToHighLow(u32* source, u16* h) {
 	Lib_ByteSwap(&h[1], SWAP_U16);
 }
 
+void Audio_ByteSwap(AudioSampleInfo* sampleInfo) {
+	if (sampleInfo->bit == 16) {
+		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
+			Lib_ByteSwap(&sampleInfo->audio.data16[i], sampleInfo->bit / 8);
+		}
+		
+		return;
+	}
+	if (sampleInfo->bit == 24) {
+		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
+			Lib_ByteSwap(&sampleInfo->audio.data[3 * i], sampleInfo->bit / 8);
+		}
+		
+		return;
+	}
+	
+	if (sampleInfo->bit == 32) {
+		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
+			Lib_ByteSwap(&sampleInfo->audio.data32[i], sampleInfo->bit / 8);
+		}
+		
+		return;
+	}
+}
 void Audio_Normalize(AudioSampleInfo* sampleInfo) {
 	u32 sampleNum = sampleInfo->samplesNum;
 	u32 channelNum = sampleInfo->channelNum;
@@ -115,24 +123,27 @@ void Audio_ConvertToMono(AudioSampleInfo* sampleInfo) {
 	sampleInfo->size /= 2;
 	sampleInfo->channelNum = 1;
 }
-void Audio_ConvertFrom24bit(AudioSampleInfo* sampleInfo, u32 bigEnd) {
-	if (sampleInfo->bit != 24)
-		return;
-	
-	printf_info("24-bit rate detected. Converting to 16-bit.");
-	
-	if (bigEnd) {
-		bigEnd = 1;
-	}
-	for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
-		u16 samp = *(u16*)&sampleInfo->audio.data[3 * i + bigEnd];
-		sampleInfo->audio.data16[i] = samp;
+void Audio_Resample(AudioSampleInfo* sampleInfo) {
+	if (sampleInfo->bit == 24) {
+		printf_info("Resampling from 24-bit to 16-bit.");
+		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
+			u16 samp = *(u16*)&sampleInfo->audio.data[3 * i + 1];
+			sampleInfo->audio.data16[i] = samp;
+		}
+		
+		sampleInfo->bit = 16;
+		sampleInfo->size *= (2.0 / 3.0);
 	}
 	
-	sampleInfo->bit = 16;
-	sampleInfo->size *= (2.0 / 3.0);
-	// sampleInfo->instrument.loop.start *= (2.0 / 3.0);
-	// sampleInfo->instrument.loop.end *= (2.0 / 3.0);
+	if (sampleInfo->bit == 32) {
+		printf_info("Resampling from 32-bit to 16-bit.");
+		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
+			sampleInfo->audio.data16[i] = sampleInfo->audio.dataFloat[i] * __INT16_MAX__;
+		}
+		
+		sampleInfo->bit = 16;
+		sampleInfo->size *= 0.5;
+	}
 }
 
 void Audio_TableDesign(AudioSampleInfo* sampleInfo) {
@@ -287,14 +298,29 @@ void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
 	WaveDataInfo* waveData;
 	WaveInfo* waveInfo;
 	
+	if (!Lib_MemMem(waveHeader, 0x10, "WAVE", 4) || !Lib_MemMem(waveHeader, 0x10, "RIFF", 4)) {
+		char headerA[5] = { 0 };
+		char headerB[5] = { 0 };
+		
+		memcpy(headerA, waveHeader->chunk.name, 4);
+		memcpy(headerB, waveHeader->format, 4);
+		
+		printf_error(
+			"[%s] header does not match what's expected\n"
+			"\t\tChunkHeader: \e[0;91m[%s]\e[m -> [RIFF]\n"
+			"\t\tFormat:      \e[0;91m[%s]\e[m -> [WAVE]",
+			sampleInfo->input,
+			headerA,
+			headerB
+		);
+	}
+	
 	printf_debug("Audio_LoadSample_Wav: File [%s] loaded to memory", sampleInfo->input);
 	
 	if (sampleInfo->memFile.dataSize == 0)
 		printf_error("Audio_LoadSample_Wav: Something has gone wrong loading file [%s]", sampleInfo->input);
 	waveInfo = Lib_MemMem(waveHeader, sampleInfo->memFile.dataSize, "fmt ", 4);
 	waveData = Lib_MemMem(waveHeader, sampleInfo->memFile.dataSize, "data", 4);
-	if (!Lib_MemMem(waveHeader->chunk.name, 4, "RIFF", 4))
-		printf_error("Audio_LoadSample_Wav: Chunk header [%c%c%c%c] instead of [RIFF]",waveHeader->chunk.name[0],waveHeader->chunk.name[1],waveHeader->chunk.name[2],waveHeader->chunk.name[3]);
 	if (!waveInfo || !waveData) {
 		if (!waveData) {
 			printf_error(
@@ -335,8 +361,6 @@ void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
 			sampleInfo->instrument.loop.count = waveSampleInfo->loopData[0].count;
 		}
 	}
-	
-	Audio_ConvertFrom24bit(sampleInfo, true);
 }
 void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	MemFile_LoadToMemFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".aiff");
@@ -344,21 +368,29 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	AiffDataInfo* aiffData;
 	AiffInfo* aiffInfo;
 	
+	if (!Lib_MemMem(aiffHeader, 0x10, "FORM", 4) || !Lib_MemMem(aiffHeader, 0x10, "AIFF", 4)) {
+		char headerA[5] = { 0 };
+		char headerB[5] = { 0 };
+		
+		memcpy(headerA, aiffHeader->chunk.name, 4);
+		memcpy(headerB, aiffHeader->formType, 4);
+		
+		printf_error(
+			"[%s] header does not match what's expected\n"
+			"\t\tChunkHeader: \e[0;91m[%s]\e[m -> [FORM]\n"
+			"\t\tFormat:      \e[0;91m[%s]\e[m -> [AIFF]",
+			sampleInfo->input,
+			headerA,
+			headerB
+		);
+	}
+	
 	printf_debug("Audio_LoadSample_Aiff: File [%s] loaded to memory", sampleInfo->input);
 	
 	if (sampleInfo->memFile.dataSize == 0)
 		printf_error("Audio_LoadSample_Aiff: Something has gone wrong loading file [%s]", sampleInfo->input);
 	aiffInfo = Lib_MemMem(aiffHeader, sampleInfo->memFile.dataSize, "COMM", 4);
 	aiffData = Lib_MemMem(aiffHeader, sampleInfo->memFile.dataSize, "SSND", 4);
-	if (!Lib_MemMem(aiffHeader->formType, 4, "AIFF", 4)) {
-		printf_error(
-			"Audio_LoadSample_Aiff: Chunk header [%c%c%c%c] instead of [AIFF]",
-			aiffHeader->formType[0],
-			aiffHeader->formType[1],
-			aiffHeader->formType[2],
-			aiffHeader->formType[3]
-		);
-	}
 	if (!aiffInfo || !aiffData) {
 		if (!aiffData) {
 			printf_error(
@@ -425,7 +457,6 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 		sampleInfo->instrument.loop.count = 0xFFFFFFFF;
 	}
 	
-	Audio_ConvertFrom24bit(sampleInfo, false);
 	Audio_ByteSwap(sampleInfo);
 }
 void Audio_LoadSample(AudioSampleInfo* sampleInfo) {

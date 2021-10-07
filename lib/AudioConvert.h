@@ -172,10 +172,10 @@ typedef struct {
 
 #endif /* __AIFF_HEADER__ */
 
-void Audio_ByteSwapFloat80(f80* float80);
-void Audio_ByteSwap(AudioSampleInfo* audioInfo);
+void Audio_ByteSwap(AudioSampleInfo* sampleInfo);
 void Audio_Normalize(AudioSampleInfo* sampleInfo);
 void Audio_ConvertToMono(AudioSampleInfo* sampleInfo);
+void Audio_Resample(AudioSampleInfo* sampleInfo);
 
 void Audio_TableDesign(AudioSampleInfo* sampleInfo);
 void Audio_VadpcmEnc(AudioSampleInfo* sampleInfo);
