@@ -53,13 +53,18 @@ typedef struct {
 	u32  size;
 } WaveChunk;
 
+typedef enum {
+	PCM        = 1,
+	IEEE_FLOAT = 3
+} WaveFormat;
+
 typedef struct {
 	WaveChunk chunk;
 	u16 format; // PCM = 1 (uncompressed)
 	u16 channelNum; // Mono = 1, Stereo = 2, etc.
 	u32 sampleRate;
 	u32 byteRate; // == sampleRate * channelNum * bit
-	u16 blockAlign;
+	u16 blockAlign; // == numChannels * (bit / 8)
 	u16 bit;
 } WaveInfo;
 
@@ -183,7 +188,11 @@ void Audio_VadpcmEnc(AudioSampleInfo* sampleInfo);
 
 void Audio_InitSampleInfo(AudioSampleInfo* sampleInfo, char* input, char* output, char* targetBit);
 void Audio_FreeSample(AudioSampleInfo* sampleInfo);
+
 void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo);
 void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo);
 void Audio_LoadSample(AudioSampleInfo* sampleInfo);
+
 void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo);
+void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo);
+void Audio_SaveSample(AudioSampleInfo* sampleInfo);

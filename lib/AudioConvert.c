@@ -97,9 +97,9 @@ void Audio_Normalize(AudioSampleInfo* sampleInfo) {
 		for (s32 i = 0; i < sampleNum * channelNum; i++) {
 			sampleInfo->audio.dataFloat[i] *= mult;
 		}
-		
-		return;
 	}
+	
+	printf_debug("normalizermax: %f", max);
 }
 void Audio_ConvertToMono(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->channelNum != 2)
@@ -651,4 +651,97 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 	fclose(output);
 }
 void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo) {
+	WaveHeader header = { 0 };
+	WaveInfo info = { 0 };
+	WaveDataInfo dataInfo = { 0 };
+	WaveInstrumentInfo instrument = { 0 };
+	WaveSampleInfo sample = { 0 };
+	WaveSampleLoop loop = { 0 };
+	
+	char basename[128];
+	
+	String_GetBasename(basename, sampleInfo->output);
+	printf_info("Saving [%s.wav]", basename);
+	
+	/* Write chunk headers */ {
+		header.chunk.size = 4 +
+		    sizeof(WaveInfo) +
+		    sizeof(WaveDataInfo) +
+		    sampleInfo->size +
+		    sizeof(WaveInstrumentInfo) +
+		    sizeof(WaveSampleInfo) +
+		    sizeof(WaveSampleLoop);
+		info.chunk.size = sizeof(WaveInfo) - sizeof(WaveChunk);
+		dataInfo.chunk.size = sampleInfo->size;
+		instrument.chunk.size = sizeof(WaveInstrumentInfo) - sizeof(WaveChunk);
+		sample.chunk.size = sizeof(WaveSampleInfo) - sizeof(WaveChunk) + sizeof(WaveSampleLoop);
+		
+		info.format = PCM;
+		if (sampleInfo->bit == 32)
+			info.format = IEEE_FLOAT;
+		info.channelNum = sampleInfo->channelNum;
+		info.sampleRate = sampleInfo->sampleRate;
+		info.byteRate = sampleInfo->sampleRate * sampleInfo->channelNum * sampleInfo->bit;
+		info.blockAlign = sampleInfo->channelNum * (sampleInfo->bit / 8);
+		info.bit = sampleInfo->bit;
+		
+		instrument.note = sampleInfo->instrument.note;
+		instrument.fineTune = sampleInfo->instrument.fineTune;
+		instrument.gain = __INT8_MAX__;
+		instrument.lowNote = sampleInfo->instrument.lowNote;
+		instrument.hiNote = sampleInfo->instrument.highNote;
+		instrument.lowNote = 0;
+		instrument.hiVel = __INT8_MAX__;
+		
+		sample.numSampleLoops = 1;
+		loop.count = sampleInfo->instrument.loop.count;
+		loop.start = sampleInfo->instrument.loop.start;
+		loop.end = sampleInfo->instrument.loop.end;
+		loop.type = 1;
+	}
+	memcpy(header.chunk.name, "RIFF", 4);
+	memcpy(header.format, "WAVE", 4);
+	memcpy(info.chunk.name, "fmt ", 4);
+	memcpy(dataInfo.chunk.name, "data", 4);
+	memcpy(sample.chunk.name, "smpl", 4);
+	memcpy(instrument.chunk.name, "inst", 4);
+	
+	FILE* output = fopen(sampleInfo->output, "w");
+	
+	if (output == NULL)
+		printf_error("Audio_SaveSample_Wav: Could not open outputfile [%s]", sampleInfo->output);
+	
+	fwrite(&header, 1, sizeof(header), output);
+	fwrite(&info, 1, sizeof(info), output);
+	fwrite(&dataInfo, 1, sizeof(dataInfo), output);
+	fwrite(sampleInfo->audio.data, 1, sampleInfo->size, output);
+	fwrite(&instrument, 1, sizeof(instrument), output);
+	fwrite(&sample, 1, sizeof(sample), output);
+	fwrite(&loop, 1, sizeof(loop), output);
+	
+	fclose(output);
+}
+void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
+	char* keyword[] = {
+		".wav",
+		".aiff",
+		".ogg",
+	};
+	AudioFunc saveSample[] = {
+		Audio_SaveSample_Wav,
+		Audio_SaveSample_Aiff,
+		NULL
+	};
+	
+	for (s32 i = 0; i < ARRAY_COUNT(saveSample); i++) {
+		if (Lib_MemMem(sampleInfo->output, strlen(sampleInfo->output), keyword[i], strlen(keyword[i]) - 1)) {
+			char basename[128];
+			
+			String_GetBasename(basename, sampleInfo->output);
+			printf_info("Loading [%s%s]", basename, keyword[i]);
+			
+			saveSample[i](sampleInfo);
+			break;
+		}
+	}
 }
