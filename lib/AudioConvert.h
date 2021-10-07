@@ -38,6 +38,7 @@ typedef struct AudioSampleInfo {
 	u32 sampleRate;
 	u32 samplesNum;
 	u32 size;
+	u16 targetBit;
 	SampleAudio audio;
 	SampleInstrument instrument;
 } AudioSampleInfo;
@@ -180,7 +181,7 @@ void Audio_Resample(AudioSampleInfo* sampleInfo);
 void Audio_TableDesign(AudioSampleInfo* sampleInfo);
 void Audio_VadpcmEnc(AudioSampleInfo* sampleInfo);
 
-void Audio_InitSampleInfo(AudioSampleInfo* sampleInfo, char* input, char* output);
+void Audio_InitSampleInfo(AudioSampleInfo* sampleInfo, char* input, char* output, char* targetBit);
 void Audio_FreeSample(AudioSampleInfo* sampleInfo);
 void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo);
 void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo);

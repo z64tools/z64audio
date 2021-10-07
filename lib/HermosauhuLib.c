@@ -277,8 +277,11 @@ void MemFile_Free(MemFile* memFile) {
 }
 
 /* 👺 STRING 👺 */
-u32 String_ToHex(char* string) {
+u32 String_HexStrToInt(char* string) {
 	return strtol(string, NULL, 16);
+}
+u32 String_NumStrToInt(char* string) {
+	return strtol(string, NULL, 10);
 }
 
 s32 String_GetLineCount(char* str) {

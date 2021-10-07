@@ -41,7 +41,6 @@ void Audio_ByteSwap(AudioSampleInfo* sampleInfo) {
 		
 		return;
 	}
-	
 	if (sampleInfo->bit == 32) {
 		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
 			Lib_ByteSwap(&sampleInfo->audio.data32[i], sampleInfo->bit / 8);
@@ -123,27 +122,78 @@ void Audio_ConvertToMono(AudioSampleInfo* sampleInfo) {
 	sampleInfo->size /= 2;
 	sampleInfo->channelNum = 1;
 }
-void Audio_Resample(AudioSampleInfo* sampleInfo) {
-	if (sampleInfo->bit == 24) {
-		printf_info("Resampling from 24-bit to 16-bit.");
-		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
-			u16 samp = *(u16*)&sampleInfo->audio.data[3 * i + 1];
-			sampleInfo->audio.data16[i] = samp;
+void Audio_Downsample(AudioSampleInfo* sampleInfo) {
+	if (sampleInfo->targetBit == 16) {
+		if (sampleInfo->bit == 24) {
+			printf_info("Resampling from 24-bit to 16-bit.");
+			for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
+				u16 samp = *(u16*)&sampleInfo->audio.data[3 * i + 1];
+				sampleInfo->audio.data16[i] = samp;
+			}
+			
+			sampleInfo->bit = 16;
+			sampleInfo->size *= (2.0 / 3.0);
 		}
 		
-		sampleInfo->bit = 16;
-		sampleInfo->size *= (2.0 / 3.0);
+		if (sampleInfo->bit == 32) {
+			printf_info("Resampling from 32-bit to 16-bit.");
+			for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
+				sampleInfo->audio.data16[i] = sampleInfo->audio.dataFloat[i] * __INT16_MAX__;
+			}
+			
+			sampleInfo->bit = 16;
+			sampleInfo->size *= 0.5;
+		}
+	}
+	if (sampleInfo->targetBit == 24) {
+		if (sampleInfo->bit == 32) {
+			printf_error("Resample to 24-bit not supported yet.");
+			// printf_info("Resampling from 32-bit to 16-bit.");
+			// for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
+			// 	sampleInfo->audio.data[i] = sampleInfo->audio.dataFloat[i] * __INT16_MAX__;
+			// }
+			//
+			// sampleInfo->bit = 16;
+			// sampleInfo->size *= 0.5;
+		}
+	}
+}
+void Audio_Upsample(AudioSampleInfo* sampleInfo) {
+	MemFile newMem;
+	u32 samplesNum = sampleInfo->samplesNum;
+	u32 channelNum = sampleInfo->channelNum;
+	
+	printf_info("Target bitrate higher than source. Upsampling.");
+	
+	Lib_MallocMemFile(&newMem, samplesNum * sizeof(f32) * channelNum);
+	
+	if (sampleInfo->bit == 16) {
+		for (s32 i = 0; i < samplesNum * channelNum; i++) {
+			newMem.cast.f32[i] = (f32)sampleInfo->audio.data16[i] / __INT16_MAX__;
+		}
 	}
 	
-	if (sampleInfo->bit == 32) {
-		printf_info("Resampling from 32-bit to 16-bit.");
-		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
-			sampleInfo->audio.data16[i] = sampleInfo->audio.dataFloat[i] * __INT16_MAX__;
+	if (sampleInfo->bit == 24) {
+		for (s32 i = 0; i < samplesNum * channelNum; i++) {
+			newMem.cast.f32[i] = (f32)(*(s16*)&sampleInfo->audio.data[3 * i + 1]) / __INT16_MAX__;
 		}
-		
-		sampleInfo->bit = 16;
-		sampleInfo->size *= 0.5;
 	}
+	
+	newMem.dataSize = sampleInfo->size =
+	    sampleInfo->samplesNum *
+	    sampleInfo->channelNum *
+	    sizeof(f32);
+	sampleInfo->bit = 32;
+	MemFile_Free(&sampleInfo->memFile);
+	sampleInfo->memFile = newMem;
+	sampleInfo->audio.data = newMem.data;
+}
+void Audio_Resample(AudioSampleInfo* sampleInfo) {
+	if (sampleInfo->targetBit > sampleInfo->bit) {
+		Audio_Upsample(sampleInfo);
+	}
+	
+	Audio_Downsample(sampleInfo);
 }
 
 void Audio_TableDesign(AudioSampleInfo* sampleInfo) {
@@ -239,10 +289,15 @@ void Audio_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	free(vadpcmArgv[4]);
 }
 
-void Audio_InitSampleInfo(AudioSampleInfo* sampleInfo, char* input, char* output) {
+void Audio_InitSampleInfo(AudioSampleInfo* sampleInfo, char* input, char* output, char* targetBit) {
 	memset(sampleInfo, 0, sizeof(*sampleInfo));
 	sampleInfo->input = input;
 	sampleInfo->output = output;
+	if (targetBit != NULL) {
+		sampleInfo->targetBit = String_NumStrToInt(targetBit);
+	} else {
+		sampleInfo->targetBit = 16;
+	}
 }
 void Audio_FreeSample(AudioSampleInfo* sampleInfo) {
 	MemFile_Free(&sampleInfo->memFile);
@@ -501,6 +556,15 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 	
 	String_GetBasename(basename, sampleInfo->output);
 	printf_info("Saving [%s.aiff]", basename);
+	
+	// AIFF 32-bit == s32
+	if (sampleInfo->bit == 32) {
+		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
+			float samp = sampleInfo->audio.dataFloat[i];
+			
+			sampleInfo->audio.data32[i] = sampleInfo->audio.dataFloat[i] * 2147483000.0f;
+		}
+	}
 	
 	Audio_ByteSwap(sampleInfo);
 	

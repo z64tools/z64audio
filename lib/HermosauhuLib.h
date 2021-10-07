@@ -51,6 +51,7 @@ typedef struct {
 			u16* u16;
 			u32* u32;
 			u64* u64;
+			f32* f32;
 		} cast;
 	};
 	u32 memSize;
@@ -86,7 +87,8 @@ void MemFile_WriteToFromMemFile_ReqExt(MemFile* memFile, char* filepath, s32 siz
 void MemFile_Free(MemFile* memFile);
 
 /* 👺 STRING 👺 */
-u32 String_ToHex(char* string);
+u32 String_HexStrToInt(char* string);
+u32 String_NumStrToInt(char* string);
 s32 String_GetLineCount(char* str);
 char* String_GetLine(char* str, s32 line);
 char* String_GetWord(char* str, s32 word);
