@@ -2,7 +2,7 @@
 #include "lib/AudioConvert.h"
 #include "lib/AudioTools.h"
 
-char* sToolName = "z64audio 2.0.0";
+char* sToolName = "z64audio 2.0 cli rc1";
 
 s32 main(s32 argc, char* argv[]) {
 	AudioSampleInfo sample;
@@ -31,17 +31,21 @@ s32 main(s32 argc, char* argv[]) {
 	if (input == NULL || output == NULL) {
 		printf_toolinfo(
 			sToolName,
-			"--i ─ Input\n"
-			"--o ─ Output\n"
-			"--b ─ Bit depth\n"
-			"--m ─ Mono\n"
-			"--n ─ Normalize\n"
-			"--v ─ vadpcm\n"
-			"--I ─ tabledesign iteration count\n"
+			"--i [file] ─ Input\n"
+			"--o [file] ─ Output\n"
+			
+			"\nAudio processing:\n"
+			"--b [16]   ─ Bit depth\n"
+			"--m        ─ Mono\n"
+			"--n        ─ Normalize\n"
+			
+			"\nVadpcm Args:\n"
+			"--v        ─ Generate Vadpcm AIFC\n"
+			"--I [30]   ─ tabledesign iteration count\n"
 			
 			"\nInternal tools:\n"
-			"tabledesign [iteration] [input] [output]\n"
-			"vadpcm_enc [input] [table] [output]\n"
+			"[TODO] tabledesign [iteration] [input] [output]\n"
+			"[TODO] vadpcm_enc [input] [table] [output]\n"
 			
 			"\nPrintf:\n"
 			"--D ─ Debug\n"
@@ -81,8 +85,12 @@ s32 main(s32 argc, char* argv[]) {
 		if (Lib_ParseArguments(argv, "-I", &parArg) || Lib_ParseArguments(argv, "--I", &parArg)) {
 			gTableDesignIteration = argv[parArg];
 		}
-		AudioTools_TableDesign(&sample);
-		AudioTools_VadpcmEnc(&sample);
+		if (!Lib_MemMem(sample.output, strlen(sample.output), ".aiff", 5)) {
+			printf_warning("Output isn't [.aiff] file. Skipping generating vadpcm files");
+		} else {
+			AudioTools_RunTableDesign(&sample);
+			AudioTools_RunVadpcmEnc(&sample);
+		}
 	}
 	Audio_FreeSample(&sample);
 	

@@ -43,16 +43,24 @@ typedef enum {
 #ifndef __HERMOSAUHU_DATA_T__
 #define __HERMOSAUHU_DATA_T__
 
+typedef union {
+	void* p;
+	u8*   u8;
+	u16*  u16;
+	u32*  u32;
+	u64*  u64;
+	s8*   s8;
+	s16*  s16;
+	s32*  s32;
+	s64*  s64;
+	f32*  f32;
+	f64*  f64;
+} PointerCast;
+
 typedef struct {
 	union {
 		void* data;
-		union {
-			u8*  u8;
-			u16* u16;
-			u32* u32;
-			u64* u64;
-			f32* f32;
-		} cast;
+		PointerCast cast;
 	};
 	u32 memSize;
 	u32 dataSize;
@@ -101,11 +109,12 @@ void String_GetPath(char* dst, char* src);
 void String_GetBasename(char* dst, char* src);
 void String_GetFilename(char* dst, char* src);
 
-#define ARRAY_COUNT(arr) (s32)(sizeof(arr) / sizeof(arr[0]))
-#define ABS(val)         (val < 0 ? -val : val)
+#define ARRAY_COUNT(arr)     (s32)(sizeof(arr) / sizeof(arr[0]))
+#define ABS(val)             (val < 0 ? -val : val)
+#define CLAMP(val, min, max) (val < min ? min : val > max ? max : val)
 
-#define String_Copy(dst, src)    strcpy(dst, src)
-#define String_Combine(dst, src) strcat(dst, src)
-#define String_Generate(string)  strdup(string)
+#define String_Copy(dst, src)   strcpy(dst, src)
+#define String_Merge(dst, src)  strcat(dst, src)
+#define String_Generate(string) strdup(string)
 
 #endif /* __HERMOSAUHU_LIB_H__ */

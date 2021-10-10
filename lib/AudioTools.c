@@ -1,8 +1,11 @@
 #include "AudioTools.h"
 
 char* gTableDesignIteration = "30";
+char* gTableDesignFrameSize = "16";
+char* gTableDesignBits = "2";
+char* gTableDesignOrder = "2";
 
-void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
+void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
 	char basename[256];
 	char path[256];
 	char buffer[256];
@@ -10,16 +13,23 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 		"tabledesign",
 		"-i",
 		gTableDesignIteration,
-		sampleInfo->output,
-		NULL
+		"-f",
+		gTableDesignFrameSize,
+		"-s",
+		gTableDesignBits,
+		"-o",
+		gTableDesignOrder,
+		sampleInfo->output
 	};
 	
 	String_GetBasename(basename, sampleInfo->output);
 	String_GetPath(path, sampleInfo->output);
 	
 	String_Copy(buffer, path);
-	String_Combine(buffer, basename);
-	String_Combine(buffer, ".table");
+	String_Merge(buffer, basename);
+	String_Merge(buffer, ".table");
+	
+	printf_info("Saving [%s]", buffer);
 	
 	FILE* table = fopen(buffer, "w");
 	
@@ -28,19 +38,25 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	}
 	
 	printf_debug(
-		"%s %s %s %s",
+		"Run:%s %s %s %s %s %s %s %s %s %s",
 		tableDesignArgv[0],
 		tableDesignArgv[1],
 		tableDesignArgv[2],
-		tableDesignArgv[3]
+		tableDesignArgv[3],
+		tableDesignArgv[4],
+		tableDesignArgv[5],
+		tableDesignArgv[6],
+		tableDesignArgv[7],
+		tableDesignArgv[8],
+		tableDesignArgv[9]
 	);
 	
-	if (tabledesign(4, tableDesignArgv, table))
+	if (tabledesign(ARRAY_COUNT(tableDesignArgv), tableDesignArgv, table))
 		printf_error("TableDesign has failed");
 	
 	fclose(table);
 }
-void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
+void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
 	char basename[256];
 	char path[256];
 	char buffer[256];
@@ -56,16 +72,18 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	String_GetBasename(basename, sampleInfo->output);
 	String_GetPath(path, sampleInfo->output);
 	String_Copy(buffer, path);
-	String_Combine(buffer, basename);
-	String_Combine(buffer, ".table");
+	String_Merge(buffer, basename);
+	String_Merge(buffer, ".table");
 	vadpcmArgv[2] = String_Generate(buffer);
 	
 	String_GetBasename(basename, sampleInfo->output);
 	String_GetPath(path, sampleInfo->output);
 	String_Copy(buffer, path);
-	String_Combine(buffer, basename);
-	String_Combine(buffer, ".aifc");
+	String_Merge(buffer, basename);
+	String_Merge(buffer, ".aifc");
 	vadpcmArgv[4] = String_Generate(buffer);
+	
+	printf_info("Saving [%s]", buffer);
 	
 	FILE* table = fopen(buffer, "w");
 	
