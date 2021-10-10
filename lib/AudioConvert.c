@@ -278,6 +278,10 @@ void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
 	WaveDataInfo* waveData;
 	WaveInfo* waveInfo;
 	
+	if (!sampleInfo->memFile.data) {
+		printf_error("Closing.");
+	}
+	
 	if (!Lib_MemMem(waveHeader, 0x10, "WAVE", 4) || !Lib_MemMem(waveHeader, 0x10, "RIFF", 4)) {
 		char headerA[5] = { 0 };
 		char headerB[5] = { 0 };
@@ -352,6 +356,10 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	AiffHeader* aiffHeader = sampleInfo->memFile.data;
 	AiffDataInfo* aiffData;
 	AiffInfo* aiffInfo;
+	
+	if (!sampleInfo->memFile.data) {
+		printf_error("Closing.");
+	}
 	
 	if (!Lib_MemMem(aiffHeader, 0x10, "FORM", 4) || !Lib_MemMem(aiffHeader, 0x10, "AIFF", 4)) {
 		char headerA[5] = { 0 };
@@ -451,6 +459,10 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 	AiffHeader* aiffHeader = sampleInfo->memFile.data;
 	AiffDataInfo* aiffData;
 	AiffInfo* aiffInfo;
+	
+	if (!sampleInfo->memFile.data) {
+		printf_error("Closing.");
+	}
 	
 	if (!Lib_MemMem(aiffHeader, 0x10, "FORM", 4) || !Lib_MemMem(aiffHeader, 0x10, "AIFC", 4)) {
 		char headerA[5] = { 0 };
@@ -560,7 +572,8 @@ void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 	AudioFunc loadSample[] = {
 		Audio_LoadSample_Wav,
 		Audio_LoadSample_Aiff,
-		Audio_LoadSample_AifcVadpcm
+		Audio_LoadSample_AifcVadpcm,
+		NULL
 	};
 	
 	if (!sampleInfo->input)
@@ -569,6 +582,14 @@ void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 		printf_error("Audio_LoadSample: No output file set");
 	
 	for (s32 i = 0; i < ARRAY_COUNT(loadSample); i++) {
+		if (loadSample[i] == NULL) {
+			printf_warning("[%s] does not match expected extensions. This tool supports these extensions as input:", sampleInfo->input);
+			for (s32 j = 0; j < ARRAY_COUNT(keyword); j++) {
+				printf("[%s] ", keyword[j]);
+			}
+			printf("\n");
+			printf_error("Closing.");
+		}
 		if (Lib_MemMem(sampleInfo->input, strlen(sampleInfo->input), keyword[i], strlen(keyword[i]))) {
 			char basename[128];
 			
@@ -943,7 +964,7 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 	
 	for (s32 i = 0; i < ARRAY_COUNT(saveSample); i++) {
 		if (saveSample[i] == NULL) {
-			printf_warning("Output does not match expected extensions. This tool supports these extensions for output:");
+			printf_warning("[%s] does not match expected extensions. This tool supports these extensions as output:", sampleInfo->output);
 			for (s32 j = 0; j < ARRAY_COUNT(keyword); j++) {
 				printf("[%s] ", keyword[j]);
 			}

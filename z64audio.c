@@ -10,6 +10,7 @@ s32 main(s32 argc, char* argv[]) {
 	char* output = NULL;
 	u32 parArg;
 	
+	printf_WinFix();
 	printf_SetPrefix("");
 	
 	if (Lib_ParseArguments(argv, "-i", &parArg) || Lib_ParseArguments(argv, "--i", &parArg)) {
@@ -59,6 +60,34 @@ s32 main(s32 argc, char* argv[]) {
 		sToolName,
 		0
 	);
+	
+	#if 0
+	if (Lib_ParseArguments(argv, "zzrtl", &parArg) && Lib_MemMem(input, strlen(input), ".wav", 4)) {
+		char basename[128] = { 0 };
+		char path[128] = { 0 };
+		char buffer[1024] = { 0 };
+		
+		String_GetBasename(basename, input);
+		String_GetPath(path, input);
+		if (path[0])
+			String_Merge(buffer, path);
+		String_Copy(buffer, basename);
+		String_Merge(buffer, ".aiff");
+		Audio_InitSampleInfo(&sample, input, output);
+		sample.output = buffer;
+		sample.targetBit = 16;
+		Audio_LoadSample(&sample);
+		Audio_Resample(&sample);
+		Audio_ConvertToMono(&sample);
+		Audio_Normalize(&sample);
+		Audio_SaveSample(&sample);
+		AudioTools_RunTableDesign(&sample);
+		AudioTools_RunVadpcmEnc(&sample);
+		Audio_FreeSample(&sample);
+		
+		return 0;
+	}
+	#endif
 	
 	Audio_InitSampleInfo(&sample, input, output);
 	Audio_LoadSample(&sample);

@@ -28,10 +28,10 @@ z64audio: $(z64AudioDep)
 # WINDOWS BUILD
 bin-win/audiofile.o: $(AudioToolsDep)
 	mkdir -p bin-win/
-	cd bin-win && $(g++w32) -std=c++11 -c ../lib/audiofile/audiofile.cpp -I../lib/audiofile $(OBJCFLAGS) -municode -DUNICODE -D_UNICODE
-	cd bin-win && $(gccw32) -c ../lib/sdk-tools/tabledesign/*.c -I../lib/audiofile $(OBJCFLAGS) -municode -DUNICODE -D_UNICODE
-	cd bin-win && $(gccw32) -c ../lib/sdk-tools/adpcm/*.c -I../lib/audiofile $(OBJCFLAGS) -municode -DUNICODE -D_UNICODE
+	cd bin-win && $(g++w32) -std=c++11 -c ../lib/audiofile/audiofile.cpp -I../lib/audiofile $(OBJCFLAGS) -D_WIN32
+	cd bin-win && $(gccw32) -c ../lib/sdk-tools/tabledesign/*.c -I../lib/audiofile $(OBJCFLAGS) -D_WIN32
+	cd bin-win && $(gccw32) -c ../lib/sdk-tools/adpcm/*.c -I../lib/audiofile $(OBJCFLAGS) -D_WIN32
 
 z64audio.exe: $(z64AudioDep)
-	cd bin-win && $(gccw32) -c ../z64audio.c ../lib/HermosauhuLib.c ../lib/AudioConvert.c ../lib/AudioTools.c -Wall $(CFLAGS) -municode -DUNICODE -D_UNICODE
-	$(g++w32) -o $@ bin-win/*.o $(CFLAGS) -municode -DUNICODE -D_UNICODE
+	cd bin-win && $(gccw32) -c ../z64audio.c ../lib/HermosauhuLib.c ../lib/AudioConvert.c ../lib/AudioTools.c -Wall $(CFLAGS) -D_WIN32
+	$(g++w32) -o $@ bin-win/*.o $(CFLAGS) -D_WIN32

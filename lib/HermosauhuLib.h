@@ -76,6 +76,7 @@ void printf_debug(const char* fmt, ...);
 void printf_warning(const char* fmt, ...);
 void printf_error(const char* fmt, ...);
 void printf_info(const char* fmt, ...);
+void printf_WinFix();
 
 /* 👺 LIB 👺 */
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);

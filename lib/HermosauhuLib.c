@@ -116,6 +116,11 @@ void printf_info(const char* fmt, ...) {
 	printf("\n");
 	va_end(args);
 }
+void printf_WinFix() {
+	#ifdef _WIN32
+	system("\0");
+	#endif
+}
 
 /* 👺 LIB 👺 */
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize) {
@@ -284,6 +289,7 @@ void MemFile_LoadToMemFile(MemFile* memFile, char* filepath) {
 	
 	if (file == NULL) {
 		printf_warning("File_LoadToMem: Failed to fopen file [%s].", filepath);
+		memFile->data = NULL;
 		
 		return;
 	}
@@ -371,7 +377,7 @@ char* String_GetLine(char* str, s32 line) {
 	s32 i = 0;
 	s32 j = 0;
 	
-	bzero(buffer, 1024);
+	memset(buffer, 0, 1024);
 	
 	while (str[i] != '\0') {
 		j = 0;
@@ -402,7 +408,7 @@ char* String_GetWord(char* str, s32 word) {
 	s32 i = 0;
 	s32 j = 0;
 	
-	bzero(buffer, 1024);
+	memset(buffer, 0, 1024);
 	
 	while (str[i] != '\0') {
 		j = 0;
@@ -465,7 +471,7 @@ void String_GetPath(char* dst, char* src) {
 	if (slash == 0)
 		slash = -1;
 	
-	bzero(dst, slash + 2);
+	memset(dst, 0, slash + 2);
 	memcpy(dst, src, slash + 1);
 }
 void String_GetBasename(char* dst, char* src) {
@@ -477,7 +483,7 @@ void String_GetBasename(char* dst, char* src) {
 	if (slash == 0)
 		slash = -1;
 	
-	bzero(dst, point - slash);
+	memset(dst, 0, point - slash);
 	memcpy(dst, &src[slash + 1], point - slash - 1);
 }
 void String_GetFilename(char* dst, char* src) {
@@ -489,6 +495,6 @@ void String_GetFilename(char* dst, char* src) {
 	if (slash == 0)
 		slash = -1;
 	
-	bzero(dst, strlen(src) - slash);
+	memset(dst, 0, strlen(src) - slash);
 	memcpy(dst, &src[slash + 1], strlen(src) - slash - 1);
 }
