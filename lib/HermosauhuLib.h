@@ -6,7 +6,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <math.h>
 
 typedef signed char s8;
 typedef unsigned char u8;
@@ -110,6 +109,17 @@ void String_GetPath(char* dst, char* src);
 void String_GetBasename(char* dst, char* src);
 void String_GetFilename(char* dst, char* src);
 
+#define PRNT_DGRY "\e[90;2m"
+#define PRNT_GRAY "\e[0;90m"
+#define PRNT_REDD "\e[0;91m"
+#define PRNT_DRED "\e[91;2m"
+#define PRNT_YELW "\e[0;93m"
+#define PRNT_BLUE "\e[0;94m"
+#define PRNT_RSET "\e[m"
+#define PRNT_NL   "\n"
+#define PRNT_RNL  PRNT_RSET PRNT_NL
+#define PRNT_TODO "\e[91;2m" "TODO"
+
 #define ARRAY_COUNT(arr)     (s32)(sizeof(arr) / sizeof(arr[0]))
 #define ABS(val)             (val < 0 ? -val : val)
 #define CLAMP(val, min, max) (val < min ? min : val > max ? max : val)
@@ -117,5 +127,9 @@ void String_GetFilename(char* dst, char* src);
 #define String_Copy(dst, src)   strcpy(dst, src)
 #define String_Merge(dst, src)  strcat(dst, src)
 #define String_Generate(string) strdup(string)
+
+#define Main(y1, y2) main(s32 argc, char* argv[])
+
+#include <math.h>
 
 #endif /* __HERMOSAUHU_LIB_H__ */
