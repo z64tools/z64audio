@@ -2,6 +2,17 @@
 #include "lib/AudioConvert.h"
 #include "lib/AudioTools.h"
 
+/* TODO:
+ * Fix AudioTools_TableDesign, seems to output last pred row with slight difference
+ * Implement Bicubic Resampling
+ * Support OGG file
+ * Support MP3 (maybe)
+ * Basic Envelope Settings for C output
+ * ZZRTLMode
+ * Call TableDesign, VadpcmEnc or VadpcmDec
+ * Instrument Designer (GUI) for Env Editing with preview playback
+ */
+
 #define ParseArg(xarg)         Lib_ParseArguments(argv, xarg, &parArg)
 #define Z64ARGTITLE(xtitle)    "\e[96m" xtitle PRNT_RNL
 #define Z64ARGX(xarg, comment) xarg "\r\033[18C" PRNT_GRAY "// " comment PRNT_RNL
