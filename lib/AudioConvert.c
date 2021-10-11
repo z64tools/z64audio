@@ -913,7 +913,7 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 		"	.book = %sPred,\n"
 		"};\n\n",
 		basename,
-		sampleInfo->samplesNum,
+		sampleInfo->size,
 		basename,
 		basename
 	);
