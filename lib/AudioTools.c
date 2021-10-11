@@ -4,6 +4,7 @@ char* gTableDesignIteration = "30";
 char* gTableDesignFrameSize = "16";
 char* gTableDesignBits = "2";
 char* gTableDesignOrder = "2";
+char* gTableDesignThreshold = "10.0";
 
 void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
 	char basename[256];
@@ -109,7 +110,252 @@ void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
 }
 
 #include "sdk-tools/tabledesign/tabledesign.h"
+s32 inner_product(s32 length, s32* v1, s32* v2);
+void clamp(s32 fs, f32* e, s32* ie, s32 bits);
+s16 qsample(f32 x, s32 scale);
+s32 clip(s32 ix, s32 llevel, s32 ulevel);
 
+void AudioTools_ReadCodeBook(AudioSampleInfo* sampleInfo, s32**** table, s32* destOrder, s32* destNPred) {
+	s32** tableEntry;
+	
+	s32 order = *destOrder = sampleInfo->vadBook.cast.u16[0];
+	s32 nPred = *destNPred = sampleInfo->vadBook.cast.u16[1];
+	
+	*table = malloc(sizeof(s32 * *) * nPred);
+	for (s32 i = 0; i < nPred; i++) {
+		(*table)[i] = malloc(sizeof(s32*) * 8);
+		for (s32 j = 0; j < 8; j++) {
+			(*table)[i][j] = malloc(sizeof(s32) * (order + 8));
+		}
+	}
+	
+	s32 p = 0;
+	
+	for (s32 i = 0; i < nPred; i++) {
+		tableEntry = (*table)[i];
+		
+		for (s32 j = 0; j < order; j++) {
+			for (s32 k = 0; k < 8; k++) {
+				tableEntry[k][j] = sampleInfo->vadBook.cast.s16[2 + p++];
+			}
+		}
+		
+		for (s32 k = 1; k < 8; k++) {
+			tableEntry[k][order] = tableEntry[k - 1][order - 1];
+		}
+		
+		tableEntry[0][order] = 1 << 11;
+		
+		for (s32 k = 1; k < 8; k++) {
+			s32 j = 0;
+			for (j = 0; j < k; j++) {
+				tableEntry[j][k + order] = 0;
+			}
+			
+			for (; j < 8; j++) {
+				tableEntry[j][k + order] = tableEntry[j - k][order];
+			}
+		}
+	}
+}
+void AudioTools_VencodeFrame(AudioSampleInfo* sampleInfo, MemFile* mem, s16* buffer, s32* state, s32*** coefTable, s32 nSam) {
+	s32 order = sampleInfo->vadBook.cast.u16[0];
+	s32 nPred = sampleInfo->vadBook.cast.u16[1];
+	
+	// We are only given 'nsam' samples; pad with zeroes to 16.
+	for (s32 i = nSam; i < 16; i++) {
+		buffer[i] = 0;
+	}
+	
+	s32 inVector[16];
+	s32 saveState[16];
+	s16 prediction[16];
+	s16 ix[16];
+	f32 e[16];
+	s32 ie[16];
+	f32 se;
+	
+	s32 llevel = -8;
+	s32 ulevel = -llevel - 1;
+	f32 min = 1e30;
+	s32 optimalp = 0;
+	
+	// Determine the best-fitting predictor.
+	for (s32 k = 0; k < nPred; k++) {
+		// Copy over the last 'order' samples from the previous output.
+		for (s32 i = 0; i < order; i++) {
+			inVector[i] = state[16 - order + 1];
+		}
+		
+		// For 8 samples...
+		for (s32 i = 0; i < 8; i++) {
+			// Compute a prediction based on 'order' values from the old state,
+			// plus previous errors in this chunk, as an inner product with the
+			// coefficient table.
+			prediction[i] = inner_product(order + i, coefTable[k][i], inVector);
+			// Record the error in inVector (thus, its first 'order' samples
+			// will contain actual values, the rest will be error terms), and
+			// in floating point form in e (for no particularly good reason).
+			inVector[i + order] = buffer[i] - prediction[i];
+			e[i] = (f32) inVector[i + order];
+		}
+		
+		// For the next 8 samples, start with 'order' values from the end of
+		// the previous 8-sample chunk of inBuffer. (The code is equivalent to
+		// inVector[i] = inBuffer[8 - order + i].)
+		for (s32 i = 0; i < order; i++) {
+			inVector[i] = prediction[8 - order + i] + inVector[8 + i];
+		}
+		
+		// ... and do the same thing as before to get predictions.
+		for (s32 i = 0; i < 8; i++) {
+			prediction[8 + i] = inner_product(order + i, coefTable[k][i], inVector);
+			inVector[i + order] = buffer[8 + i] - prediction[8 + i];
+			e[8 + i] = (f32) inVector[i + order];
+		}
+		
+		// Compute the L2 norm of the errors; the lowest norm decides which
+		// predictor to use.
+		se = 0.0f;
+		for (s32 j = 0; j < 16; j++) {
+			se += e[j] * e[j];
+		}
+		
+		if (se < min) {
+			min = se;
+			optimalp = k;
+		}
+	}
+	
+	// Do exactly the same thing again, for real.
+	for (s32 i = 0; i < order; i++) {
+		inVector[i] = state[16 - order + i];
+	}
+	
+	for (s32 i = 0; i < 8; i++) {
+		prediction[i] = inner_product(order + i, coefTable[optimalp][i], inVector);
+		inVector[i + order] = buffer[i] - prediction[i];
+		e[i] = (f32) inVector[i + order];
+	}
+	
+	for (s32 i = 0; i < order; i++) {
+		inVector[i] = prediction[8 - order + i] + inVector[8 + i];
+	}
+	
+	for (s32 i = 0; i < 8; i++) {
+		prediction[8 + i] = inner_product(order + i, coefTable[optimalp][i], inVector);
+		inVector[i + order] = buffer[8 + i] - prediction[8 + i];
+		e[8 + i] = (f32) inVector[i + order];
+	}
+	
+	// Clamp the errors to 16-bit signed ints, and put them in ie.
+	clamp(16, e, ie, 16);
+	
+	// Find a value with highest absolute value.
+	// @bug If this first finds -2^n and later 2^n, it should set 'max' to the
+	// latter, which needs a higher value for 'scale'.
+	s32 max = 0;
+	
+	for (s32 i = 0; i < 16; i++) {
+		if (ABS(ie[i]) > ABS(max)) {
+			max = ie[i];
+		}
+	}
+	
+	// Compute which power of two we need to scale down by in order to make
+	// all values representable as 4-bit signed integers (i.e. be in [-8, 7]).
+	// The worst-case 'max' is -2^15, so this will be at most 12.
+	s32 scale;
+	
+	for (scale = 0; scale <= 12; scale++) {
+		if (max <= ulevel && max >= llevel) {
+			break;
+		}
+		max /= 2;
+	}
+	
+	for (s32 i = 0; i < 16; i++) {
+		saveState[i] = state[i];
+	}
+	
+	// Try with the computed scale, but if it turns out we don't fit in 4 bits
+	// (if some |cV| >= 2), use scale + 1 instead (i.e. downscaling by another
+	// factor of 2).
+	scale--;
+	s32 nIter = 0;
+	s32 maxClip = 0;
+	
+	do {
+		nIter++;
+		s32 maxClip = 0;
+		s32 cV;
+		scale++;
+		if (scale > 12) {
+			scale = 12;
+		}
+		
+		// Copy over the last 'order' samples from the previous output.
+		for (s32 i = 0; i < order; i++) {
+			inVector[i] = saveState[16 - order + i];
+		}
+		
+		// For 8 samples...
+		for (s32 i = 0; i < 8; i++) {
+			// Compute a prediction based on 'order' values from the old state,
+			// plus previous *quantized* errors in this chunk (because that's
+			// all the decoder will have available).
+			prediction[i] = inner_product(order + i, coefTable[optimalp][i], inVector);
+			
+			// Compute the error, and divide it by 2^scale, rounding to the
+			// nearest integer. This should ideally result in a 4-bit integer.
+			se = (f32) buffer[i] - (f32) prediction[i];
+			ix[i] = qsample(se, 1 << scale);
+			
+			// Clamp the error to a 4-bit signed integer, and record what delta
+			// was needed for that.
+			cV = (s16) clip(ix[i], llevel, ulevel) - ix[i];
+			if (maxClip < ABS(cV)) {
+				maxClip = ABS(cV);
+			}
+			ix[i] += cV;
+			
+			// Record the quantized error in inVector for later predictions,
+			// and the quantized (decoded) output in state (for use in the next
+			// batch of 8 samples).
+			inVector[i + order] = ix[i] * (1 << scale);
+			state[i] = prediction[i] + inVector[i + order];
+		}
+		
+		// Copy over the last 'order' decoded samples from the above chunk.
+		for (s32 i = 0; i < order; i++) {
+			inVector[i] = state[8 - order + i];
+		}
+		
+		// ... and do the same thing as before.
+		for (s32 i = 0; i < 8; i++) {
+			prediction[8 + i] = inner_product(order + i, coefTable[optimalp][i], inVector);
+			se = (f32) buffer[8 + i] - (f32) prediction[8 + i];
+			ix[8 + i] = qsample(se, 1 << scale);
+			cV = (s16) clip(ix[8 + i], llevel, ulevel) - ix[8 + i];
+			if (maxClip < abs(cV)) {
+				maxClip = abs(cV);
+			}
+			ix[8 + i] += cV;
+			inVector[i + order] = ix[8 + i] * (1 << scale);
+			state[8 + i] = prediction[8 + i] + inVector[i + order];
+		}
+	} while (maxClip >= 2 && nIter < 2);
+	
+	// The scale, the predictor index, and the 16 computed outputs are now all
+	// 4-bit numbers. Write them out as 1 + 8 bytes.
+	u8 header = (scale << 4) | (optimalp & 0xf);
+	
+	MemFile_Write(&header, 1, 1, mem);
+	for (s32 i = 0; i < 16; i += 2) {
+		u8 c = (ix[i] << 4) | (ix[i + 1] & 0xf);
+		MemFile_Write(&c, 1, 1, mem);
+	}
+}
 void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 #define FREE_PP(PP, NUM)                  \
 	if (PP) {                             \
@@ -133,16 +379,17 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	u32 frameSize = String_NumStrToInt(gTableDesignFrameSize);
 	u32 bits = String_NumStrToInt(gTableDesignBits);
 	u32 order = String_NumStrToInt(gTableDesignOrder);
-	f64 threshold = 10.0;
+	f64 threshold = String_NumStrToF64(gTableDesignThreshold);
 	u32 frameCount = sampleInfo->samplesNum;
 	
 	printf_debug(
-		"TableDesign params:\n"
+		"%s: params:\n"
 		"\tIter: %d\n"
 		"\tFrmS: %d\n"
 		"\tBits: %d\n"
 		"\tOrdr: %d\n"
 		"\tThrs: %g",
+		__FUNCTION__,
 		refineIteration,
 		frameSize,
 		bits,
@@ -240,15 +487,12 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	}
 	
 	s32 nPredictors = (1 << curBits);
-	PointerCast pred;
 	u32 numOverflows = 0;
-	u32 predWrite = 0;
 	
-	printf_debug("nPred %d", nPredictors);
-	
-	pred.p = malloc(sizeof(u16) * 0x8 * order * nPredictors);
-	pred.u16[0] = order;
-	pred.u16[1] = nPredictors;
+	MemFile* memBook = &sampleInfo->vadBook;
+	MemFile_Malloc(memBook, sizeof(u16) * 0x8 * order * nPredictors + sizeof(u16) * 2);
+	MemFile_Write(&order, sizeof(u16), 1, memBook);
+	MemFile_Write(&nPredictors, sizeof(u16), 1, memBook);
 	
 	double** table;
 	table = malloc(sizeof(f64*) * 8);
@@ -302,7 +546,7 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 				}
 				
 				// Write table
-				pred.s16[2 + predWrite++] = (s16)ival;
+				MemFile_Write(&ival, sizeof(u16), 1, memBook);
 			}
 		}
 	}
@@ -310,8 +554,6 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	if (numOverflows) {
 		printf_warning("TableDesign seems to have overflown!");
 	}
-	
-	sampleInfo->vadpcm.pred = pred;
 	
 	FREE_PP(table, 8);
 	FREE_PP(data, dataSize);
@@ -322,4 +564,118 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	FREE_P(perm);
 	FREE_P(frames);
 	FREE_P(splitDelta);
+}
+void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
+	AudioTools_TableDesign(sampleInfo);
+	MemFile memEnc;
+	s32 minLoopLength = 30;
+	u32 aI = 0;
+	u32 aO = 0;
+	u32 nO = 0;
+	u32 pos = 0;
+	s32 order;
+	s32 nPred;
+	u32 nSam;
+	
+	s32 state[16] = { 0 };
+	s16 buffer[16] = { 0 };
+	s32*** table = NULL;
+	u32 nFrames = sampleInfo->samplesNum;
+	
+	MemFile_Malloc(&memEnc, sampleInfo->size * 2);
+	AudioTools_ReadCodeBook(sampleInfo, &table, &order, &nPred);
+	
+	// Process Loop
+	if (sampleInfo->instrument.loop.count) {
+		printf_debug("%s: Encoding loop.", __FUNCTION__);
+		MemFile_Malloc(&sampleInfo->vadLoopBook, sizeof(s16) * 16);
+		u32 nRepeats = 0;
+		
+		aI = sampleInfo->instrument.loop.start;
+		aO = sampleInfo->instrument.loop.end;
+		nO = sampleInfo->instrument.loop.end;
+		
+		while (nO - aI < minLoopLength) {
+			nRepeats++;
+			nO += aO - aI;
+		}
+		
+		sampleInfo->instrument.loop.end = nO;
+		
+		while (pos <= aI) {
+			memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * 16);
+			AudioTools_VencodeFrame(sampleInfo, &memEnc, buffer, state, table, 16);
+			pos += 16;
+		}
+		
+		for (s32 i = 0; i < 16; i++) {
+			state[i] = CLAMP(state[i], -0x7FFF, 0x7FFF);
+			sampleInfo->vadLoopBook.cast.s16[i] = state[i];
+		}
+		
+		while (nRepeats > 0) {
+			for (; pos + 16 < aO; pos += 16) {
+				memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * 16);
+				AudioTools_VencodeFrame(sampleInfo, &memEnc, buffer, state, table, 16);
+			}
+			
+			u32 left = aO - pos;
+			memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * left);
+			memcpy(&buffer[left], &sampleInfo->audio.s16[aI], sizeof(s16) * (16 - left));
+			AudioTools_VencodeFrame(sampleInfo, &memEnc, buffer, state, table, 16);
+			pos = aI - left + 16;
+		}
+	}
+	
+	printf_debug("%s: Encoding audio.", __FUNCTION__);
+	while (pos < nFrames) {
+		if (nFrames - pos < 16) {
+			nSam = nFrames - pos;
+		} else {
+			nSam = 16;
+		}
+		
+		if (nFrames - pos >= nSam) {
+			memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * 16);
+			AudioTools_VencodeFrame(sampleInfo, &memEnc, buffer, state, table, nSam);
+			pos += nSam;
+		} else {
+			printf_warning("VadpcmEnc: Missed a frame!");
+			break;
+		}
+	}
+	
+	if (table) {
+		int i;
+		int k;
+		for (i = 0; i < nPred; ++i) {
+			if (!table[i])
+				continue;
+			for (k = 0; k < 8; ++k) {
+				if (table[i][k])
+					free(table[i][k]);
+			}
+			free(table[i]);
+		}
+		free(table);
+	}
+	
+	printf_debug("%s: Old MemFile Size [0x%X]", __FUNCTION__, sampleInfo->size);
+	
+	MemFile_Free(&sampleInfo->memFile);
+	sampleInfo->memFile = memEnc;
+	sampleInfo->audio.p = memEnc.data;
+	sampleInfo->size = memEnc.dataSize;
+	
+	printf_debug("%s: New MemFile Size [0x%X]", __FUNCTION__, sampleInfo->size);
+	
+	printf_debug("LoopBook:");
+	
+	if (gPrintfSuppress <= PSL_DEBUG) {
+		for (s32 i = 0; i < (0x8 * sampleInfo->vadBook.cast.u16[0]) * sampleInfo->vadBook.cast.u16[1]; i++) {
+			printf("%5d", sampleInfo->vadBook.cast.s16[2 + i]);
+			if ((i % 8) == 7)
+				printf("\n");
+		}
+	}
 }

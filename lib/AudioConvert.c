@@ -1,4 +1,5 @@
 #include "AudioConvert.h"
+#include "AudioTools.h"
 
 u32 Audio_ConvertBigEndianFloat80(AiffInfo* aiffInfo) {
 	f80 float80 = 0;
@@ -33,6 +34,8 @@ void Audio_ByteSwap(AudioSampleInfo* sampleInfo) {
 		return;
 	}
 	if (sampleInfo->bit == 24) {
+		// @bug: Seems to some times behave oddly. Look into it later
+		printf_warning("ByteSwapping 24-bit audio. This might cause slight issues when converting from AIFF to WAV");
 		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
 			Lib_ByteSwap(&sampleInfo->audio.u8[3 * i], sampleInfo->bit / 8);
 		}
@@ -179,7 +182,7 @@ void Audio_Upsample(AudioSampleInfo* sampleInfo) {
 	printf_info("Target bitrate higher than source. Upsampling.");
 	printf_debug("%s: Upsampling will iterate %d times. %d x %d", __FUNCTION__, samplesNum * channelNum, samplesNum, channelNum);
 	
-	Lib_MallocMemFile(&newMem, samplesNum * sizeof(f32) * channelNum);
+	MemFile_Malloc(&newMem, samplesNum * sizeof(f32) * channelNum);
 	
 	if (sampleInfo->bit == 16) {
 		for (s32 i = 0; i < samplesNum * channelNum; i++) {
@@ -218,10 +221,13 @@ void Audio_InitSampleInfo(AudioSampleInfo* sampleInfo, char* input, char* output
 	sampleInfo->instrument.note = 60;
 	sampleInfo->instrument.highNote = __INT8_MAX__;
 	sampleInfo->instrument.lowNote = 0;
+	sampleInfo->targetBit = 16;
 	sampleInfo->input = input;
 	sampleInfo->output = output;
 }
 void Audio_FreeSample(AudioSampleInfo* sampleInfo) {
+	MemFile_Free(&sampleInfo->vadBook);
+	MemFile_Free(&sampleInfo->vadLoopBook);
 	MemFile_Free(&sampleInfo->memFile);
 	
 	*sampleInfo = (AudioSampleInfo) { 0 };
@@ -538,7 +544,7 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 	
 	sampleInfo->instrument.loop.end = sampleInfo->samplesNum;
 	
-	AiffInstrumentInfo* aiffInstInfo;
+	AiffInstrumentInfo* aiffInstInfo = NULL;
 	
 	Audio_GetSampleInfo_AifcVadpcm(&aiffInstInfo, aiffHeader, sampleInfo->memFile.dataSize);
 	
@@ -550,22 +556,45 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 	}
 	
 	// VADPCM PREDICTORS
-	VadpcmInfo* pred = Lib_MemMem(aiffHeader, sampleInfo->memFile.dataSize, "APPL", 4);
+	VadpcmInfo* pred = Lib_MemMem(sampleInfo->memFile.data, sampleInfo->memFile.dataSize, "APPL", 4);
 	
 	if (pred && Lib_MemMem(pred, 24, "VADPCMCODES", 11)) {
-		sampleInfo->vadpcm.pred.p = pred->data;
-		sampleInfo->vadpcm.sizePred = pred->chunk.size - sizeof(VadpcmInfo);
+		u16 order = ((u16*)pred->data)[1];
+		u16 nPred = ((u16*)pred->data)[2];
+		Lib_ByteSwap(&order, SWAP_U16);
+		Lib_ByteSwap(&nPred, SWAP_U16);
+		
+		u32 predSize = (sizeof(u16) * 2) + (0x8 * order) * nPred;
+		
+		printf_debug("%s: order: [%d] nPred: [%d] size: [0x%X]", __FUNCTION__, order, nPred, predSize);
+		
+		MemFile_Malloc(&sampleInfo->vadBook, predSize);
+		MemFile_Write(&((u16*)pred->data)[1], 1, predSize, &sampleInfo->vadBook);
+		
+		for (s32 i = 0; i < predSize / 2; i++) {
+			Lib_ByteSwap(&sampleInfo->vadBook.cast.u16[i], SWAP_U16);
+		}
+		
+		printf_debug("%s: Found and written [VADPCMCODES]", __FUNCTION__);
 	}
 	
 	// VADPCM LOOP PREDICTORS
-	u32 size = sampleInfo->memFile.dataSize - ((u64)aiffData - (u64)aiffHeader);
+	u32 size = sampleInfo->memFile.dataSize - sampleInfo->size;
+	u8* next = (void*)aiffHeader;
 	
-	pred = Lib_MemMem(aiffData, size, "APPL", 4);
+	printf_debug("%s: Search Size [0x%X]", __FUNCTION__, size);
+	pred = Lib_MemMem(next + sampleInfo->size, size, "APPL", 4);
 	
 	if (pred && Lib_MemMem(pred, 24, "VADPCMLOOPS", 11)) {
-		sampleInfo->vadpcm.loopPred.p = pred->data;
-		sampleInfo->vadpcm.sizePredLoop = pred->chunk.size - sizeof(VadpcmInfo);
+		MemFile_Malloc(&sampleInfo->vadLoopBook, sizeof(s16) * 16);
+		MemFile_Write(pred->data, 1, sizeof(s16) * 16, &sampleInfo->vadLoopBook);
+		for (s32 i = 0; i < 16; i++) {
+			Lib_ByteSwap(&sampleInfo->vadLoopBook.cast.u16[i], SWAP_U16);
+		}
+		printf_debug("%s: Found and written [VADPCMLOOPS]", __FUNCTION__);
 	}
+	
+	printf_debug("%s: OK!", __FUNCTION__);
 }
 void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 	char* keyword[] = {
@@ -648,11 +677,13 @@ void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo) {
 		instrument.lowNote = 0;
 		instrument.hiVel = __INT8_MAX__;
 		
-		sample.numSampleLoops = 1;
-		loop.count = sampleInfo->instrument.loop.count;
-		loop.start = sampleInfo->instrument.loop.start;
-		loop.end = sampleInfo->instrument.loop.end;
-		loop.type = 1;
+		if (sampleInfo->instrument.loop.count) {
+			sample.numSampleLoops = 1;
+			loop.count = sampleInfo->instrument.loop.count;
+			loop.start = sampleInfo->instrument.loop.start;
+			loop.end = sampleInfo->instrument.loop.end;
+			loop.type = 1;
+		}
 	}
 	memcpy(header.chunk.name, "RIFF", 4);
 	memcpy(header.format, "WAVE", 4);
@@ -749,12 +780,14 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 		instrument.gain = __INT16_MAX__;
 		Lib_ByteSwap(&instrument.gain, SWAP_U16);
 		
-		instrument.sustainLoop.start = 1;
-		instrument.sustainLoop.end = 2;
-		instrument.sustainLoop.playMode = 1;
-		Lib_ByteSwap(&instrument.sustainLoop.start, SWAP_U16);
-		Lib_ByteSwap(&instrument.sustainLoop.end, SWAP_U16);
-		Lib_ByteSwap(&instrument.sustainLoop.playMode, SWAP_U16);
+		if (sampleInfo->instrument.loop.count) {
+			instrument.sustainLoop.start = 1;
+			instrument.sustainLoop.end = 2;
+			instrument.sustainLoop.playMode = 1;
+			Lib_ByteSwap(&instrument.sustainLoop.start, SWAP_U16);
+			Lib_ByteSwap(&instrument.sustainLoop.end, SWAP_U16);
+			Lib_ByteSwap(&instrument.sustainLoop.playMode, SWAP_U16);
+		}
 	}
 	memcpy(header.chunk.name, "FORM", 4);
 	memcpy(header.formType, "AIFF", 4);
@@ -780,6 +813,10 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 	fclose(output);
 }
 void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
+	if (sampleInfo->vadBook.data == NULL) {
+		AudioTools_VadpcmEnc(sampleInfo);
+	}
+	
 	char basename[1024];
 	FILE* output = fopen(sampleInfo->output, "w");
 	
@@ -791,10 +828,10 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 		basename
 	);
 	
-	Lib_ByteSwap(&sampleInfo->vadpcm.pred.u16[1], SWAP_U16);
-	Lib_ByteSwap(&sampleInfo->vadpcm.pred.u16[2], SWAP_U16);
+	u32 order = sampleInfo->vadBook.cast.u16[0];
+	u32 numPred = sampleInfo->vadBook.cast.u16[1];
 	
-	u32 numPred = sampleInfo->vadpcm.pred.u16[2];
+	printf_debug("%s: order: [%d] nPred [%d]", __FUNCTION__, order, numPred);
 	
 	for (s32 j = 0; j < numPred; j++) {
 		fprintf(
@@ -802,8 +839,7 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 			"	{\n"
 		);
 		for (s32 i = 0; i < 0x10; i++) {
-			Lib_ByteSwap(&sampleInfo->vadpcm.pred.u16[3 + i + 0x10 * j], SWAP_U16);
-			fprintf(output, "		0x%04X,\n", sampleInfo->vadpcm.pred.u16[3 + i + 0x10 * j]);
+			fprintf(output, "		%d,\n", sampleInfo->vadBook.cast.s16[2 + i + 0x10 * j]);
 		}
 		fprintf(
 			output,
@@ -816,11 +852,7 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 		"};\n\n"
 	);
 	
-	Lib_ByteSwap(&sampleInfo->vadpcm.loopPred.u32[1], SWAP_U32);
-	Lib_ByteSwap(&sampleInfo->vadpcm.loopPred.u32[2], SWAP_U32);
-	Lib_ByteSwap(&sampleInfo->vadpcm.loopPred.u32[3], SWAP_U32);
-	
-	if (sampleInfo->vadpcm.loopPred.p) {
+	if (sampleInfo->vadLoopBook.cast.p) {
 		fprintf(
 			output,
 			"ALADPCMLoopU %sLoop = {\n"
@@ -834,18 +866,17 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 			"		.tail = {\n"
 			"			.data = {\n",
 			basename,
-			sampleInfo->vadpcm.loopPred.u32[1],
-			sampleInfo->vadpcm.loopPred.u32[2],
-			sampleInfo->vadpcm.loopPred.u32[3],
-			sampleInfo->samplesNum > sampleInfo->vadpcm.loopPred.u32[2] ? sampleInfo->samplesNum : 0
+			sampleInfo->instrument.loop.start,
+			sampleInfo->instrument.loop.end,
+			sampleInfo->instrument.loop.count,
+			sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0
 		);
 		
 		for (s32 i = 0; i < 0x10; i++) {
-			Lib_ByteSwap(&sampleInfo->vadpcm.loopPred.u16[8 + i], SWAP_U16);
 			fprintf(
 				output,
-				"				0x%04X,\n",
-				sampleInfo->vadpcm.loopPred.u16[8 + i]
+				"				%d,\n",
+				sampleInfo->vadLoopBook.cast.s16[i]
 			);
 		}
 		fprintf(
@@ -867,10 +898,10 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 			"	}\n"
 			"};\n\n",
 			basename,
-			sampleInfo->vadpcm.loopPred.u32[1],
-			sampleInfo->vadpcm.loopPred.u32[2],
-			sampleInfo->vadpcm.loopPred.u32[3],
-			sampleInfo->samplesNum > sampleInfo->vadpcm.loopPred.u32[2] ? sampleInfo->samplesNum : 0
+			sampleInfo->instrument.loop.start,
+			sampleInfo->instrument.loop.end,
+			sampleInfo->instrument.loop.count,
+			sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0
 		);
 	}
 	
@@ -943,10 +974,38 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	);
 	
 	fclose(output);
-	String_Merge(basename, "Data.bin");
-	printf_info("Saving [%s]", basename);
-	fopen(basename, "w");
+	printf_info("Saving [%s]", sampleInfo->output);
+	
+	u16 emp = 0;
+	char path[128];
+	char buffer[265];
+	
+	String_GetPath(path, sampleInfo->output);
+	String_GetBasename(basename, sampleInfo->output);
+	String_Copy(buffer, path);
+	String_Merge(buffer, basename);
+	String_Merge(buffer, "Raw.bin");
+	
+	fopen(buffer, "w");
 	fwrite(sampleInfo->audio.p, 1, sampleInfo->size, output);
+	fclose(output);
+	printf_info("Saving [%s]", buffer);
+	
+	String_Copy(buffer, path);
+	String_Merge(buffer, basename);
+	String_Merge(buffer, "Predictors.bin");
+	fopen(buffer, "w");
+	for (s32 i = 0; i < sampleInfo->vadBook.dataSize / 2; i++) {
+		Lib_ByteSwap(&sampleInfo->vadBook.cast.s16[i], SWAP_U16);
+	}
+	
+	fwrite(&emp, sizeof(u16), 1, output);
+	fwrite(&sampleInfo->vadBook.cast.u16[0], sizeof(u16), 1, output);
+	fwrite(&emp, sizeof(u16), 1, output);
+	fwrite(&sampleInfo->vadBook.cast.u16[1], sizeof(u16), 1, output);
+	fwrite(&sampleInfo->vadBook.cast.u16[2], 1, sampleInfo->vadBook.dataSize - sizeof(u16) * 2, output);
+	fclose(output);
+	printf_info("Saving [%s]", buffer);
 }
 void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 	char* keyword[] = {
@@ -979,12 +1038,9 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 		if (Lib_MemMem(sampleInfo->output, strlen(sampleInfo->output), keyword[i], strlen(keyword[i]))) {
 			char basename[128];
 			
-			if (i == 2 && !Lib_MemMem(sampleInfo->input, strlen(sampleInfo->input), ".aifc", 5)) {
-				printf_error("C output is currently only supported for vadpcm [.aifc] input");
-			}
-			
 			String_GetBasename(basename, sampleInfo->output);
-			printf_info("Saving [%s%s]", basename, keyword[i]);
+			if (i != 2)
+				printf_info("Saving [%s%s]", basename, keyword[i]);
 			printf_debug("%s", funcName[i]);
 			
 			saveSample[i](sampleInfo);

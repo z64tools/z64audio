@@ -23,13 +23,6 @@ typedef struct {
 	SampleLoop loop;
 } SampleInstrument;
 
-typedef struct {
-	PointerCast pred;
-	PointerCast loopPred;
-	u32 sizePred;
-	u32 sizePredLoop;
-} SampleVadpcmInfo;
-
 typedef struct AudioSampleInfo {
 	char*   input;
 	char*   output;
@@ -43,7 +36,8 @@ typedef struct AudioSampleInfo {
 	PointerCast audio;
 	u32 dataIsFloat;
 	SampleInstrument instrument;
-	SampleVadpcmInfo vadpcm;
+	MemFile vadBook;
+	MemFile vadLoopBook;
 } AudioSampleInfo;
 
 #endif /* __Z64AUDIO_HEADER__ */

@@ -5,7 +5,7 @@
 #define ParseArg(xarg)         Lib_ParseArguments(argv, xarg, &parArg)
 #define Z64ARGTITLE(xtitle)    "\e[96m" xtitle PRNT_RNL
 #define Z64ARGX(xarg, comment) xarg "\r\033[18C" PRNT_GRAY "// " comment PRNT_RNL
-#define Z64ARTD(xarg, comment) PRNT_DGRY "\e[9m" xarg PRNT_RSET "\r\033[18C" PRNT_DGRY "// " comment PRNT_RSET " " PRNT_TODO PRNT_RNL
+#define Z64ARTD(xarg, comment) PRNT_DGRY "\e[9m" xarg PRNT_RSET "\r\033[18C" PRNT_DGRY "// " PRNT_RSET PRNT_TODO PRNT_RNL
 
 char* sToolName = {
 	"ᴢ64ᴀᴜᴅɪᴏ 2.0 ᴄʟɪ ʀᴄ2"
@@ -13,21 +13,21 @@ char* sToolName = {
 
 char* sToolUsage = {
 	Z64ARGTITLE("Aʀɢᴜᴍᴇɴᴛꜱ:")
-	Z64ARGX("-i [file]", "Input:  .wav .aiff .aifc")
-	Z64ARGX("-o [file]", "Output: .wav .aiff .c")
+	Z64ARGX("-i [ꜰɪʟᴇ]", "Input:  .wav .aiff .aifc")
+	Z64ARGX("-o [ꜰɪʟᴇ]", "Output: .wav .aiff .c")
 	PRNT_NL
 	Z64ARGTITLE("Aᴜᴅɪᴏ Pʀᴏᴄᴇꜱꜱɪɴɢ:")
-	Z64ARGX("-b [d:16]", "Target Bit Depth")
+	Z64ARGX("-b [ 16 ]", "Target Bit Depth")
 	Z64ARGX("-m",      "Mono")
 	Z64ARGX("-n",      "Normalize")
 	PRNT_NL
 	Z64ARGTITLE("Vᴀᴅᴘᴄᴍ:")
-	Z64ARGX("-v",      "Generate Vadpcm AIFC")
-	Z64ARGTITLE("Aᴅᴅɪᴛɪᴏɴᴀʟ:")
-	Z64ARGX("-I [d:30]", "TableDesign Refine Iteration")
-	Z64ARGX("-F [d:16]", "TableDesign Frame Size")
-	Z64ARGX("-B [d:2]", "TableDesign Bits")
-	Z64ARGX("-O [d:2]", "TableDesign Order")
+	Z64ARGX("-v",      "Generate Vadpcm Files (Only with [.aiff] output)")
+	Z64ARGX("-I [ 30 ]", "TableDesign Refine Iteration")
+	Z64ARGX("-F [ 16 ]", "TableDesign Frame Size")
+	Z64ARGX("-B [  2 ]", "TableDesign Bits")
+	Z64ARGX("-O [  2 ]", "TableDesign Order")
+	Z64ARGX("-T [ 10 ]", "TableDesign Threshold")
 	PRNT_NL
 	Z64ARGTITLE("Iɴᴛᴇʀɴᴀʟ Tᴏᴏʟꜱ:")
 	Z64ARTD("TableDesign", "[iteration] [input] [output]")
@@ -37,6 +37,7 @@ char* sToolUsage = {
 	Z64ARGTITLE("Exᴛʀᴀ:")
 	Z64ARGX("-D", "Debug Print")
 	Z64ARGX("-s", "Silence")
+	Z64ARGX("-N", "Print Info of input [ꜰɪʟᴇ]")
 	Z64ARTD("ZZRTLMode", "DragNDrop [zzrpl] file on z64audio")
 };
 
@@ -91,6 +92,14 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	Audio_InitSampleInfo(&sample, input, output);
 	Audio_LoadSample(&sample);
+	
+	if (ParseArg("-N") || ParseArg("--N")) {
+		printf_info("[%s] BitDepth   [ %8d ]", sample.input, sample.bit);
+		printf_info("[%s] SampleRate [ %8d ]", sample.input, sample.sampleRate);
+		printf_info("[%s] Channels   [ %8d ]", sample.input, sample.channelNum);
+		printf_info("[%s] Frames     [ %8d ]", sample.input, sample.samplesNum);
+	}
+	
 	if (ParseArg("-b") || ParseArg("--b")) {
 		sample.targetBit = String_NumStrToInt(argv[parArg]);
 		
@@ -102,12 +111,20 @@ s32 Main(s32 argc, char* argv[]) {
 		
 		Audio_Resample(&sample);
 	}
+	
 	if (ParseArg("-m") || ParseArg("--m")) {
 		Audio_ConvertToMono(&sample);
 	}
+	
 	if (ParseArg("-n") || ParseArg("--n")) {
 		Audio_Normalize(&sample);
 	}
+	
+	if (ParseArg("-v") || ParseArg("--v")) {
+		Audio_Resample(&sample);
+		Audio_ConvertToMono(&sample);
+	}
+	
 	Audio_SaveSample(&sample);
 	
 	if (ParseArg("-v") || ParseArg("--v")) {
@@ -123,6 +140,9 @@ s32 Main(s32 argc, char* argv[]) {
 		if (ParseArg("-O") || ParseArg("--O")) {
 			gTableDesignOrder = argv[parArg];
 		}
+		if (ParseArg("-T") || ParseArg("--T")) {
+			gTableDesignThreshold = argv[parArg];
+		}
 		if (!Lib_MemMem(sample.output, strlen(sample.output), ".aiff", 5)) {
 			printf_warning("Output isn't [.aiff] file. Skipping generating vadpcm files");
 		} else {
@@ -130,6 +150,7 @@ s32 Main(s32 argc, char* argv[]) {
 			AudioTools_RunVadpcmEnc(&sample);
 		}
 	}
+	
 	Audio_FreeSample(&sample);
 	
 	return 0;

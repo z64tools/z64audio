@@ -63,9 +63,12 @@ typedef struct {
 	};
 	u32 memSize;
 	u32 dataSize;
+	u32 seekPoint;
 } MemFile;
 
 #endif
+
+extern PrintfSuppressLevel gPrintfSuppress;
 
 /* 👺 PRINTF 👺 */
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
@@ -80,7 +83,6 @@ void printf_WinFix();
 /* 👺 LIB 👺 */
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
 void* Lib_Malloc(s32 size);
-void Lib_MallocMemFile(MemFile* memFile, u32 size);
 void Lib_ByteSwap(void* src, s32 size);
 
 /* 👺 FILE 👺 */
@@ -91,6 +93,10 @@ void File_WriteToFromMem_ReqExt(char* filepath, void* src, s32 size, const char*
 s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg);
 
 /* 👺 MEMFILE 👺 */
+void MemFile_Malloc(MemFile* memFile, u32 size);
+void MemFile_Realloc(MemFile* memFile, u32 size);
+void MemFile_Rewind(MemFile* memFile);
+void MemFile_Write(void* src, u32 size, u32 n, MemFile* dest);
 void MemFile_LoadToMemFile(MemFile* memFile, char* filepath);
 void MemFile_WriteToFromMemFile(MemFile* memFile, char* filepath);
 void MemFile_LoadToMemFile_ReqExt(MemFile* memFile, char* filepath, const char* ext);

@@ -1,18 +1,18 @@
 #include "HermosauhuLib.h"
 
 /* 👺 PRINTF 👺 */
-static PrintfSuppressLevel sPrintfSuppress = 0;
-static char* sPrintfPrefix = "👺🚬";
+PrintfSuppressLevel gPrintfSuppress = 0;
+char* sPrintfPrefix = "👺🚬";
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
-	sPrintfSuppress = lvl;
+	gPrintfSuppress = lvl;
 }
 void printf_SetPrefix(char* fmt) {
 	sPrintfPrefix = fmt;
 }
 
 void printf_toolinfo(const char* toolname, const char* fmt, ...) {
-	if (sPrintfSuppress >= PSL_NO_INFO)
+	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
 	va_list args;
 	
@@ -36,7 +36,7 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 	va_end(args);
 }
 void printf_debug(const char* fmt, ...) {
-	if (sPrintfSuppress > PSL_DEBUG)
+	if (gPrintfSuppress > PSL_DEBUG)
 		return;
 	va_list args;
 	
@@ -56,7 +56,7 @@ void printf_debug(const char* fmt, ...) {
 	va_end(args);
 }
 void printf_warning(const char* fmt, ...) {
-	if (sPrintfSuppress >= PSL_NO_WARNING)
+	if (gPrintfSuppress >= PSL_NO_WARNING)
 		return;
 	va_list args;
 	
@@ -76,7 +76,7 @@ void printf_warning(const char* fmt, ...) {
 	va_end(args);
 }
 void printf_error(const char* fmt, ...) {
-	if (sPrintfSuppress < PSL_NO_ERROR) {
+	if (gPrintfSuppress < PSL_NO_ERROR) {
 		va_list args;
 		
 		va_start(args, fmt);
@@ -97,7 +97,7 @@ void printf_error(const char* fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 void printf_info(const char* fmt, ...) {
-	if (sPrintfSuppress >= PSL_NO_INFO)
+	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
 	va_list args;
 	
@@ -178,33 +178,6 @@ void* Lib_Malloc(s32 size) {
 	
 	return data;
 }
-void Lib_MallocMemFile(MemFile* memFile, u32 size) {
-	memset(memFile, 0, sizeof(MemFile));
-	memFile->data = malloc(size);
-	
-	if (memFile->data == NULL) {
-		printf_warning("Lib_MallocMemFile: Failed to malloc 0x%X bytes.", size);
-		
-		return;
-	}
-	
-	memFile->memSize = size;
-}
-void Lib_ReallocMemFile(MemFile* memFile, u32 size) {
-	if (memFile->data == NULL) {
-		printf_warning("Lib_ReallocMemFile: data is null, can't realloc", size);
-		
-		return;
-	}
-	
-	// Make sure to have enough space
-	if (size < memFile->memSize + 0x10000) {
-		size += 0x10000;
-	}
-	
-	memFile->data = realloc(memFile->data, size);
-	memFile->memSize = size;
-}
 
 s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg) {
 	s32 i = 1;
@@ -283,6 +256,48 @@ void File_WriteToFromMem_ReqExt(char* filepath, void* src, s32 size, const char*
 }
 
 /* 👺 MEMFILE 👺 */
+void MemFile_Malloc(MemFile* memFile, u32 size) {
+	memset(memFile, 0, sizeof(MemFile));
+	memFile->data = malloc(size);
+	
+	if (memFile->data == NULL) {
+		printf_warning("MemFile_Malloc: Failed to malloc 0x%X bytes.", size);
+		
+		return;
+	}
+	
+	memFile->memSize = size;
+}
+void MemFile_Realloc(MemFile* memFile, u32 size) {
+	if (memFile->data == NULL) {
+		printf_warning("MemFile_Realloc: data is null, can't realloc", size);
+		
+		return;
+	}
+	
+	// Make sure to have enough space
+	if (size < memFile->memSize + 0x10000) {
+		size += 0x10000;
+	}
+	
+	memFile->data = realloc(memFile->data, size);
+	memFile->memSize = size;
+}
+void MemFile_Rewind(MemFile* memFile) {
+	memFile->seekPoint = 0;
+}
+void MemFile_Write(void* src, u32 size, u32 n, MemFile* dest) {
+	if (dest->seekPoint + size * n > dest->memSize) {
+		printf_debug("DataSize: [0x%X] MemSize: [0x%X]", dest->dataSize, dest->memSize);
+		printf_error("Ran out of memory.");
+		exit(1);
+	}
+	if (dest->seekPoint + size * n > dest->dataSize) {
+		dest->dataSize = dest->seekPoint + size * n;
+	}
+	memcpy(&dest->cast.u8[dest->seekPoint], src, size * n);
+	dest->seekPoint += size * n;
+}
 void MemFile_LoadToMemFile(MemFile* memFile, char* filepath) {
 	u32 tempSize;
 	FILE* file = fopen(filepath, "r");
@@ -298,7 +313,7 @@ void MemFile_LoadToMemFile(MemFile* memFile, char* filepath) {
 	tempSize = ftell(file);
 	
 	if (memFile->data == NULL) {
-		Lib_MallocMemFile(memFile, tempSize);
+		MemFile_Malloc(memFile, tempSize);
 		memFile->memSize = memFile->dataSize = tempSize;
 		printf_debug("File_LoadToMem: dst is NULL, mallocing [0x%X] bytes", tempSize);
 		if (memFile->data == NULL) {
@@ -307,7 +322,7 @@ void MemFile_LoadToMemFile(MemFile* memFile, char* filepath) {
 			return;
 		}
 	} else if (memFile->memSize < tempSize) {
-		Lib_ReallocMemFile(memFile, tempSize);
+		MemFile_Realloc(memFile, tempSize);
 	}
 	memFile->dataSize = tempSize;
 	
@@ -347,8 +362,7 @@ void MemFile_Free(MemFile* memFile) {
 	if (memFile->data) {
 		free(memFile->data);
 		
-		memFile->data = NULL;
-		memFile->dataSize = memFile->memSize = 0;
+		memset(memFile, 0, sizeof(MemFile));
 	}
 }
 
