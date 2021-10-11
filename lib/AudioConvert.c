@@ -105,6 +105,10 @@ void Audio_ConvertToMono(AudioSampleInfo* sampleInfo) {
 	
 	printf_info("Converting to mono.");
 	
+	if (sampleInfo->bit == 24) {
+		printf_error("%s: 24-bit not supported yet.", __FUNCTION__);
+	}
+	
 	if (sampleInfo->bit == 16) {
 		for (s32 i = 0, j = 0; i < sampleInfo->samplesNum; i++, j += 2) {
 			sampleInfo->audio.s16[i] = ((f32)sampleInfo->audio.s16[j] + (f32)sampleInfo->audio.s16[j + 1]) * 0.5f;
@@ -986,5 +990,11 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 			saveSample[i](sampleInfo);
 			break;
 		}
+	}
+}
+
+void Audio_ZZRTLMode(AudioSampleInfo* sampleInfo, char* input) {
+	if (!Lib_MemMem(input, strlen(input), ".zzrpl", 6)) {
+		printf_error("[%s] does not appear to be [zzrpl] file.", input);
 	}
 }

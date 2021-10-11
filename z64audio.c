@@ -2,12 +2,43 @@
 #include "lib/AudioConvert.h"
 #include "lib/AudioTools.h"
 
-char* sToolName = "z64audio 2.0 cli rc2";
-
 #define ParseArg(xarg)         Lib_ParseArguments(argv, xarg, &parArg)
 #define Z64ARGTITLE(xtitle)    "\e[96m" xtitle PRNT_RNL
 #define Z64ARGX(xarg, comment) xarg "\r\033[18C" PRNT_GRAY "// " comment PRNT_RNL
-#define Z64ARTD(xarg, comment) PRNT_DGRY "\e[9m" xarg "\r\033[18C" PRNT_DGRY "// " comment PRNT_RSET " " PRNT_TODO PRNT_RNL
+#define Z64ARTD(xarg, comment) PRNT_DGRY "\e[9m" xarg PRNT_RSET "\r\033[18C" PRNT_DGRY "// " comment PRNT_RSET " " PRNT_TODO PRNT_RNL
+
+char* sToolName = {
+	"ᴢ64ᴀᴜᴅɪᴏ 2.0 ᴄʟɪ ʀᴄ2"
+};
+
+char* sToolUsage = {
+	Z64ARGTITLE("Aʀɢᴜᴍᴇɴᴛꜱ:")
+	Z64ARGX("-i [file]", "Input:  .wav .aiff .aifc")
+	Z64ARGX("-o [file]", "Output: .wav .aiff .c")
+	PRNT_NL
+	Z64ARGTITLE("Aᴜᴅɪᴏ Pʀᴏᴄᴇꜱꜱɪɴɢ:")
+	Z64ARGX("-b [d:16]", "Target Bit Depth")
+	Z64ARGX("-m",      "Mono")
+	Z64ARGX("-n",      "Normalize")
+	PRNT_NL
+	Z64ARGTITLE("Vᴀᴅᴘᴄᴍ:")
+	Z64ARGX("-v",      "Generate Vadpcm AIFC")
+	Z64ARGTITLE("Aᴅᴅɪᴛɪᴏɴᴀʟ:")
+	Z64ARGX("-I [d:30]", "TableDesign Refine Iteration")
+	Z64ARGX("-F [d:16]", "TableDesign Frame Size")
+	Z64ARGX("-B [d:2]", "TableDesign Bits")
+	Z64ARGX("-O [d:2]", "TableDesign Order")
+	PRNT_NL
+	Z64ARGTITLE("Iɴᴛᴇʀɴᴀʟ Tᴏᴏʟꜱ:")
+	Z64ARTD("TableDesign", "[iteration] [input] [output]")
+	Z64ARTD("VadpcmEnc", "[input] [table] [output]")
+	Z64ARTD("VadpcmDec", "[input] [output]")
+	PRNT_NL
+	Z64ARGTITLE("Exᴛʀᴀ:")
+	Z64ARGX("-D", "Debug Print")
+	Z64ARGX("-s", "Silence")
+	Z64ARTD("ZZRTLMode", "DragNDrop [zzrpl] file on z64audio")
+};
 
 s32 Main(s32 argc, char* argv[]) {
 	AudioSampleInfo sample;
@@ -34,35 +65,20 @@ s32 Main(s32 argc, char* argv[]) {
 		printf_SetSuppressLevel(PSL_NO_WARNING);
 	}
 	
+	if (argc == 2 && Lib_MemMem(argv[1], strlen(argv[1]), ".zzrpl", 6)) {
+		printf_toolinfo(
+			sToolName,
+			0
+		);
+		Audio_ZZRTLMode(&sample, argv[1]);
+		
+		return 0;
+	}
+	
 	if (input == NULL || output == NULL) {
 		printf_toolinfo(
 			sToolName,
-			Z64ARGTITLE("Aʀɢᴜᴍᴇɴᴛꜱ:")
-			Z64ARGX("--i [file]", "Input")
-			Z64ARGX("--o [file]", "Output")
-			PRNT_NL
-			Z64ARGTITLE("Aᴜᴅɪᴏ Pʀᴏᴄᴇꜱꜱɪɴɢ:")
-			Z64ARGX("--b [16]", "Bit depth")
-			Z64ARGX("--m",      "Mono")
-			Z64ARGX("--n",      "Normalize")
-			PRNT_NL
-			Z64ARGTITLE("Vᴀᴅᴘᴄᴍ:")
-			Z64ARGX("--v",      "Generate Vadpcm AIFC")
-			Z64ARGTITLE("Aᴅᴅɪᴛɪᴏɴᴀʟ:")
-			Z64ARGX("--I [30]", "TableDesign Refine Iteration")
-			Z64ARGX("--F [16]", "TableDesign Frame Size")
-			Z64ARGX("--B [2]", "TableDesign Bits")
-			Z64ARGX("--O [2]", "TableDesign Order")
-			PRNT_NL
-			Z64ARGTITLE("Iɴᴛᴇʀɴᴀʟ Tᴏᴏʟꜱ:")
-			Z64ARTD("TableDesign", "[iteration] [input] [output]")
-			Z64ARTD("VadpcmEnc", "[input] [table] [output]")
-			Z64ARTD("VadpcmDec", "[input] [output]")
-			PRNT_NL
-			Z64ARGTITLE("Exᴛʀᴀ:")
-			Z64ARGX("--D", "Debug Print")
-			Z64ARGX("--s", "Silence")
-			Z64ARTD("--z", "zzrtl mode")
+			sToolUsage
 		);
 		
 		return 1;
@@ -72,34 +88,6 @@ s32 Main(s32 argc, char* argv[]) {
 		sToolName,
 		0
 	);
-	
-	#if 0
-	if (ParseArg("-z") && Lib_MemMem(input, strlen(input), ".wav", 4)) {
-		char basename[128] = { 0 };
-		char path[128] = { 0 };
-		char buffer[1024] = { 0 };
-		
-		String_GetBasename(basename, input);
-		String_GetPath(path, input);
-		if (path[0])
-			String_Merge(buffer, path);
-		String_Copy(buffer, basename);
-		String_Merge(buffer, ".aiff");
-		Audio_InitSampleInfo(&sample, input, output);
-		sample.output = buffer;
-		sample.targetBit = 16;
-		Audio_LoadSample(&sample);
-		Audio_Resample(&sample);
-		Audio_ConvertToMono(&sample);
-		Audio_Normalize(&sample);
-		Audio_SaveSample(&sample);
-		AudioTools_RunTableDesign(&sample);
-		AudioTools_RunVadpcmEnc(&sample);
-		Audio_FreeSample(&sample);
-		
-		return 0;
-	}
-	#endif
 	
 	Audio_InitSampleInfo(&sample, input, output);
 	Audio_LoadSample(&sample);

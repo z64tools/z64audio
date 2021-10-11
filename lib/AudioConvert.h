@@ -297,3 +297,5 @@ void Audio_LoadSample(AudioSampleInfo* sampleInfo);
 void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo);
 void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo);
 void Audio_SaveSample(AudioSampleInfo* sampleInfo);
+
+void Audio_ZZRTLMode(AudioSampleInfo* sampleInfo, char* input);

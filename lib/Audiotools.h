@@ -15,4 +15,6 @@ s32 tabledesign(s32 argc, char** argv, FILE* outstream);
 void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo);
 void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo);
 
+void AudioTools_TableDesign(AudioSampleInfo* sampleInfo);
+
 #endif

@@ -359,6 +359,9 @@ u32 String_HexStrToInt(char* string) {
 u32 String_NumStrToInt(char* string) {
 	return strtol(string, NULL, 10);
 }
+f64 String_NumStrToF64(char* string) {
+	return strtod(string, NULL);
+}
 
 s32 String_GetLineCount(char* str) {
 	s32 line = 1;

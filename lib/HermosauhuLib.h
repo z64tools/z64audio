@@ -100,6 +100,7 @@ void MemFile_Free(MemFile* memFile);
 /* 👺 STRING 👺 */
 u32 String_HexStrToInt(char* string);
 u32 String_NumStrToInt(char* string);
+f64 String_NumStrToF64(char* string);
 s32 String_GetLineCount(char* str);
 char* String_GetLine(char* str, s32 line);
 char* String_GetWord(char* str, s32 word);
@@ -122,13 +123,15 @@ void String_GetFilename(char* dst, char* src);
 
 #define ARRAY_COUNT(arr)     (s32)(sizeof(arr) / sizeof(arr[0]))
 #define ABS(val)             (val < 0 ? -val : val)
-#define CLAMP(val, min, max) (val < min ? min : val > max ? max : val)
+#define CLAMP(val, min, max) ((val) < min ? min : (val) > max ? max : (val))
+#define CLAMP_MIN(val, min)  ((val) < min ? min : (val))
+#define CLAMP_MAX(val, max)  ((val) > max ? max : (val))
 
 #define String_Copy(dst, src)   strcpy(dst, src)
 #define String_Merge(dst, src)  strcat(dst, src)
 #define String_Generate(string) strdup(string)
 
-#define Main(y1, y2) main(s32 argc, char* argv[])
+#define Main(y1, y2) main(y1, y2)
 
 #include <math.h>
 
