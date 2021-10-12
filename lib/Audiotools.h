@@ -19,4 +19,6 @@ void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo);
 void AudioTools_TableDesign(AudioSampleInfo* sampleInfo);
 void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo);
 
+void AudioTools_LoadCodeBook(AudioSampleInfo* sampleInfo, char* file);
+
 #endif

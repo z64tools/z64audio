@@ -6,7 +6,7 @@ void clamp(s32 fs, f32* e, s32* ie, s32 bits);
 s16 qsample(f32 x, s32 scale);
 s32 clip(s32 ix, s32 llevel, s32 ulevel);
 
-char* gTableDesignIteration = "30";
+char* gTableDesignIteration = "2";
 char* gTableDesignFrameSize = "16";
 char* gTableDesignBits = "2";
 char* gTableDesignOrder = "2";
@@ -566,7 +566,9 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	FREE_P(splitDelta);
 }
 void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
-	AudioTools_TableDesign(sampleInfo);
+	if (sampleInfo->vadBook.data == NULL) {
+		AudioTools_TableDesign(sampleInfo);
+	}
 	MemFile memEnc;
 	s32 minLoopLength = 30;
 	u32 aI = 0;
@@ -676,4 +678,32 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 				printf("\n");
 		}
 	}
+}
+void AudioTools_LoadCodeBook(AudioSampleInfo* sampleInfo, char* file) {
+	MemFile temp = { 0 };
+	MemFile* vadBook = &sampleInfo->vadBook;
+	u32 size;
+	u16 order;
+	u16 nPred;
+	
+	if (vadBook) {
+		printf_debugExt("VadBook already exists");
+	}
+	
+	printf_debugExt("Loading Predictors [%s]", file);
+	MemFile_LoadFile(&temp, file);
+	for (s32 i = 0; i < temp.dataSize / 2; i++) {
+		Lib_ByteSwap(&temp.cast.u16[i], SWAP_U16);
+	}
+	order = temp.cast.u16[1];
+	nPred = temp.cast.u16[3];
+	size = sizeof(u16) * 8 * order * nPred + sizeof(u16) * 2;
+	MemFile_Malloc(vadBook, size);
+	MemFile_Write(vadBook, &order, 2);
+	MemFile_Write(vadBook, &nPred, 2);
+	for (s32 i = 0; i < (8 * order * nPred); i++) {
+		MemFile_Write(vadBook, &temp.cast.s16[4 + i], 2);
+	}
+	
+	MemFile_Free(&temp);
 }

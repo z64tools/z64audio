@@ -34,6 +34,7 @@ char* sToolUsage = {
 	Z64ARGX("-n",      "Normalize")
 	PRNT_NL
 	Z64ARGTITLE("Vᴀᴅᴘᴄᴍ:")
+	Z64ARGX("-p",      "Use excisting predictors")
 	Z64ARGX("-v",      "Generate Vadpcm Files (Only with [.aiff] output)")
 	Z64ARGX("-I [ 30 ]", "TableDesign Refine Iteration")
 	Z64ARGX("-F [ 16 ]", "TableDesign Frame Size")
@@ -173,9 +174,9 @@ s32 Main(s32 argc, char* argv[]) {
 		Audio_ConvertToMono(&sample);
 	}
 	
-	Audio_SaveSample(&sample);
-	
-	if (ParseArg("-v") || ParseArg("--v")) {
+	if (ParseArg("-p") || ParseArg("--p")) {
+		AudioTools_LoadCodeBook(&sample, argv[parArg]);
+	} else {
 		if (ParseArg("-I") || ParseArg("--I")) {
 			gTableDesignIteration = argv[parArg];
 		}
@@ -191,6 +192,11 @@ s32 Main(s32 argc, char* argv[]) {
 		if (ParseArg("-T") || ParseArg("--T")) {
 			gTableDesignThreshold = argv[parArg];
 		}
+	}
+	
+	Audio_SaveSample(&sample);
+	
+	if (ParseArg("-v") || ParseArg("--v")) {
 		if (!Lib_MemMem(sample.output, strlen(sample.output), ".aiff", 5)) {
 			printf_warning("Output isn't [.aiff] file. Skipping generating vadpcm files");
 		} else {
