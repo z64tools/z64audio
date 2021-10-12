@@ -100,7 +100,7 @@ void Audio_Normalize(AudioSampleInfo* sampleInfo) {
 		}
 	}
 	
-	printf_debug("normalizermax: %f", max);
+	printf_debugExt("normalizermax: %f", max);
 }
 void Audio_ConvertToMono(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->channelNum != 2)
@@ -180,7 +180,7 @@ void Audio_Upsample(AudioSampleInfo* sampleInfo) {
 	u32 channelNum = sampleInfo->channelNum;
 	
 	printf_info("Target bitrate higher than source. Upsampling.");
-	printf_debug("%s: Upsampling will iterate %d times. %d x %d", __FUNCTION__, samplesNum * channelNum, samplesNum, channelNum);
+	printf_debugExt("Upsampling will iterate %d times. %d x %d", samplesNum * channelNum, samplesNum, channelNum);
 	
 	MemFile_Malloc(&newMem, samplesNum * sizeof(f32) * channelNum);
 	
@@ -196,7 +196,7 @@ void Audio_Upsample(AudioSampleInfo* sampleInfo) {
 		}
 	}
 	
-	printf_debug("%s: Upsampling done.", __FUNCTION__);
+	printf_debugExt("Upsampling done.");
 	
 	newMem.dataSize = sampleInfo->size =
 	    sampleInfo->samplesNum *
@@ -214,6 +214,75 @@ void Audio_Resample(AudioSampleInfo* sampleInfo) {
 	}
 	
 	Audio_Downsample(sampleInfo);
+}
+void Audio_Compare(AudioSampleInfo* sampleA, AudioSampleInfo* sampleB) {
+	char* addString[] = {
+		"",
+		" when compared by the frame count of smaller file"
+	};
+	u32 flag = 0;
+	u32 sampleNum = sampleA->samplesNum;
+	
+	if (sampleA->sampleRate != sampleB->sampleRate) {
+		printf_error("SampleRate for given files does not match. Giving up on comparison.");
+	}
+	
+	if (sampleA->samplesNum != sampleB->samplesNum) {
+		printf_warning("Frame count for given files does not match.");
+		printf_debugExt("samplesNum: [ %8d ] " PRNT_GRAY "[%s]" PRNT_RSET, sampleA->samplesNum, sampleA->input);
+		printf_debug("samplesNum: [ %8d ] " PRNT_GRAY "[%s]" PRNT_RSET, sampleB->samplesNum, sampleB->input);
+		flag = 1;
+		
+		if (sampleB->samplesNum < sampleA->samplesNum) {
+			sampleNum = sampleB->samplesNum;
+		}
+	}
+	
+	if (sampleA->bit != sampleB->bit || sampleA->dataIsFloat != sampleB->dataIsFloat) {
+		printf_warning("Bit depth for given files does not match. Converting to 16-bit. Might affect to the results.");
+		sampleA->targetBit = 16;
+		sampleB->targetBit = 16;
+		Audio_Downsample(sampleA);
+		Audio_Downsample(sampleB);
+	}
+	
+	if (sampleA->channelNum != sampleB->channelNum) {
+		printf_warning("Channel amount for given files does not match. Giving up on comparison.");
+		Audio_ConvertToMono(sampleA);
+		Audio_ConvertToMono(sampleB);
+	}
+	
+	u32 diffCount = 0;
+	
+	for (s32 i = 0; i < sampleNum * sampleA->channelNum; i++) {
+		if (sampleA->bit == 16) {
+			if (sampleA->audio.s16[i] != sampleB->audio.s16[i]) {
+				printf("\rDiff count [ %d / %d ]          ", ++diffCount, sampleNum * sampleA->channelNum);
+			}
+		}
+		if (sampleA->bit == 24) {
+			if (*(s16*)&sampleA->audio.u8[3 * i + 1] != *(s16*)&sampleB->audio.u8[3 * i + 1]) {
+				printf("\rDiff count [ %d / %d ]          ", ++diffCount, sampleNum * sampleA->channelNum);
+			}
+		}
+		if (sampleA->bit == 32) {
+			if (sampleA->dataIsFloat) {
+				if (sampleA->audio.f32[i] != sampleB->audio.f32[i]) {
+					printf("\rDiff count [ %d / %d ]          ", ++diffCount, sampleNum * sampleA->channelNum);
+				}
+			} else {
+				if (sampleA->audio.s32[i] != sampleB->audio.s32[i]) {
+					printf("\rDiff count [ %d / %d ]          ", ++diffCount, sampleNum * sampleA->channelNum);
+				}
+			}
+		}
+	}
+	
+	if (diffCount) {
+		printf("\n");
+	} else {
+		printf_info("Data matches%s.", addString[flag]);
+	}
 }
 
 void Audio_InitSampleInfo(AudioSampleInfo* sampleInfo, char* input, char* output) {
@@ -240,18 +309,18 @@ void Audio_GetSampleInfo_Wav(WaveInstrumentInfo** waveInstInfo, WaveSampleInfo**
 	u32 searchLength = header->chunk.size - startOffset;
 	u8* hayStart = ((u8*)header) + startOffset;
 	
-	printf_debug("%s: StartOffset  [0x%08X]", __FUNCTION__, startOffset);
-	printf_debug("%s: SearchLength [0x%08X]", __FUNCTION__, searchLength);
+	printf_debugExt("StartOffset  [0x%08X]", startOffset);
+	printf_debugExt("SearchLength [0x%08X]", searchLength);
 	
 	*waveInstInfo = Lib_MemMem(hayStart, searchLength, "inst", 4);
 	*waveSampleInfo = Lib_MemMem(hayStart, searchLength, "smpl", 4);
 	
 	if (*waveInstInfo) {
-		printf_debug("%s: Found InstrumentInfo", __FUNCTION__);
+		printf_debugExt("Found InstrumentInfo");
 	}
 	
 	if (*waveSampleInfo) {
-		printf_debug("%s: Found SampleInfo", __FUNCTION__);
+		printf_debugExt("Found SampleInfo");
 	}
 }
 void Audio_GetSampleInfo_Aiff(AiffInstrumentInfo** aiffInstInfo, AiffMarkerInfo** aiffMarkerInfo, AiffHeader* header, u32 fileSize) {
@@ -260,30 +329,30 @@ void Audio_GetSampleInfo_Aiff(AiffInstrumentInfo** aiffInstInfo, AiffMarkerInfo*
 	u32 searchLength = header->chunk.size - startOffset;
 	u8* hayStart = ((u8*)header) + startOffset;
 	
-	printf_debug("%s: StartOffset  [0x%08X]", __FUNCTION__, startOffset);
-	printf_debug("%s: SearchLength [0x%08X]", __FUNCTION__, searchLength);
+	printf_debugExt("StartOffset  [0x%08X]", startOffset);
+	printf_debugExt("SearchLength [0x%08X]", searchLength);
 	
 	*aiffInstInfo = Lib_MemMem(hayStart, searchLength, "INST", 4);
 	*aiffMarkerInfo = Lib_MemMem(hayStart, searchLength, "MARK", 4);
 	
 	if (*aiffInstInfo) {
-		printf_debug("%s: Found InstrumentInfo", __FUNCTION__);
+		printf_debugExt("Found InstrumentInfo");
 	}
 	
 	if (*aiffMarkerInfo) {
-		printf_debug("%s: Found SampleInfo", __FUNCTION__);
+		printf_debugExt("Found SampleInfo");
 	}
 }
 void Audio_GetSampleInfo_AifcVadpcm(AiffInstrumentInfo** aiffInstInfo, AiffHeader* header, u32 fileSize) {
 	*aiffInstInfo = Lib_MemMem(header, fileSize, "INST", 4);
 	
 	if (*aiffInstInfo) {
-		printf_debug("%s: Found InstrumentInfo", __FUNCTION__);
+		printf_debugExt("Found InstrumentInfo");
 	}
 }
 
 void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
-	MemFile_LoadToMemFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".wav");
+	MemFile_LoadFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".wav");
 	WaveHeader* waveHeader = sampleInfo->memFile.data;
 	WaveDataInfo* waveData;
 	WaveInfo* waveInfo;
@@ -309,24 +378,22 @@ void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
 		);
 	}
 	
-	printf_debug("%s: File [%s] loaded to memory", __FUNCTION__, sampleInfo->input);
+	printf_debugExt("File [%s] loaded to memory", sampleInfo->input);
 	
 	if (sampleInfo->memFile.dataSize == 0)
-		printf_error("%s: Something has gone wrong loading file [%s]", __FUNCTION__, sampleInfo->input);
+		printf_error("Something has gone wrong loading file [%s]", sampleInfo->input);
 	waveInfo = Lib_MemMem(waveHeader, sampleInfo->memFile.dataSize, "fmt ", 4);
 	waveData = Lib_MemMem(waveHeader, sampleInfo->memFile.dataSize, "data", 4);
 	if (!waveInfo || !waveData) {
 		if (!waveData) {
 			printf_error(
-				"%s: could not locate [data] from [%s]",
-				__FUNCTION__,
+				"Could not locate [data] from [%s]",
 				sampleInfo->input
 			);
 		}
 		if (!waveInfo) {
 			printf_error(
-				"%s: could not locate [fmt] from [%s]",
-				__FUNCTION__,
+				"Could not locate [fmt] from [%s]",
 				sampleInfo->input
 			);
 		}
@@ -345,7 +412,7 @@ void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
 	
 	Audio_GetSampleInfo_Wav(&waveInstInfo, &waveSampleInfo, waveHeader, sampleInfo->memFile.dataSize);
 	if (waveInfo->format == IEEE_FLOAT) {
-		printf_debug("%s: Uses 32-bit floats", __FUNCTION__);
+		printf_debugExt("Uses 32-bit floats");
 		sampleInfo->dataIsFloat = true;
 	}
 	if (waveInstInfo) {
@@ -357,12 +424,12 @@ void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
 		if (waveSampleInfo && waveSampleInfo->numSampleLoops) {
 			sampleInfo->instrument.loop.start = waveSampleInfo->loopData[0].start;
 			sampleInfo->instrument.loop.end = waveSampleInfo->loopData[0].end;
-			sampleInfo->instrument.loop.count = waveSampleInfo->loopData[0].count;
+			sampleInfo->instrument.loop.count = 0xFFFFFFFF;
 		}
 	}
 }
 void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
-	MemFile_LoadToMemFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".aiff");
+	MemFile_LoadFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".aiff");
 	AiffHeader* aiffHeader = sampleInfo->memFile.data;
 	AiffDataInfo* aiffData;
 	AiffInfo* aiffInfo;
@@ -388,24 +455,22 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 		);
 	}
 	
-	printf_debug("%s: File [%s] loaded to memory", __FUNCTION__, sampleInfo->input);
+	printf_debugExt("File [%s] loaded to memory", sampleInfo->input);
 	
 	if (sampleInfo->memFile.dataSize == 0)
-		printf_error("%s: Something has gone wrong loading file [%s]", __FUNCTION__, sampleInfo->input);
+		printf_error("Something has gone wrong loading file [%s]", sampleInfo->input);
 	aiffInfo = Lib_MemMem(aiffHeader, sampleInfo->memFile.dataSize, "COMM", 4);
 	aiffData = Lib_MemMem(aiffHeader, sampleInfo->memFile.dataSize, "SSND", 4);
 	if (!aiffInfo || !aiffData) {
 		if (!aiffData) {
 			printf_error(
-				"%s: could not locate [SSND] from [%s]",
-				__FUNCTION__,
+				"Could not locate [SSND] from [%s]",
 				sampleInfo->input
 			);
 		}
 		if (!aiffInfo) {
 			printf_error(
-				"%s: could not locate [COMM] from [%s]",
-				__FUNCTION__,
+				"Could not locate [COMM] from [%s]",
 				sampleInfo->input
 			);
 		}
@@ -426,7 +491,7 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	Lib_ByteSwap(&aiffData->offset, SWAP_U32);
 	Lib_ByteSwap(&aiffData->blockSize, SWAP_U32);
 	
-	u32 sampleNum = aiffInfo->sampleNumL + (aiffInfo->sampleNumH << 8);
+	u32 sampleNum = aiffInfo->sampleNumL + (aiffInfo->sampleNumH << 16);
 	
 	sampleInfo->channelNum = aiffInfo->channelNum;
 	sampleInfo->bit = aiffInfo->bit;
@@ -465,7 +530,7 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	Audio_ByteSwap(sampleInfo);
 }
 void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
-	MemFile_LoadToMemFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".aifc");
+	MemFile_LoadFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".aifc");
 	AiffHeader* aiffHeader = sampleInfo->memFile.data;
 	AiffDataInfo* aiffData;
 	AiffInfo* aiffInfo;
@@ -492,10 +557,10 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 	}
 	
 	if (!Lib_MemMem(aiffHeader, 0x90, "VAPC\x0BVADPCM", 10)) {
-		printf_error("[%s] does not appear to use VADPCM compression type.", sampleInfo->input);
+		printf_error("[%s] does not appear to be using VADPCM compression type.", sampleInfo->input);
 	}
 	
-	printf_debug("%s: File [%s] loaded to memory", __FUNCTION__, sampleInfo->input);
+	printf_debugExt("File [%s] loaded to memory", sampleInfo->input);
 	
 	if (sampleInfo->memFile.dataSize == 0)
 		printf_error("Audio_LoadSample_AifcVadpcm: Something has gone wrong loading file [%s]", sampleInfo->input);
@@ -504,15 +569,13 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 	if (!aiffInfo || !aiffData) {
 		if (!aiffData) {
 			printf_error(
-				"%s: could not locate [SSND] from [%s]",
-				__FUNCTION__,
+				"Could not locate [SSND] from [%s]",
 				sampleInfo->input
 			);
 		}
 		if (!aiffInfo) {
 			printf_error(
-				"%s: could not locate [COMM] from [%s]",
-				__FUNCTION__,
+				"Could not locate [COMM] from [%s]",
 				sampleInfo->input
 			);
 		}
@@ -533,7 +596,7 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 	Lib_ByteSwap(&aiffData->offset, SWAP_U32);
 	Lib_ByteSwap(&aiffData->blockSize, SWAP_U32);
 	
-	u32 sampleNum = aiffInfo->sampleNumL + (aiffInfo->sampleNumH << 8);
+	u32 sampleNum = aiffInfo->sampleNumL + (aiffInfo->sampleNumH << 16);
 	
 	sampleInfo->channelNum = aiffInfo->channelNum;
 	sampleInfo->bit = aiffInfo->bit;
@@ -557,6 +620,8 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 	
 	// VADPCM PREDICTORS
 	VadpcmInfo* pred = Lib_MemMem(sampleInfo->memFile.data, sampleInfo->memFile.dataSize, "APPL", 4);
+	MemFile* vadBook = &sampleInfo->vadBook;
+	MemFile* vadLoop = &sampleInfo->vadLoopBook;
 	
 	if (pred && Lib_MemMem(pred, 24, "VADPCMCODES", 11)) {
 		u16 order = ((u16*)pred->data)[1];
@@ -566,35 +631,33 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 		
 		u32 predSize = (sizeof(u16) * 2) + (0x8 * order) * nPred;
 		
-		printf_debug("%s: order: [%d] nPred: [%d] size: [0x%X]", __FUNCTION__, order, nPred, predSize);
+		printf_debugExt("order: [%d] nPred: [%d] size: [0x%X]", order, nPred, predSize);
 		
 		MemFile_Malloc(&sampleInfo->vadBook, predSize);
-		MemFile_Write(&((u16*)pred->data)[1], 1, predSize, &sampleInfo->vadBook);
+		MemFile_Write(vadBook, &((u16*)pred->data)[1], predSize);
 		
 		for (s32 i = 0; i < predSize / 2; i++) {
 			Lib_ByteSwap(&sampleInfo->vadBook.cast.u16[i], SWAP_U16);
 		}
 		
-		printf_debug("%s: Found and written [VADPCMCODES]", __FUNCTION__);
+		printf_debugExt("Found and written [VADPCMCODES]");
 	}
 	
 	// VADPCM LOOP PREDICTORS
 	u32 size = sampleInfo->memFile.dataSize - sampleInfo->size;
 	u8* next = (void*)aiffHeader;
 	
-	printf_debug("%s: Search Size [0x%X]", __FUNCTION__, size);
+	printf_debugExt("Search Size [0x%X]", size);
 	pred = Lib_MemMem(next + sampleInfo->size, size, "APPL", 4);
 	
 	if (pred && Lib_MemMem(pred, 24, "VADPCMLOOPS", 11)) {
 		MemFile_Malloc(&sampleInfo->vadLoopBook, sizeof(s16) * 16);
-		MemFile_Write(pred->data, 1, sizeof(s16) * 16, &sampleInfo->vadLoopBook);
+		MemFile_Write(vadLoop, &((u16*)pred->data)[8], sizeof(s16) * 16);
 		for (s32 i = 0; i < 16; i++) {
 			Lib_ByteSwap(&sampleInfo->vadLoopBook.cast.u16[i], SWAP_U16);
 		}
-		printf_debug("%s: Found and written [VADPCMLOOPS]", __FUNCTION__);
+		printf_debugExt("Found and written [VADPCMLOOPS]");
 	}
-	
-	printf_debug("%s: OK!", __FUNCTION__);
 }
 void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 	char* keyword[] = {
@@ -611,8 +674,6 @@ void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 	
 	if (!sampleInfo->input)
 		printf_error("Audio_LoadSample: No input file set");
-	if (!sampleInfo->output)
-		printf_error("Audio_LoadSample: No output file set");
 	
 	for (s32 i = 0; i < ARRAY_COUNT(loadSample); i++) {
 		if (loadSample[i] == NULL) {
@@ -831,7 +892,7 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	u32 order = sampleInfo->vadBook.cast.u16[0];
 	u32 numPred = sampleInfo->vadBook.cast.u16[1];
 	
-	printf_debug("%s: order: [%d] nPred [%d]", __FUNCTION__, order, numPred);
+	printf_debugExt("order: [%d] nPred [%d]", order, numPred);
 	
 	for (s32 j = 0; j < numPred; j++) {
 		fprintf(
@@ -1025,6 +1086,9 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 		"Audio_SaveSample_VadpcmC"
 	};
 	
+	if (!sampleInfo->output)
+		printf_error("Audio_LoadSample: No output file set");
+	
 	for (s32 i = 0; i < ARRAY_COUNT(saveSample); i++) {
 		if (saveSample[i] == NULL) {
 			printf_warning("[%s] does not match expected extensions. This tool supports these extensions as output:", sampleInfo->output);
@@ -1041,7 +1105,7 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 			String_GetBasename(basename, sampleInfo->output);
 			if (i != 2)
 				printf_info("Saving [%s%s]", basename, keyword[i]);
-			printf_debug("%s", funcName[i]);
+			printf_debugExt("%s", funcName[i]);
 			
 			saveSample[i](sampleInfo);
 			break;

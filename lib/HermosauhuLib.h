@@ -82,25 +82,26 @@ void printf_WinFix();
 
 /* 👺 LIB 👺 */
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
-void* Lib_Malloc(s32 size);
+void* Lib_Malloc(void* data, s32 size);
+void* Lib_Realloc(void* data, s32 size);
 void Lib_ByteSwap(void* src, s32 size);
 
 /* 👺 FILE 👺 */
-s32 File_LoadToMem(void** dst, char* filepath);
-void File_WriteToFromMem(char* filepath, void* src, s32 size);
-s32 File_LoadToMem_ReqExt(void** dst, char* filepath, const char* ext);
-void File_WriteToFromMem_ReqExt(char* filepath, void* src, s32 size, const char* ext);
+s32 File_Load(void** dst, char* filepath);
+void File_Save(char* filepath, void* src, s32 size);
+s32 File_Load_ReqExt(void** dst, char* filepath, const char* ext);
+void File_Save_ReqExt(char* filepath, void* src, s32 size, const char* ext);
 s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg);
 
 /* 👺 MEMFILE 👺 */
 void MemFile_Malloc(MemFile* memFile, u32 size);
 void MemFile_Realloc(MemFile* memFile, u32 size);
 void MemFile_Rewind(MemFile* memFile);
-void MemFile_Write(void* src, u32 size, u32 n, MemFile* dest);
-void MemFile_LoadToMemFile(MemFile* memFile, char* filepath);
-void MemFile_WriteToFromMemFile(MemFile* memFile, char* filepath);
-void MemFile_LoadToMemFile_ReqExt(MemFile* memFile, char* filepath, const char* ext);
-void MemFile_WriteToFromMemFile_ReqExt(MemFile* memFile, char* filepath, s32 size, const char* ext);
+void MemFile_Write(MemFile* dest, void* src, u32 size);
+void MemFile_LoadFile(MemFile* memFile, char* filepath);
+void MemFile_SaveFile(MemFile* memFile, char* filepath);
+void MemFile_LoadFile_ReqExt(MemFile* memFile, char* filepath, const char* ext);
+void MemFile_SaveFile_ReqExt(MemFile* memFile, char* filepath, s32 size, const char* ext);
 void MemFile_Free(MemFile* memFile);
 
 /* 👺 STRING 👺 */
@@ -136,6 +137,11 @@ void String_GetFilename(char* dst, char* src);
 #define String_Copy(dst, src)   strcpy(dst, src)
 #define String_Merge(dst, src)  strcat(dst, src)
 #define String_Generate(string) strdup(string)
+
+#define printf_debugExt(...) if (gPrintfSuppress <= PSL_DEBUG) {    \
+		printf(PRNT_DGRY "[%s]: " PRNT_REDD "%s: " PRNT_GRAY "[%d]\n"PRNT_RSET, __FILE__, __FUNCTION__, __LINE__); \
+		printf_debug(__VA_ARGS__);                                  \
+}
 
 #define Main(y1, y2) main(y1, y2)
 

@@ -280,6 +280,7 @@ void Audio_ByteSwap(AudioSampleInfo* sampleInfo);
 void Audio_Normalize(AudioSampleInfo* sampleInfo);
 void Audio_ConvertToMono(AudioSampleInfo* sampleInfo);
 void Audio_Resample(AudioSampleInfo* sampleInfo);
+void Audio_Compare(AudioSampleInfo* sampleA, AudioSampleInfo* sampleB);
 
 void Audio_InitSampleInfo(AudioSampleInfo* sampleInfo, char* input, char* output);
 void Audio_FreeSample(AudioSampleInfo* sampleInfo);

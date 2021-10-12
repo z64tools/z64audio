@@ -26,6 +26,7 @@ char* sToolUsage = {
 	Z64ARGTITLE("Aʀɢᴜᴍᴇɴᴛꜱ:")
 	Z64ARGX("-i [ꜰɪʟᴇ]", "Input:  .wav .aiff .aifc")
 	Z64ARGX("-o [ꜰɪʟᴇ]", "Output: .wav .aiff .c")
+	Z64ARGX("-c", "Compare I [ꜰɪʟᴇ] & O [ꜰɪʟᴇ]")
 	PRNT_NL
 	Z64ARGTITLE("Aᴜᴅɪᴏ Pʀᴏᴄᴇꜱꜱɪɴɢ:")
 	Z64ARGX("-b [ 16 ]", "Target Bit Depth")
@@ -61,6 +62,10 @@ s32 Main(s32 argc, char* argv[]) {
 	printf_WinFix();
 	printf_SetPrefix("");
 	
+	if (ParseArg("-D") || ParseArg("--D")) {
+		printf_SetSuppressLevel(PSL_DEBUG);
+	}
+	
 	if (ParseArg("-i") || ParseArg("--i")) {
 		input = argv[parArg];
 	}
@@ -69,8 +74,26 @@ s32 Main(s32 argc, char* argv[]) {
 		output = argv[parArg];
 	}
 	
-	if (ParseArg("-D") || ParseArg("--D")) {
-		printf_SetSuppressLevel(PSL_DEBUG);
+	if (ParseArg("-c") || ParseArg("--c")) {
+		AudioSampleInfo sampleComp;
+		
+		printf_toolinfo(
+			sToolName,
+			0
+		);
+		
+		Audio_InitSampleInfo(&sample, input, "none");
+		Audio_InitSampleInfo(&sampleComp, output, "none");
+		
+		Audio_LoadSample(&sample);
+		Audio_LoadSample(&sampleComp);
+		
+		Audio_Compare(&sample, &sampleComp);
+		
+		Audio_FreeSample(&sample);
+		Audio_FreeSample(&sampleComp);
+		
+		return 0;
 	}
 	
 	if (ParseArg("-s") || ParseArg("--s")) {
@@ -87,7 +110,7 @@ s32 Main(s32 argc, char* argv[]) {
 		return 0;
 	}
 	
-	if (input == NULL || output == NULL) {
+	if (input == NULL) {
 		printf_toolinfo(
 			sToolName,
 			sToolUsage
@@ -105,10 +128,24 @@ s32 Main(s32 argc, char* argv[]) {
 	Audio_LoadSample(&sample);
 	
 	if (ParseArg("-N") || ParseArg("--N")) {
-		printf_info("[%s] BitDepth   [ %8d ]", sample.input, sample.bit);
-		printf_info("[%s] SampleRate [ %8d ]", sample.input, sample.sampleRate);
-		printf_info("[%s] Channels   [ %8d ]", sample.input, sample.channelNum);
-		printf_info("[%s] Frames     [ %8d ]", sample.input, sample.samplesNum);
+		printf_info("BitDepth    [ %8d ] " PRNT_GRAY "[%s]", sample.bit, sample.input);
+		printf_info("Sample Rate [ %8d ] " PRNT_GRAY "[%s]", sample.sampleRate, sample.input);
+		printf_info("Channels    [ %8d ] " PRNT_GRAY "[%s]", sample.channelNum, sample.input);
+		printf_info("Frames      [ %8d ] " PRNT_GRAY "[%s]", sample.samplesNum, sample.input);
+		printf_info("Data Size   [ %8d ] " PRNT_GRAY "[%s]", sample.size, sample.input);
+		printf_info("File Size   [ %8d ] " PRNT_GRAY "[%s]", sample.memFile.dataSize, sample.input);
+		
+		if (output == NULL)
+			return 0;
+	} else {
+		printf_debugExt("BitDepth   [ %8d ] " PRNT_GRAY "[%s]", sample.bit, sample.input);
+		printf_debug("SampleRate [ %8d ] " PRNT_GRAY "[%s]", sample.sampleRate, sample.input);
+		printf_debug("Channels   [ %8d ] " PRNT_GRAY "[%s]", sample.channelNum, sample.input);
+		printf_debug("Frames     [ %8d ] " PRNT_GRAY "[%s]", sample.samplesNum, sample.input);
+	}
+	
+	if (output == NULL) {
+		printf_error("No output specified!");
 	}
 	
 	if (ParseArg("-b") || ParseArg("--b")) {

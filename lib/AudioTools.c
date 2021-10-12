@@ -1,5 +1,11 @@
 #include "AudioTools.h"
 
+#include "sdk-tools/tabledesign/tabledesign.h"
+s32 inner_product(s32 length, s32* v1, s32* v2);
+void clamp(s32 fs, f32* e, s32* ie, s32 bits);
+s16 qsample(f32 x, s32 scale);
+s32 clip(s32 ix, s32 llevel, s32 ulevel);
+
 char* gTableDesignIteration = "30";
 char* gTableDesignFrameSize = "16";
 char* gTableDesignBits = "2";
@@ -108,12 +114,6 @@ void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
 	free(vadpcmArgv[2]);
 	free(vadpcmArgv[4]);
 }
-
-#include "sdk-tools/tabledesign/tabledesign.h"
-s32 inner_product(s32 length, s32* v1, s32* v2);
-void clamp(s32 fs, f32* e, s32* ie, s32 bits);
-s16 qsample(f32 x, s32 scale);
-s32 clip(s32 ix, s32 llevel, s32 ulevel);
 
 void AudioTools_ReadCodeBook(AudioSampleInfo* sampleInfo, s32**** table, s32* destOrder, s32* destNPred) {
 	s32** tableEntry;
@@ -350,10 +350,10 @@ void AudioTools_VencodeFrame(AudioSampleInfo* sampleInfo, MemFile* mem, s16* buf
 	// 4-bit numbers. Write them out as 1 + 8 bytes.
 	u8 header = (scale << 4) | (optimalp & 0xf);
 	
-	MemFile_Write(&header, 1, 1, mem);
+	MemFile_Write(mem, &header, sizeof(u8));
 	for (s32 i = 0; i < 16; i += 2) {
 		u8 c = (ix[i] << 4) | (ix[i + 1] & 0xf);
-		MemFile_Write(&c, 1, 1, mem);
+		MemFile_Write(mem, &c, sizeof(u8));
 	}
 }
 void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
@@ -491,19 +491,19 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	
 	MemFile* memBook = &sampleInfo->vadBook;
 	MemFile_Malloc(memBook, sizeof(u16) * 0x8 * order * nPredictors + sizeof(u16) * 2);
-	MemFile_Write(&order, sizeof(u16), 1, memBook);
-	MemFile_Write(&nPredictors, sizeof(u16), 1, memBook);
+	MemFile_Write(memBook, &order, sizeof(u16));
+	MemFile_Write(memBook, &nPredictors, sizeof(u16));
 	
-	double** table;
+	f64** table;
 	table = malloc(sizeof(f64*) * 8);
 	for (s32 i = 0; i < 8; i++) {
 		table[i] = malloc(sizeof(double) * order);
 	}
 	
 	for (s32 X = 0; X < nPredictors; X++) {
-		double fval;
+		f64 fval;
 		s32 ival;
-		double* row = tempS1[X];
+		f64* row = tempS1[X];
 		
 		for (s32 i = 0; i < order; i++) {
 			for (s32 j = 0; j < i; j++) {
@@ -546,13 +546,13 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 				}
 				
 				// Write table
-				MemFile_Write(&ival, sizeof(u16), 1, memBook);
+				MemFile_Write(memBook, &ival, sizeof(u16));
 			}
 		}
 	}
 	
 	if (numOverflows) {
-		printf_warning("TableDesign seems to have overflown!");
+		printf_warning("\aTableDesign seems to have " PRNT_REDD "overflown" PRNT_RSET " [%d] times!", numOverflows);
 	}
 	
 	FREE_PP(table, 8);
@@ -587,7 +587,6 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	
 	// Process Loop
 	if (sampleInfo->instrument.loop.count) {
-		printf_debug("%s: Encoding loop.", __FUNCTION__);
 		MemFile_Malloc(&sampleInfo->vadLoopBook, sizeof(s16) * 16);
 		u32 nRepeats = 0;
 		
@@ -627,7 +626,6 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 		}
 	}
 	
-	printf_debug("%s: Encoding audio.", __FUNCTION__);
 	while (pos < nFrames) {
 		if (nFrames - pos < 16) {
 			nSam = nFrames - pos;
@@ -660,20 +658,20 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 		free(table);
 	}
 	
-	printf_debug("%s: Old MemFile Size [0x%X]", __FUNCTION__, sampleInfo->size);
+	printf_debugExt("Old MemFile Size [0x%X]", sampleInfo->size);
 	
 	MemFile_Free(&sampleInfo->memFile);
 	sampleInfo->memFile = memEnc;
 	sampleInfo->audio.p = memEnc.data;
 	sampleInfo->size = memEnc.dataSize;
 	
-	printf_debug("%s: New MemFile Size [0x%X]", __FUNCTION__, sampleInfo->size);
+	printf_debugExt("New MemFile Size [0x%X]", sampleInfo->size);
 	
-	printf_debug("LoopBook:");
+	printf_debugExt("LoopBook:");
 	
 	if (gPrintfSuppress <= PSL_DEBUG) {
 		for (s32 i = 0; i < (0x8 * sampleInfo->vadBook.cast.u16[0]) * sampleInfo->vadBook.cast.u16[1]; i++) {
-			printf("%5d", sampleInfo->vadBook.cast.s16[2 + i]);
+			printf("%6d", sampleInfo->vadBook.cast.s16[2 + i]);
 			if ((i % 8) == 7)
 				printf("\n");
 		}
