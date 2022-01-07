@@ -67,6 +67,10 @@ s32 Main(s32 argc, char* argv[]) {
 		printf_SetSuppressLevel(PSL_DEBUG);
 	}
 	
+	if (ParseArg("-s") || ParseArg("--s")) {
+		printf_SetSuppressLevel(PSL_NO_WARNING);
+	}
+	
 	if (ParseArg("-i") || ParseArg("--i")) {
 		input = argv[parArg];
 	}
@@ -95,10 +99,6 @@ s32 Main(s32 argc, char* argv[]) {
 		Audio_FreeSample(&sampleComp);
 		
 		return 0;
-	}
-	
-	if (ParseArg("-s") || ParseArg("--s")) {
-		printf_SetSuppressLevel(PSL_NO_WARNING);
 	}
 	
 	if (argc == 2 && Lib_MemMem(argv[1], strlen(argv[1]), ".zzrpl", 6)) {
