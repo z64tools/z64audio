@@ -1032,7 +1032,7 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 		"		{ /* Not supported yet */ },\n"
 		"		{\n"
 		"			.sample = &%sSample,\n"
-		"			.tuning = %gf,\n"
+		"			.tuning = %ff,\n"
 		"		},\n"
 		"		{ /* Not supported yet */ },\n"
 		"	}\n"

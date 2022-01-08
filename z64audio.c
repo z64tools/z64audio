@@ -35,7 +35,7 @@ char* sToolUsage = {
 	PRNT_NL
 	Z64ARGTITLE("VADPCM:")
 	Z64ARGX("-p",      "Use excisting predictors")
-	Z64ARGX("-v",      "Generate Vadpcm Files (Only with [.aiff] output)")
+	Z64ARTD("-v",      "Generate Vadpcm Files (Only with [.aiff] output)")
 	Z64ARGX("-I [ 30 ]", "TableDesign Refine Iteration")
 	Z64ARGX("-F [ 16 ]", "TableDesign Frame Size")
 	Z64ARGX("-B [  2 ]", "TableDesign Bits")
@@ -200,8 +200,8 @@ s32 Main(s32 argc, char* argv[]) {
 		if (!Lib_MemMem(sample.output, strlen(sample.output), ".aiff", 5)) {
 			printf_warning("Output isn't [.aiff] file. Skipping generating vadpcm files");
 		} else {
-			AudioTools_RunTableDesign(&sample);
-			AudioTools_RunVadpcmEnc(&sample);
+			// AudioTools_RunTableDesign(&sample);
+			// AudioTools_RunVadpcmEnc(&sample);
 		}
 	}
 	
