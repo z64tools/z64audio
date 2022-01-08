@@ -1,4 +1,4 @@
-#include "lib/HermosauhuLib.h"
+#include "lib/ExtLib.h"
 #include "lib/AudioConvert.h"
 #include "lib/AudioTools.h"
 
@@ -19,21 +19,21 @@
 #define Z64ARTD(xarg, comment) PRNT_DGRY "\e[9m" xarg PRNT_RSET "\r\033[18C" PRNT_DGRY "// " PRNT_RSET PRNT_TODO PRNT_RNL
 
 char* sToolName = {
-	"ᴢ64ᴀᴜᴅɪᴏ 2.0 ᴄʟɪ ʀᴄ2"
+	"z64audio-cli 2.0 beta"
 };
 
 char* sToolUsage = {
-	Z64ARGTITLE("Aʀɢᴜᴍᴇɴᴛꜱ:")
-	Z64ARGX("-i [ꜰɪʟᴇ]", "Input:  .wav .aiff .aifc")
-	Z64ARGX("-o [ꜰɪʟᴇ]", "Output: .wav .aiff .c")
-	Z64ARGX("-c", "Compare I [ꜰɪʟᴇ] & O [ꜰɪʟᴇ]")
+	Z64ARGTITLE("File:")
+	Z64ARGX("-i [file]", "Input:  .wav .aiff .aifc")
+	Z64ARGX("-o [file]", "Output: .wav .aiff .c")
+	Z64ARGX("-c", "Compare I [file] & O [file]")
 	PRNT_NL
-	Z64ARGTITLE("Aᴜᴅɪᴏ Pʀᴏᴄᴇꜱꜱɪɴɢ:")
+	Z64ARGTITLE("Audio Processing:")
 	Z64ARGX("-b [ 16 ]", "Target Bit Depth")
 	Z64ARGX("-m",      "Mono")
 	Z64ARGX("-n",      "Normalize")
 	PRNT_NL
-	Z64ARGTITLE("Vᴀᴅᴘᴄᴍ:")
+	Z64ARGTITLE("VADPCM:")
 	Z64ARGX("-p",      "Use excisting predictors")
 	Z64ARGX("-v",      "Generate Vadpcm Files (Only with [.aiff] output)")
 	Z64ARGX("-I [ 30 ]", "TableDesign Refine Iteration")
@@ -42,15 +42,15 @@ char* sToolUsage = {
 	Z64ARGX("-O [  2 ]", "TableDesign Order")
 	Z64ARGX("-T [ 10 ]", "TableDesign Threshold")
 	PRNT_NL
-	Z64ARGTITLE("Iɴᴛᴇʀɴᴀʟ Tᴏᴏʟꜱ:")
+	Z64ARGTITLE("Internal Tools:")
 	Z64ARTD("TableDesign", "[iteration] [input] [output]")
 	Z64ARTD("VadpcmEnc", "[input] [table] [output]")
 	Z64ARTD("VadpcmDec", "[input] [output]")
 	PRNT_NL
-	Z64ARGTITLE("Exᴛʀᴀ:")
+	Z64ARGTITLE("Extra:")
 	Z64ARGX("-D", "Debug Print")
 	Z64ARGX("-s", "Silence")
-	Z64ARGX("-N", "Print Info of input [ꜰɪʟᴇ]")
+	Z64ARGX("-N", "Print Info of input [file]")
 	Z64ARTD("ZZRTLMode", "DragNDrop [zzrpl] file on z64audio")
 };
 

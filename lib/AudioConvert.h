@@ -1,7 +1,7 @@
 #ifndef __AUDIOCONVERT_H__
 #define __AUDIOCONVERT_H__
 
-#include "HermosauhuLib.h"
+#include "ExtLib.h"
 
 typedef long double f80;
 

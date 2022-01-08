@@ -1,10 +1,10 @@
-CFLAGS := -Ofast -s -flto -DNDEBUG
-OBJCFLAGS := -Ofast -s -DNDEBUG
+CFLAGS := -Os -s -flto -DNDEBUG -Wno-unused-result
+OBJCFLAGS := -Os -s -DNDEBUG -Wno-unused-result
 gccw32 = i686-w64-mingw32.static-gcc
 g++w32 = i686-w64-mingw32.static-g++
 
 AudioToolsDep := $(shell find lib/*/*/* -type f -name '*.c')
-z64AudioDep := z64audio.c lib/HermosauhuLib.c lib/AudioConvert.c lib/HermosauhuLib.h lib/AudioConvert.h lib/AudioTools.h lib/AudioTools.c
+z64AudioDep := z64audio.c lib/ExtLib.c lib/AudioConvert.c lib/ExtLib.h lib/AudioConvert.h lib/AudioTools.h lib/AudioTools.c
 
 .PHONY: clean all win lin
 all: lin
@@ -22,7 +22,7 @@ bin/audiofile.o: $(AudioToolsDep)
 	cd bin && gcc -c ../lib/sdk-tools/adpcm/*.c -I../lib/audiofile $(OBJCFLAGS)
 
 z64audio: $(z64AudioDep)
-	cd bin && gcc -c ../z64audio.c ../lib/HermosauhuLib.c ../lib/AudioConvert.c ../lib/AudioTools.c -Wall $(CFLAGS)
+	cd bin && gcc -c ../z64audio.c ../lib/ExtLib.c ../lib/AudioConvert.c ../lib/AudioTools.c -Wall $(CFLAGS)
 	g++ -o $@ bin/*.o $(CFLAGS)
 
 # WINDOWS BUILD
@@ -33,5 +33,5 @@ bin-win/audiofile.o: $(AudioToolsDep)
 	cd bin-win && $(gccw32) -c ../lib/sdk-tools/adpcm/*.c -I../lib/audiofile $(OBJCFLAGS) -D_WIN32
 
 z64audio.exe: $(z64AudioDep)
-	cd bin-win && $(gccw32) -c ../z64audio.c ../lib/HermosauhuLib.c ../lib/AudioConvert.c ../lib/AudioTools.c -Wall $(CFLAGS) -D_WIN32
+	cd bin-win && $(gccw32) -c ../z64audio.c ../lib/ExtLib.c ../lib/AudioConvert.c ../lib/AudioTools.c -Wall $(CFLAGS) -D_WIN32
 	$(g++w32) -o $@ bin-win/*.o $(CFLAGS) -D_WIN32

@@ -357,16 +357,16 @@ void AudioTools_VencodeFrame(AudioSampleInfo* sampleInfo, MemFile* mem, s16* buf
 	}
 }
 void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
-#define FREE_PP(PP, NUM)                  \
-	if (PP) {                             \
-		for (s32 i = 0; i < (NUM); ++i) { \
-			if (PP[i]) {                  \
-				free(PP[i]);              \
-			}                             \
-		}                                 \
-		free(PP);                         \
-	}
-#define FREE_P(P) if (P) free(P)
+	#define FREE_PP(PP, NUM) \
+		if (PP) { \
+			for (s32 i = 0; i < (NUM); ++i) { \
+				if (PP[i]) { \
+					free(PP[i]); \
+				} \
+			} \
+			free(PP); \
+		}
+	#define FREE_P(P) if (P) free(P)
 	
 	if (sampleInfo->channelNum != 16) {
 		sampleInfo->targetBit = 16;

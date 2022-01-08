@@ -1,7 +1,7 @@
 #ifndef __AUDIOTOOLS_H__
 #define __AUDIOTOOLS_H__
 
-#include "HermosauhuLib.h"
+#include "ExtLib.h"
 #include "AudioConvert.h"
 
 extern char* gTableDesignIteration;
