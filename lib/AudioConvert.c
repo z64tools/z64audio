@@ -904,10 +904,15 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	
 	fprintf(
 		output,
+		"#include <MOD/SunkenTower.h>\n\n"
+	);
+	
+	fprintf(
+		output,
 		"AdpcmBook %sPred[] = {\n"
 		"	.order = %d,\n"
 		"	.npredictors = %d,\n"
-		"	.book {\n",
+		"	.book = {\n",
 		basename,
 		order,
 		numPred
