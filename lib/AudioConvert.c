@@ -904,12 +904,12 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	
 	fprintf(
 		output,
-		"#include <MOD/SunkenTower.h>\n\n"
+		"#include \"include/z64.h\"\n\n"
 	);
 	
 	fprintf(
 		output,
-		"AdpcmBook %sPred[] = {\n"
+		"AdpcmBook %sPred = {\n"
 		"	.order = %d,\n"
 		"	.npredictors = %d,\n"
 		"	.book = {\n",
@@ -982,7 +982,7 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 		"SoundFontSample %sSample = {\n"
 		"	.size = %d,\n"
 		"	.loop = &%sLoop,\n"
-		"	.book = %sPred,\n"
+		"	.book = &%sPred,\n"
 		"};\n\n",
 		basename,
 		sampleInfo->size,
