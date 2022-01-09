@@ -932,7 +932,10 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 				"",
 				"\n"
 			};
-			fprintf(output, "%s%5d,%s", indent[i % 4], sampleInfo->vadBook.cast.s16[2 + i + 0x10 * j], nl[i % 4]);
+			char buf[128];
+			
+			sprintf(buf, "%d,", sampleInfo->vadBook.cast.s16[2 + i + 0x10 * j]);
+			fprintf(output, "%s%-6s%s", indent[i % 4], buf, nl[i % 4]);
 		}
 	}
 	
@@ -1004,7 +1007,7 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	
 	fprintf(
 		output,
-		"SoundFontSound %sSound = {\n"
+		"SoundFontSound s%sSound = {\n"
 		"	&s%sSample,\n"
 		"	%ff\n"
 		"};\n",
