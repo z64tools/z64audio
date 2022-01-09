@@ -1,4 +1,4 @@
-CFLAGS := -Os -s -flto -DNDEBUG -Wall -Wno-unused-result
+CFLAGS := -Os -s -flto -Wall -Wno-unused-result
 SOURCE_C       := $(shell find lib/* -maxdepth 0 -type f -name '*.c')
 SOURCE_O_WIN32 := $(foreach f,$(SOURCE_C:.c=.o),bin/win32/$f)
 SOURCE_O_LINUX := $(foreach f,$(SOURCE_C:.c=.o),bin/linux/$f)
@@ -20,15 +20,17 @@ $(shell mkdir -p bin/ $(foreach dir, $(dir $(SOURCE_O_WIN32)) $(dir $(SOURCE_O_L
 .PHONY: clean default win lin
 
 default: lin
-
+all: lin win
 lin: $(SOURCE_O_LINUX) z64audio
-win: $(SOURCE_O_WIN32) z64audio.exe
+win: $(SOURCE_O_WIN32) bin/icon.o z64audio.exe
 
 clean:
 	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find bin/* -type f)$(PRNT_RSET)]"
 	@rm -f $(shell find bin/* -type f)
 	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find z64audi* -type f -not -name '*.c')$(PRNT_RSET)]"
 	@rm -f z64audio z64audio.exe
+	@rm -f $(shell find *.c -type f -not -name 'z64audio.c')
+	@rm -f *.bin
 
 # LINUX
 bin/linux/%.o: %.c %.h
@@ -44,6 +46,9 @@ bin/win32/%.o: %.c %.h
 	@echo "$(PRNT_RSET)Win32: $(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32
 
-z64audio.exe: z64audio.c $(SOURCE_O_WIN32)
+bin/icon.o: lib/icon.rc lib/icon.ico
+	@i686-w64-mingw32.static-windres -o $@ $<
+
+z64audio.exe: z64audio.c bin/icon.o $(SOURCE_O_WIN32)
 	@echo "$(PRNT_RSET)Win32: $(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-gcc -o $@ $^ $(CFLAGS) -lm -D_WIN32

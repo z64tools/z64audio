@@ -12,3 +12,4 @@ compile_flags.txt
 output/*
 *.bin
 wowlib/
+*.exe

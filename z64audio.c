@@ -35,23 +35,23 @@ char* sToolUsage = {
 	PRNT_NL
 	Z64ARGTITLE("VADPCM:")
 	Z64ARGX("-p",            "Use excisting predictors")
-	Z64ARTD("-v",            "Generate Vadpcm Files (Only with [.aiff] output)")
+	// Z64ARTD("-v",            "Generate Vadpcm Files (Only with [.aiff] output)")
 	Z64ARGX("-I [ 30 ]",     "TableDesign Refine Iteration")
 	Z64ARGX("-F [ 16 ]",     "TableDesign Frame Size")
 	Z64ARGX("-B [  2 ]",     "TableDesign Bits")
 	Z64ARGX("-O [  2 ]",     "TableDesign Order")
 	Z64ARGX("-T [ 10 ]",     "TableDesign Threshold")
-	PRNT_NL
-	Z64ARGTITLE("Internal Tools:")
-	Z64ARTD("TableDesign",   "[iteration] [input] [output]")
-	Z64ARTD("VadpcmEnc",     "[input] [table] [output]")
-	Z64ARTD("VadpcmDec",     "[input] [output]")
+	// PRNT_NL
+	// Z64ARGTITLE("Internal Tools:")
+	// Z64ARTD("TableDesign",   "[iteration] [input] [output]")
+	// Z64ARTD("VadpcmEnc",     "[input] [table] [output]")
+	// Z64ARTD("VadpcmDec",     "[input] [output]")
 	PRNT_NL
 	Z64ARGTITLE("Extra:")
 	Z64ARGX("-D",            "Debug Print")
 	Z64ARGX("-s",            "Silence")
 	Z64ARGX("-N",            "Print Info of input [file]")
-	Z64ARTD("ZZRTLMode",     "DragNDrop [zzrpl] file on z64audio")
+	// Z64ARTD("ZZRTLMode",     "DragNDrop [zzrpl] file on z64audio")
 };
 
 s32 Main(s32 argc, char* argv[]) {
@@ -59,6 +59,7 @@ s32 Main(s32 argc, char* argv[]) {
 	char* input = NULL;
 	char* output = NULL;
 	u32 parArg;
+	u8 wait = 0;
 	
 	printf_WinFix();
 	printf_SetPrefix("");
@@ -101,14 +102,36 @@ s32 Main(s32 argc, char* argv[]) {
 		return 0;
 	}
 	
-	if (argc == 2 && Lib_MemMem(argv[1], strlen(argv[1]), ".zzrpl", 6)) {
-		printf_toolinfo(
-			sToolName,
-			0
-		);
-		Audio_ZZRTLMode(&sample, argv[1]);
+	if (argc == 2 /* DragNDrop */) {
+		static char outbuf[256 * 2];
 		
-		return 0;
+		if (String_MemMem(argv[1], ".zzrpl")) {
+			printf_toolinfo(
+				sToolName,
+				0
+			);
+			Audio_ZZRTLMode(&sample, argv[1]);
+			
+			return 0;
+		}
+		if (String_MemMem(argv[1], ".wav")) {
+			String_Copy(outbuf, String_GetPath(argv[1]));
+			String_Merge(outbuf, String_GetBasename(argv[1]));
+			String_Merge(outbuf, ".aiff");
+			
+			input = argv[1];
+			output = outbuf;
+		}
+		if (String_MemMem(argv[1], ".aiff")) {
+			String_Copy(outbuf, String_GetPath(argv[1]));
+			String_Merge(outbuf, String_GetBasename(argv[1]));
+			String_Merge(outbuf, ".wav");
+			
+			input = argv[1];
+			output = outbuf;
+		}
+		
+		wait++;
 	}
 	
 	if (input == NULL) {
@@ -116,16 +139,19 @@ s32 Main(s32 argc, char* argv[]) {
 			sToolName,
 			sToolUsage
 		);
+		getchar();
 		
 		return 1;
 	}
 	
 	printf_toolinfo(
 		sToolName,
-		0
+		""
 	);
 	
+	OsPrintfEx("Audio_InitSampleInfo");
 	Audio_InitSampleInfo(&sample, input, output);
+	OsPrintfEx("Audio_LoadSample");
 	Audio_LoadSample(&sample);
 	
 	if (ParseArg("-N") || ParseArg("--N")) {
@@ -206,6 +232,12 @@ s32 Main(s32 argc, char* argv[]) {
 	}
 	
 	Audio_FreeSample(&sample);
+	
+	if (wait) {
+		#ifdef _WIN32
+			sleep(2);
+		#endif
+	}
 	
 	return 0;
 }

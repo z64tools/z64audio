@@ -171,9 +171,9 @@ void String_GetLine2(char* dest, char* str, s32 line);
 void String_GetWord2(char* dest, char* str, s32 word);
 void String_CaseToLow(char* s, s32 i);
 void String_CaseToUp(char* s, s32 i);
-void String_GetPath(char* dst, char* src);
-void String_GetBasename(char* dst, char* src);
-void String_GetFilename(char* dst, char* src);
+char* String_GetPath(char* src);
+char* String_GetBasename(char* src);
+char* String_GetFilename(char* src);
 void String_Insert(char* point, char* insert);
 void String_Remove(char* point, s32 amount);
 
@@ -292,10 +292,9 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define PRNT_RNL  PRNT_RSET PRNT_NL
 #define PRNT_TODO "\e[91;2m" "TODO"
 
-#define OsPrintf   printf_debug
-#define OsPrintfEx printf_debugExt
-
 #ifndef NDEBUG
+	#define OsPrintf   printf_debug
+	#define OsPrintfEx printf_debugExt
 	#define OsAssert(exp) if (!(exp)) { \
 			printf(PRNT_DGRY "[%s]: " PRNT_REDD "%s: " PRNT_GRAY "[%d]\n"PRNT_RSET, __FILE__, __FUNCTION__, __LINE__); \
 			printf_debug(PRNT_YELW "OsAssert(\a " PRNT_RSET # exp PRNT_YELW " );"); \
@@ -313,8 +312,9 @@ extern PrintfSuppressLevel gPrintfSuppress;
     #endif
 	
 #else
+	#define OsPrintf(...) if (0) {}   
+	#define OsPrintfEx(...) if (0) {}
 	#define OsAssert(exp) if (0) {}
-	
 #endif
 
 #define MAX(a, b)            ((a) > (b) ? (a) : (b))

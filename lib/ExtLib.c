@@ -25,6 +25,19 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 	
 	// [0;36m%s\e[m
 	va_start(args, fmt);
+	#if 1
+	printf(
+		"\e[90;2m"
+		"=----------------------------------=\n"
+		"|                                  |\n"
+	);
+	printf("\033[1A" "\033[3C");
+	printf("\e[0;96m%s\e[90;2m", toolname);
+	printf(
+		"\n"
+		"=----------------------------------=\e[m\n"
+	);
+	#else
 	printf(
 		"\e[90;2m"
 		"╔══════════════════════════════════╗\n"
@@ -36,6 +49,7 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 		"\n"
 		"╚══════════════════════════════════╝\e[m\n"
 	);
+	#endif
 	vprintf(
 		fmt,
 		args
@@ -801,43 +815,76 @@ void String_GetSlashAndPoint(char* src, s32* slash, s32* point) {
 	}
 }
 
-void String_GetPath(char* dst, char* src) {
+char* String_GetPath(char* src) {
+	#define __EXT_STR_MAX 16
+	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
+	static char* buffer[__EXT_STR_MAX];
+	static s32 index;
 	s32 point = 0;
 	s32 slash = 0;
+	char* ret;
 	
 	String_GetSlashAndPoint(src, &slash, &point);
 	
 	if (slash == 0)
 		slash = -1;
 	
-	memset(dst, 0, slash + 2);
-	memcpy(dst, src, slash + 1);
+	__EXT_BUFFER(0) = Lib_Calloc(0, slash + 0x10);
+	memset(__EXT_BUFFER(0), 0, slash + 2);
+	memcpy(__EXT_BUFFER(0), src, slash + 1);
+	Lib_Free(__EXT_BUFFER(-(__EXT_STR_MAX / 2)));
+	ret = __EXT_BUFFER(0);
+	index = Wrap(index + 1, 0, __EXT_STR_MAX - 1);
+	
+	return ret;
 }
 
-void String_GetBasename(char* dst, char* src) {
+char* String_GetBasename(char* src) {
+	#define __EXT_STR_MAX 16
+	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
+	static char* buffer[__EXT_STR_MAX];
+	static s32 index;
 	s32 point = 0;
 	s32 slash = 0;
+	char* ret;
 	
 	String_GetSlashAndPoint(src, &slash, &point);
 	
 	if (slash == 0)
 		slash = -1;
 	
-	memset(dst, 0, point - slash);
-	memcpy(dst, &src[slash + 1], point - slash - 1);
+	__EXT_BUFFER(0) = Lib_Calloc(0, slash + 0x10);
+	memset(__EXT_BUFFER(0), 0, point - slash);
+	memcpy(__EXT_BUFFER(0), &src[slash + 1], point - slash - 1);
+	Lib_Free(__EXT_BUFFER(-(__EXT_STR_MAX / 2)));
+	ret = __EXT_BUFFER(0);
+	index = Wrap(index + 1, 0, __EXT_STR_MAX - 1);
+	
+	return ret;
 }
 
-void String_GetFilename(char* dst, char* src) {
+char* String_GetFilename(char* src) {
+	#define __EXT_STR_MAX 16
+	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
+	static char* buffer[__EXT_STR_MAX];
+	static s32 index;
 	s32 point = 0;
 	s32 slash = 0;
+	char* ret;
 	
 	String_GetSlashAndPoint(src, &slash, &point);
 	
 	if (slash == 0)
 		slash = -1;
 	
-	memset(dst, 0, strlen(src) - slash);
-	memcpy(dst, &src[slash + 1], strlen(src) - slash - 1);
+	__EXT_BUFFER(0) = Lib_Calloc(0, slash + 0x10);
+	memset(__EXT_BUFFER(0), 0, strlen(src) - slash);
+	memcpy(__EXT_BUFFER(0), &src[slash + 1], strlen(src) - slash - 1);
+	Lib_Free(__EXT_BUFFER(-(__EXT_STR_MAX / 2)));
+	ret = __EXT_BUFFER(0);
+	index = Wrap(index + 1, 0, __EXT_STR_MAX - 1);
+	
+	return ret;
 }
 
 void String_Insert(char* point, char* insert) {
