@@ -444,7 +444,7 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 	fread(memFile->data, 1, memFile->dataSize, file);
 	fclose(file);
 	stat(filepath, &sta);
-	memFile->info.age = sta.st_mtim.tv_sec;
+	memFile->info.age = sta.st_mtime;
 	if (memFile->info.name)
 		free(memFile->info.name);
 	memFile->info.name = String_Generate(filepath);
@@ -487,7 +487,7 @@ s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
 	fread(memFile->data, 1, memFile->dataSize, file);
 	fclose(file);
 	stat(filepath, &sta);
-	memFile->info.age = sta.st_mtim.tv_sec;
+	memFile->info.age = sta.st_mtime;
 	if (memFile->info.name)
 		free(memFile->info.name);
 	memFile->info.name = String_Generate(filepath);
