@@ -207,9 +207,9 @@ void Audio_Upsample(AudioSampleInfo* sampleInfo) {
 	printf_debugExt("Upsampling done.");
 	
 	newMem.dataSize = sampleInfo->size =
-	    sampleInfo->samplesNum *
-	    sampleInfo->channelNum *
-	    sizeof(f32);
+		sampleInfo->samplesNum *
+		sampleInfo->channelNum *
+		sizeof(f32);
 	sampleInfo->bit = 32;
 	sampleInfo->dataIsFloat = true;
 	MemFile_Free(&sampleInfo->memFile);
@@ -731,12 +731,12 @@ void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo) {
 	
 	/* Write chunk headers */ {
 		header.chunk.size = 4 +
-		    sizeof(WaveInfo) +
-		    sizeof(WaveDataInfo) +
-		    sampleInfo->size +
-		    sizeof(WaveInstrumentInfo) +
-		    sizeof(WaveSampleInfo) +
-		    sizeof(WaveSampleLoop);
+			sizeof(WaveInfo) +
+			sizeof(WaveDataInfo) +
+			sampleInfo->size +
+			sizeof(WaveInstrumentInfo) +
+			sizeof(WaveSampleInfo) +
+			sizeof(WaveSampleLoop);
 		info.chunk.size = sizeof(WaveInfo) - sizeof(WaveChunk);
 		dataInfo.chunk.size = sampleInfo->size;
 		instrument.chunk.size = sizeof(WaveInstrumentInfo) - sizeof(WaveChunk);
@@ -814,13 +814,13 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 		markerInfo.chunk.size = sizeof(u16) + sizeof(AiffMarker) * 2;
 		instrument.chunk.size = sizeof(AiffInstrumentInfo) - sizeof(AiffChunk);
 		header.chunk.size = info.chunk.size +
-		    dataInfo.chunk.size +
-		    markerInfo.chunk.size +
-		    instrument.chunk.size +
-		    sizeof(AiffChunk) +
-		    sizeof(AiffChunk) +
-		    sizeof(AiffChunk) +
-		    sizeof(AiffChunk) + 4;
+			dataInfo.chunk.size +
+			markerInfo.chunk.size +
+			instrument.chunk.size +
+			sizeof(AiffChunk) +
+			sizeof(AiffChunk) +
+			sizeof(AiffChunk) +
+			sizeof(AiffChunk) + 4;
 		
 		Lib_ByteSwap(&info.chunk.size, SWAP_U32);
 		Lib_ByteSwap(&dataInfo.chunk.size, SWAP_U32);
@@ -899,94 +899,83 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	FILE* output = fopen(sampleInfo->output, "w");
 	
 	String_GetBasename(basename, sampleInfo->output);
+	u32 order = sampleInfo->vadBook.cast.u16[0];
+	u32 numPred = sampleInfo->vadBook.cast.u16[1];
 	
 	fprintf(
 		output,
-		"ALADPCMPredictor %sPred[] = {\n",
-		basename
+		"AdpcmBook %sPred[] = {\n"
+		"	.order = %d,\n"
+		"	.npredictors = %d,\n"
+		"	.book {\n",
+		basename,
+		order,
+		numPred
 	);
-	
-	u32 order = sampleInfo->vadBook.cast.u16[0];
-	u32 numPred = sampleInfo->vadBook.cast.u16[1];
 	
 	printf_debugExt("order: [%d] nPred [%d]", order, numPred);
 	
 	for (s32 j = 0; j < numPred; j++) {
-		fprintf(
-			output,
-			"	{\n"
-		);
 		for (s32 i = 0; i < 0x10; i++) {
 			fprintf(output, "		%d,\n", sampleInfo->vadBook.cast.s16[2 + i + 0x10 * j]);
 		}
-		fprintf(
-			output,
-			"	},\n"
-		);
 	}
 	
 	fprintf(
 		output,
+		"	},\n"
 		"};\n\n"
 	);
 	
 	if (sampleInfo->vadLoopBook.cast.p) {
 		fprintf(
 			output,
-			"ALADPCMLoopU %sLoop = {\n"
-			"	.withtail = {\n"
-			"		.main = {\n"
-			"			.start = %d,\n"
-			"			.end = %d,\n"
-			"			.count = 0x%08X,\n"
-			"			.adpcmState = 0x%08X,\n"
-			"		},\n"
-			"		.tail = {\n"
-			"			.data = {\n",
+			"AdpcmLoop %sLoop = {\n"
+			"	.start = %d,\n"
+			"	.end = %d,\n"
+			"	.count = 0x%08X,\n"
+			// "	.adpcmState = 0x%08X,\n"
+			"	.state = {\n",
 			basename,
 			sampleInfo->instrument.loop.start,
 			sampleInfo->instrument.loop.end,
-			sampleInfo->instrument.loop.count,
-			sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0
+			sampleInfo->instrument.loop.count
+			// sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0
 		);
 		
 		for (s32 i = 0; i < 0x10; i++) {
 			fprintf(
 				output,
-				"				%d,\n",
+				"		%d,\n",
 				sampleInfo->vadLoopBook.cast.s16[i]
 			);
 		}
 		fprintf(
 			output,
-			"			},\n"
-			"		},\n"
 			"	},\n"
 			"};\n\n"
 		);
 	} else {
 		fprintf(
 			output,
-			"ALADPCMLoopU %sLoop = {\n"
-			"	.notail = {\n"
-			"		.start = %d,\n"
-			"		.end = %d,\n"
-			"		.count = 0x%08X,\n"
-			"		.adpcmState = 0x%08X,\n"
-			"	}\n"
+			"AdpcmLoop %sLoop = {\n"
+			"	.start = %d,\n"
+			"	.end = %d,\n"
+			"	.count = 0x%08X,\n"
+			// "	.adpcmState = 0x%08X,\n"
 			"};\n\n",
 			basename,
 			sampleInfo->instrument.loop.start,
 			sampleInfo->instrument.loop.end,
-			sampleInfo->instrument.loop.count,
-			sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0
+			sampleInfo->instrument.loop.count
+			// sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0
 		);
 	}
 	
 	fprintf(
 		output,
-		"ABSample %sSample = {\n"
-		"	.len = %d,\n"
+		"SoundFontSample %sSample = {\n"
+		"	.size = %d,\n"
 		"	.loop = &%sLoop,\n"
 		"	.book = %sPred,\n"
 		"};\n\n",
@@ -998,50 +987,10 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	
 	fprintf(
 		output,
-		"ABEnvelope %sEnv = {\n"
-		"	.points = {\n"
-		"		{\n"
-		"			.rate = 0,\n"
-		"			.level = 0,\n"
-		"		},\n"
-		"		{\n"
-		"			.rate = 0,\n"
-		"			.level = 0,\n"
-		"		},\n"
-		"		{\n"
-		"			.rate = 0,\n"
-		"			.level = 0,\n"
-		"		},\n"
-		"		{\n"
-		"			.rate = 0,\n"
-		"			.level = 0,\n"
-		"		},\n"
-		"	}\n"
-		"};\n\n",
-		basename
-	);
-	
-	fprintf(
-		output,
-		"ABInstrument %sInstrument = {\n"
-		"	.splitHigh = %d,\n"
-		"	.splitLow = %d,\n"
-		"	.releaseRate = 0,\n"
-		"	.envelope = &%sEnv,\n"
-		"	.splits = {\n"
-		"		{ /* Not supported yet */ },\n"
-		"		{\n"
-		"			.sample = &%sSample,\n"
-		"			.tuning = %ff,\n"
-		"		},\n"
-		"		{ /* Not supported yet */ },\n"
-		"	}\n"
+		"SoundFontSound %sInstrument = {\n"
+		"	.sample = &%sSample,\n"
+		"	.tuning = %ff\n"
 		"};\n",
-		basename,
-		// For some reason the splits have to subtracted with 21 to match
-		// how they're mapped in OoT
-		CLAMP(sampleInfo->instrument.highNote - 21, 0, 127),
-		CLAMP(sampleInfo->instrument.lowNote - 21, 0, 127),
 		basename,
 		basename,
 		((f32)sampleInfo->sampleRate / 32000.0f) * pow(
