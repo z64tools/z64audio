@@ -897,10 +897,11 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	
 	char basename[1024];
 	FILE* output = fopen(sampleInfo->output, "w");
-	
-	String_GetBasename(basename, sampleInfo->output);
 	u32 order = sampleInfo->vadBook.cast.u16[0];
 	u32 numPred = sampleInfo->vadBook.cast.u16[1];
+	
+	String_GetBasename(basename, sampleInfo->output);
+	basename[0] = toupper(basename[0]);
 	
 	fprintf(
 		output,
@@ -909,20 +910,29 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	
 	fprintf(
 		output,
-		"AdpcmBook %sPred = {\n"
-		"	.order = %d,\n"
-		"	.npredictors = %d,\n"
-		"	.book = {\n",
+		"AdpcmBook s%sBook = {\n"
+		"	%d, %d,\n"
+		"	{\n",
 		basename,
 		order,
 		numPred
 	);
 	
-	printf_debugExt("order: [%d] nPred [%d]", order, numPred);
-	
 	for (s32 j = 0; j < numPred; j++) {
 		for (s32 i = 0; i < 0x10; i++) {
-			fprintf(output, "		%d,\n", sampleInfo->vadBook.cast.s16[2 + i + 0x10 * j]);
+			char* indent[] = {
+				"\t",
+				" ",
+				" ",
+				" "
+			};
+			char* nl[] = {
+				"",
+				"",
+				"",
+				"\n"
+			};
+			fprintf(output, "%s%5d,%s", indent[i % 4], sampleInfo->vadBook.cast.s16[2 + i + 0x10 * j], nl[i % 4]);
 		}
 	}
 	
@@ -932,20 +942,30 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 		"};\n\n"
 	);
 	
-	if (sampleInfo->vadLoopBook.cast.p) {
+	u32 loopStateLen = sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0;
+	u8* loopStatePtr = (u8*)&loopStateLen;
+	
+	fprintf(
+		output,
+		"AdpcmLoop s%sLoop = {\n"
+		/* start */ "	%d,"
+		/* end   */ " %d,\n"
+		/* count */ "	%d,\n"
+		/* state */ "	{ %d, %d, %d, %d, },\n",
+		basename,
+		sampleInfo->instrument.loop.start,
+		sampleInfo->instrument.loop.end,
+		sampleInfo->instrument.loop.count,
+		loopStatePtr[3],
+		loopStatePtr[2],
+		loopStatePtr[1],
+		loopStatePtr[0]
+	);
+	
+	if (sampleInfo->vadLoopBook.cast.p != NULL) {
 		fprintf(
 			output,
-			"AdpcmLoop %sLoop = {\n"
-			"	.start = %d,\n"
-			"	.end = %d,\n"
-			"	.count = 0x%08X,\n"
-			// "	.adpcmState = 0x%08X,\n"
-			"	.state = {\n",
-			basename,
-			sampleInfo->instrument.loop.start,
-			sampleInfo->instrument.loop.end,
-			sampleInfo->instrument.loop.count
-			// sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0
+			"	{\n"
 		);
 		
 		for (s32 i = 0; i < 0x10; i++) {
@@ -958,31 +978,23 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 		fprintf(
 			output,
 			"	},\n"
-			"};\n\n"
-		);
-	} else {
-		fprintf(
-			output,
-			"AdpcmLoop %sLoop = {\n"
-			"	.start = %d,\n"
-			"	.end = %d,\n"
-			"	.count = 0x%08X,\n"
-			// "	.adpcmState = 0x%08X,\n"
-			"};\n\n",
-			basename,
-			sampleInfo->instrument.loop.start,
-			sampleInfo->instrument.loop.end,
-			sampleInfo->instrument.loop.count
-			// sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0
 		);
 	}
+	fprintf(
+		output,
+		"};\n\n"
+	);
 	
 	fprintf(
 		output,
-		"SoundFontSample %sSample = {\n"
-		"	.size = %d,\n"
-		"	.loop = &%sLoop,\n"
-		"	.book = &%sPred,\n"
+		"SoundFontSample s%sSample = {\n"
+		/* codec  */ "	0,"
+		/* medium */ " 0,"
+		/* unk    */ " 0,"
+		/* unk    */ " 0,\n"
+		/* size   */ "	%d,\n"
+		/* loop   */ "	&s%sLoop,\n"
+		/* book   */ "	&s%sBook,\n"
 		"};\n\n",
 		basename,
 		sampleInfo->size,
@@ -992,9 +1004,9 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	
 	fprintf(
 		output,
-		"SoundFontSound %sInstrument = {\n"
-		"	.sample = &%sSample,\n"
-		"	.tuning = %ff\n"
+		"SoundFontSound %sSound = {\n"
+		"	&s%sSample,\n"
+		"	%ff\n"
 		"};\n",
 		basename,
 		basename,
@@ -1016,7 +1028,7 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	String_GetBasename(basename, sampleInfo->output);
 	String_Copy(buffer, path);
 	String_Merge(buffer, basename);
-	String_Merge(buffer, "Raw.bin");
+	String_Merge(buffer, "Sample.bin");
 	
 	output = fopen(buffer, "w");
 	fwrite(sampleInfo->audio.p, 1, sampleInfo->size, output);
@@ -1025,7 +1037,7 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	
 	String_Copy(buffer, path);
 	String_Merge(buffer, basename);
-	String_Merge(buffer, "Predictors.bin");
+	String_Merge(buffer, "Book.bin");
 	output = fopen(buffer, "w");
 	for (s32 i = 0; i < sampleInfo->vadBook.dataSize / 2; i++) {
 		Lib_ByteSwap(&sampleInfo->vadBook.cast.s16[i], SWAP_U16);
@@ -1041,7 +1053,7 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->vadLoopBook.data) {
 		String_Copy(buffer, path);
 		String_Merge(buffer, basename);
-		String_Merge(buffer, "LoopPred.bin");
+		String_Merge(buffer, "LoopBook.bin");
 		output = fopen(buffer, "w");
 		
 		for (s32 i = 0; i < 16; i++) {
