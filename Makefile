@@ -54,6 +54,7 @@ clean:
 	@rm -f z64audio *.exe
 	@rm -f $(shell find *.c -type f -not -name 'z64audio.c')
 	@rm -f *.bin
+	@rm -f *.book
 	@rm -f tabledesign
 	@rm -f vadpcm_*
 

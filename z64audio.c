@@ -231,7 +231,7 @@ s32 Main(s32 argc, char* argv[]) {
 			printf_warning("Output isn't [.aiff] file. Skipping generating vadpcm files");
 		} else {
 			AudioTools_RunTableDesign(&sample);
-			// AudioTools_RunVadpcmEnc(&sample);
+			AudioTools_RunVadpcmEnc(&sample);
 		}
 	}
 	

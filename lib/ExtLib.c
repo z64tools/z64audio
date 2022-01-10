@@ -385,9 +385,9 @@ MemFile MemFile_Initialize() {
 }
 
 void MemFile_Malloc(MemFile* memFile, u32 size) {
-	*memFile = MemFile_Initialize();
 	memset(memFile, 0, sizeof(MemFile));
 	memFile->data = malloc(size);
+	memset(memFile->data, 0, size);
 	
 	if (memFile->data == NULL) {
 		printf_warning("Failed to malloc [0x%X] bytes.", size);
@@ -424,6 +424,19 @@ s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 	}
 	memcpy(&dest->cast.u8[dest->seekPoint], src, size);
 	dest->seekPoint += size;
+	
+	return 0;
+}
+
+s32 MemFile_Read(MemFile* src, void* dest, u32 size) {
+	if (src->seekPoint + size > src->dataSize) {
+		OsPrintfEx("Extended dataSize");
+		
+		return 1;
+	}
+	
+	memcpy(dest, &src->cast.u8[src->seekPoint], size);
+	src->seekPoint += size;
 	
 	return 0;
 }
@@ -904,4 +917,10 @@ void String_Remove(char* point, s32 amount) {
 	
 	memcpy(point, get, strlen(get));
 	point[len] = 0;
+}
+
+void String_SwapExtension(char* dest, char* src, const char* ext) {
+	String_Copy(dest, String_GetPath(src));
+	String_Merge(dest, String_GetBasename(src));
+	String_Merge(dest, ext);
 }

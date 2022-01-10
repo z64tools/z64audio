@@ -150,6 +150,7 @@ void MemFile_Malloc(MemFile* memFile, u32 size);
 void MemFile_Realloc(MemFile* memFile, u32 size);
 void MemFile_Rewind(MemFile* memFile);
 s32 MemFile_Write(MemFile* dest, void* src, u32 size);
+s32 MemFile_Read(MemFile* src, void* dest, u32 size);
 s32 MemFile_LoadFile(MemFile* memFile, char* filepath);
 s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath);
 s32 MemFile_SaveFile(MemFile* memFile, char* filepath);
@@ -176,6 +177,7 @@ char* String_GetBasename(char* src);
 char* String_GetFilename(char* src);
 void String_Insert(char* point, char* insert);
 void String_Remove(char* point, s32 amount);
+void String_SwapExtension(char* dest, char* src, const char* ext);
 
 #define Node_Add(head, node) { \
 		OsAssert(node != NULL) \
@@ -239,11 +241,11 @@ void String_Remove(char* point, s32 amount);
 		if (tstP[0] != 0) { \
 			s32 size = sizeof(in); \
 			if (size == 2) { \
-				out = __builtin_bswap16(out); \
+				out = __builtin_bswap16(in); \
 			} else if (size == 4) { \
-				out = __builtin_bswap32(out); \
+				out = __builtin_bswap32(in); \
 			} else if (size == 8) { \
-				out = __builtin_bswap64(out); \
+				out = __builtin_bswap64(in); \
 			} else { \
 				out = in; \
 			} \
@@ -259,20 +261,7 @@ void String_Remove(char* point, s32 amount);
 		dest = ReadBE(get); \
 }
 
-#define ByteSwap(in) { \
-		s32 tst = 1; \
-		u8* tstP = (u8*)&tst; \
-		if (tstP[0] != 0) { \
-			typeof(*(in)) out; \
-			s32 size = sizeof(*(in)); \
-			u8* ptrS = (u8*)in; \
-			u8* ptrD = (u8*)&out; \
-			for (s32 i = 0; i < size; i++) { \
-				ptrD[size - i - 1] = ptrS[i]; \
-			} \
-			*in = out; \
-		} \
-}
+#define SwapBE(in) WriteBE(in, in)
 
 #define Decr(x) (x -= (x > 0) ? 1 : 0)
 #define Incr(x) (x += (x < 0) ? 1 : 0)
@@ -294,8 +283,9 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define PRNT_TODO "\e[91;2m" "TODO"
 
 #ifndef NDEBUG
-	#define OsPrintf   printf_debug
-	#define OsPrintfEx printf_debugExt
+	#define OsPrintf     printf_debug
+	#define OsPrintfEx   printf_debugExt
+	#define OsPrintfLine printf_debugInfo
 	#define OsAssert(exp) if (!(exp)) { \
 			printf(PRNT_DGRY "[%s]: " PRNT_REDD "%s: " PRNT_GRAY "[%d]\n"PRNT_RSET, __FILE__, __FUNCTION__, __LINE__); \
 			printf_debug(PRNT_YELW "OsAssert(\a " PRNT_RSET # exp PRNT_YELW " );"); \
@@ -313,9 +303,9 @@ extern PrintfSuppressLevel gPrintfSuppress;
     #endif
 	
 #else
-	#define OsPrintf(...) if (0) {}
+	#define OsPrintf(...)   if (0) {}
 	#define OsPrintfEx(...) if (0) {}
-	#define OsAssert(exp) if (0) {}
+	#define OsAssert(exp)   if (0) {}
 #endif
 
 #define MAX(a, b)            ((a) > (b) ? (a) : (b))
@@ -336,6 +326,11 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define printf_debugExt(...) if (gPrintfSuppress <= PSL_DEBUG) { \
 		printf(PRNT_DGRY "[%s]: " PRNT_REDD "%s: " PRNT_GRAY "[%d]\n"PRNT_RSET, __FILE__, __FUNCTION__, __LINE__); \
 		printf_debug(__VA_ARGS__); \
+}
+
+#define printf_debugInfo(x) if (gPrintfSuppress <= PSL_DEBUG) { \
+		printf(PRNT_DGRY "[%s]: " PRNT_REDD "%s: " PRNT_GRAY "[%d] " PRNT_RSET "%s\n", __FILE__, __FUNCTION__, __LINE__, # x); \
+		x; \
 }
 
 #define Main(y1, y2) main(y1, y2)

@@ -485,19 +485,19 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	}
 	
 	// Swap Chunk Sizes
-	Lib_ByteSwap(&aiffHeader->chunk.size, SWAP_U32);
-	Lib_ByteSwap(&aiffInfo->chunk.size, SWAP_U32);
-	Lib_ByteSwap(&aiffData->chunk.size, SWAP_U32);
+	SwapBE(aiffHeader->chunk.size);
+	SwapBE(aiffInfo->chunk.size);
+	SwapBE(aiffData->chunk.size);
 	
 	// Swap INFO
-	Lib_ByteSwap(&aiffInfo->channelNum, SWAP_U16);
-	Lib_ByteSwap(&aiffInfo->sampleNumH, SWAP_U16);
-	Lib_ByteSwap(&aiffInfo->sampleNumL, SWAP_U16);
-	Lib_ByteSwap(&aiffInfo->bit, SWAP_U16);
+	SwapBE(aiffInfo->channelNum);
+	SwapBE(aiffInfo->sampleNumH);
+	SwapBE(aiffInfo->sampleNumL);
+	SwapBE(aiffInfo->bit);
 	
 	// Swap DATA
-	Lib_ByteSwap(&aiffData->offset, SWAP_U32);
-	Lib_ByteSwap(&aiffData->blockSize, SWAP_U32);
+	SwapBE(aiffData->offset);
+	SwapBE(aiffData->blockSize);
 	
 	u32 sampleNum = aiffInfo->sampleNumL + (aiffInfo->sampleNumH << 16);
 	
@@ -523,12 +523,8 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	}
 	
 	if (aiffMarkerInfo && aiffInstInfo && aiffInstInfo->sustainLoop.playMode >= 1) {
-		u16 startIndex = aiffInstInfo->sustainLoop.start;
-		u16 endIndex = aiffInstInfo->sustainLoop.end;
-		Lib_ByteSwap(&startIndex, SWAP_U16);
-		Lib_ByteSwap(&endIndex, SWAP_U16);
-		startIndex--;
-		endIndex--;
+		u16 startIndex = ReadBE(aiffInstInfo->sustainLoop.start) - 1;
+		u16 endIndex = ReadBE(aiffInstInfo->sustainLoop.end) - 1;
 		u16 loopStartH = aiffMarkerInfo->marker[startIndex].positionH;
 		u16 loopStartL = aiffMarkerInfo->marker[startIndex].positionL;
 		u16 loopEndH = aiffMarkerInfo->marker[endIndex].positionH;
@@ -596,19 +592,19 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 	}
 	
 	// Swap Chunk Sizes
-	Lib_ByteSwap(&aiffHeader->chunk.size, SWAP_U32);
-	Lib_ByteSwap(&aiffInfo->chunk.size, SWAP_U32);
-	Lib_ByteSwap(&aiffData->chunk.size, SWAP_U32);
+	SwapBE(aiffHeader->chunk.size);
+	SwapBE(aiffInfo->chunk.size);
+	SwapBE(aiffData->chunk.size);
 	
 	// Swap INFO
-	Lib_ByteSwap(&aiffInfo->channelNum, SWAP_U16);
-	Lib_ByteSwap(&aiffInfo->sampleNumH, SWAP_U16);
-	Lib_ByteSwap(&aiffInfo->sampleNumL, SWAP_U16);
-	Lib_ByteSwap(&aiffInfo->bit, SWAP_U16);
+	SwapBE(aiffInfo->channelNum);
+	SwapBE(aiffInfo->sampleNumH);
+	SwapBE(aiffInfo->sampleNumL);
+	SwapBE(aiffInfo->bit);
 	
 	// Swap DATA
-	Lib_ByteSwap(&aiffData->offset, SWAP_U32);
-	Lib_ByteSwap(&aiffData->blockSize, SWAP_U32);
+	SwapBE(aiffData->offset);
+	SwapBE(aiffData->blockSize);
 	
 	u32 sampleNum = aiffInfo->sampleNumL + (aiffInfo->sampleNumH << 16);
 	
@@ -638,23 +634,36 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 	MemFile* vadLoop = &sampleInfo->vadLoopBook;
 	
 	if (pred && Lib_MemMem(pred, 24, "VADPCMCODES", 11)) {
-		u16 order = ((u16*)pred->data)[1];
-		u16 nPred = ((u16*)pred->data)[2];
-		Lib_ByteSwap(&order, SWAP_U16);
-		Lib_ByteSwap(&nPred, SWAP_U16);
-		
-		u32 predSize = (sizeof(u16) * 2) + (0x8 * order) * nPred;
+		u16 order = ReadBE(((u16*)pred->data)[1]);
+		u16 nPred = ReadBE(((u16*)pred->data)[2]);
+		u32 predSize = sizeof(u16) * (0x8 * order * nPred + 2);
 		
 		OsPrintfEx("order: [%d] nPred: [%d] size: [0x%X]", order, nPred, predSize);
 		
-		MemFile_Malloc(&sampleInfo->vadBook, predSize);
+		MemFile_Malloc(vadBook, predSize);
 		MemFile_Write(vadBook, &((u16*)pred->data)[1], predSize);
 		
-		for (s32 i = 0; i < predSize / 2; i++) {
-			Lib_ByteSwap(&sampleInfo->vadBook.cast.u16[i], SWAP_U16);
+		for (s32 i = 0; i < 0x8 * nPred * order + 2; i++) {
+			SwapBE(vadBook->cast.u16[i]);
 		}
 		
-		OsPrintfEx("Found and written [VADPCMCODES]");
+		if (gPrintfSuppress <= PSL_DEBUG) {
+			OsPrintfEx("%04X %04X", vadBook->cast.u16[0], vadBook->cast.u16[1]);
+			
+			for (s32 i = 0; i < nPred * order; i++) {
+				OsPrintf(
+					"%04X %04X %04X %04X %04X %04X %04X %04X",
+					vadBook->cast.u16[2 + i + 0],
+					vadBook->cast.u16[2 + i + 1],
+					vadBook->cast.u16[2 + i + 2],
+					vadBook->cast.u16[2 + i + 3],
+					vadBook->cast.u16[2 + i + 4],
+					vadBook->cast.u16[2 + i + 5],
+					vadBook->cast.u16[2 + i + 6],
+					vadBook->cast.u16[2 + i + 7]
+				);
+			}
+		}
 	}
 	
 	// VADPCM LOOP PREDICTORS
@@ -665,12 +674,12 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 	pred = Lib_MemMem(next + sampleInfo->size, size, "APPL", 4);
 	
 	if (pred && Lib_MemMem(pred, 24, "VADPCMLOOPS", 11)) {
+		OsPrintfEx("Found  [VADPCMLOOPS]");
 		MemFile_Malloc(&sampleInfo->vadLoopBook, sizeof(s16) * 16);
 		MemFile_Write(vadLoop, &((u16*)pred->data)[8], sizeof(s16) * 16);
 		for (s32 i = 0; i < 16; i++) {
 			Lib_ByteSwap(&sampleInfo->vadLoopBook.cast.u16[i], SWAP_U16);
 		}
-		OsPrintfEx("Found and written [VADPCMLOOPS]");
 		
 		sampleInfo->instrument.loop.count = ((u32*)pred->data)[3];
 		sampleInfo->instrument.loop.start = ((u32*)pred->data)[1];
@@ -817,11 +826,11 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 			sizeof(AiffChunk) +
 			sizeof(AiffChunk) + 4;
 		
-		Lib_ByteSwap(&info.chunk.size, SWAP_U32);
-		Lib_ByteSwap(&dataInfo.chunk.size, SWAP_U32);
-		Lib_ByteSwap(&markerInfo.chunk.size, SWAP_U32);
-		Lib_ByteSwap(&instrument.chunk.size, SWAP_U32);
-		Lib_ByteSwap(&header.chunk.size, SWAP_U32);
+		SwapBE(info.chunk.size);
+		SwapBE(dataInfo.chunk.size);
+		SwapBE(markerInfo.chunk.size);
+		SwapBE(instrument.chunk.size);
+		SwapBE(header.chunk.size);
 		
 		f80 sampleRate = sampleInfo->sampleRate;
 		u8* p = (u8*)&sampleRate;
@@ -833,8 +842,8 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 		info.channelNum = sampleInfo->channelNum;
 		Audio_ByteSwap_ToHighLow(&sampleInfo->samplesNum, &info.sampleNumH);
 		info.bit = sampleInfo->bit;
-		Lib_ByteSwap(&info.channelNum, SWAP_U16);
-		Lib_ByteSwap(&info.bit, SWAP_U16);
+		SwapBE(info.channelNum);
+		SwapBE(info.bit);
 		
 		markerInfo.markerNum = 2;
 		marker[0].index = 1;
@@ -842,9 +851,9 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 		marker[1].index = 2;
 		Audio_ByteSwap_ToHighLow(&sampleInfo->instrument.loop.end, &marker[1].positionH);
 		
-		Lib_ByteSwap(&markerInfo.markerNum, SWAP_U16);
-		Lib_ByteSwap(&marker[0].index, SWAP_U16);
-		Lib_ByteSwap(&marker[1].index, SWAP_U16);
+		SwapBE(markerInfo.markerNum);
+		SwapBE(marker[0].index);
+		SwapBE(marker[1].index);
 		
 		instrument.baseNote = sampleInfo->instrument.note;
 		instrument.detune = sampleInfo->instrument.fineTune;
@@ -853,15 +862,15 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 		instrument.lowVelocity = 0;
 		instrument.highNote = 127;
 		instrument.gain = __INT16_MAX__;
-		Lib_ByteSwap(&instrument.gain, SWAP_U16);
+		SwapBE(instrument.gain);
 		
 		if (sampleInfo->instrument.loop.count) {
 			instrument.sustainLoop.start = 1;
 			instrument.sustainLoop.end = 2;
 			instrument.sustainLoop.playMode = 1;
-			Lib_ByteSwap(&instrument.sustainLoop.start, SWAP_U16);
-			Lib_ByteSwap(&instrument.sustainLoop.end, SWAP_U16);
-			Lib_ByteSwap(&instrument.sustainLoop.playMode, SWAP_U16);
+			SwapBE(instrument.sustainLoop.start);
+			SwapBE(instrument.sustainLoop.end);
+			SwapBE(instrument.sustainLoop.playMode);
 		}
 	}
 	memcpy(header.chunk.name, "FORM", 4);

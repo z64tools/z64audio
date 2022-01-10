@@ -19,3 +19,4 @@ vadpcm_enc
 !sdk/tabledesign
 !sdk/vadpcm_dec
 !sdk/vadpcm_enc
+*.book
