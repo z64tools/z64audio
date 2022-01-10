@@ -75,11 +75,11 @@ s32 Main(s32 argc, char* argv[]) {
 	}
 	
 	if (ParseArg("-i") || ParseArg("--i")) {
-		input = argv[parArg];
+		input = String_GetSpacedArg(argv, parArg);
 	}
 	
 	if (ParseArg("-o") || ParseArg("--o")) {
-		output = argv[parArg];
+		output = String_GetSpacedArg(argv, parArg);
 	}
 	
 	if (ParseArg("-c") || ParseArg("--c")) {

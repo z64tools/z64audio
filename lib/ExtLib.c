@@ -586,6 +586,7 @@ void MemFile_Free(MemFile* memFile) {
 	}
 }
 
+#define __EXT_STR_MAX 32
 // String
 u32 String_HexStrToInt(char* string) {
 	return strtol(string, NULL, 16);
@@ -612,7 +613,6 @@ s32 String_GetLineCount(char* str) {
 }
 
 char* String_GetLine(char* str, s32 line) {
-	#define __EXT_STR_MAX 16
 	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
 	static char* buffer[__EXT_STR_MAX];
 	static s32 index;
@@ -648,11 +648,9 @@ char* String_GetLine(char* str, s32 line) {
 	
 	return ret;
 	#undef __EXT_BUFFER
-	#undef __EXT_STR_MAX
 }
 
 char* String_GetWord(char* str, s32 word) {
-	#define __EXT_STR_MAX 16
 	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
 	static char* buffer[__EXT_STR_MAX];
 	static s32 index;
@@ -688,7 +686,6 @@ char* String_GetWord(char* str, s32 word) {
 	
 	return ret;
 	#undef __EXT_BUFFER
-	#undef __EXT_STR_MAX
 }
 
 char* String_Line(char* str, s32 line) {
@@ -830,7 +827,6 @@ void String_GetSlashAndPoint(char* src, s32* slash, s32* point) {
 }
 
 char* String_GetPath(char* src) {
-	#define __EXT_STR_MAX 16
 	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
 	static char* buffer[__EXT_STR_MAX];
 	static s32 index;
@@ -854,7 +850,6 @@ char* String_GetPath(char* src) {
 }
 
 char* String_GetBasename(char* src) {
-	#define __EXT_STR_MAX 16
 	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
 	static char* buffer[__EXT_STR_MAX];
 	static s32 index;
@@ -878,7 +873,6 @@ char* String_GetBasename(char* src) {
 }
 
 char* String_GetFilename(char* src) {
-	#define __EXT_STR_MAX 16
 	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
 	static char* buffer[__EXT_STR_MAX];
 	static s32 index;
@@ -899,6 +893,8 @@ char* String_GetFilename(char* src) {
 	index = Wrap(index + 1, 0, __EXT_STR_MAX - 1);
 	
 	return ret;
+	
+	#undef __EXT_BUFFER
 }
 
 void String_Insert(char* point, char* insert) {
@@ -923,4 +919,33 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 	String_Copy(dest, String_GetPath(src));
 	String_Merge(dest, String_GetBasename(src));
 	String_Merge(dest, ext);
+}
+
+char* String_GetSpacedArg(char* argv[], s32 cur) {
+	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
+	static char* buffer[__EXT_STR_MAX];
+	char tempBuf[1024];
+	static s32 index;
+	s32 i = cur + 1;
+	
+	if (argv[cur + 1] != NULL && argv[cur + 1][0] != '-') {
+		if (__EXT_BUFFER(0) != NULL)
+			free(__EXT_BUFFER(0));
+		
+		String_Copy(tempBuf, argv[cur]);
+		
+		while (argv[i] != NULL && argv[i][0] != '-') {
+			String_Merge(tempBuf, " ");
+			String_Merge(tempBuf, argv[i++]);
+		}
+		
+		__EXT_BUFFER(0) = String_Generate(tempBuf);
+		index++;
+		
+		return __EXT_BUFFER(-1);
+	}
+	
+	return argv[cur];
+	
+	#undef __EXT_BUFFER
 }

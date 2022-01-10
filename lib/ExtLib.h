@@ -178,6 +178,7 @@ char* String_GetFilename(char* src);
 void String_Insert(char* point, char* insert);
 void String_Remove(char* point, s32 amount);
 void String_SwapExtension(char* dest, char* src, const char* ext);
+char* String_GetSpacedArg(char* argv[], s32 cur);
 
 #define Node_Add(head, node) { \
 		OsAssert(node != NULL) \
