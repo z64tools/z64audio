@@ -22,8 +22,8 @@ void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
 	
 	printf_info("Saving [%s]", buffer);
 	
-	String_Copy(sys, "tabledesign");
-	String_Merge(sys, "-i ");
+	String_Copy(sys, "./tabledesign");
+	String_Merge(sys, " -i ");
 	String_Merge(sys, gTableDesignIteration);
 	String_Merge(sys, " -f ");
 	String_Merge(sys, gTableDesignFrameSize);
@@ -33,8 +33,12 @@ void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
 	String_Merge(sys, gTableDesignBits);
 	String_Merge(sys, " -o ");
 	String_Merge(sys, gTableDesignOrder);
+	String_Merge(sys, " ");
+	String_Merge(sys, sampleInfo->output);
 	String_Merge(sys, " >> ");
 	String_Merge(sys, buffer);
+	
+	OsPrintfEx("%s", sys);
 	
 	if (system(sys))
 		printf_error("TableDesign has failed");
