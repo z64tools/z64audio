@@ -1,6 +1,5 @@
 #define __EXTLIB_C__
 #include "ExtLib.h"
-#include <time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 

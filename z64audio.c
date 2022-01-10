@@ -2,8 +2,6 @@
 #include "lib/AudioConvert.h"
 #include "lib/AudioTools.h"
 
-void sleep(u32);
-
 /* TODO:
  * Fix AudioTools_TableDesign, seems to output last pred row with slight difference
  * Implement Bicubic Resampling

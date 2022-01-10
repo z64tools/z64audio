@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <math.h>
 #include <ctype.h>
+#include <time.h>
 
 typedef signed char s8;
 typedef unsigned char u8;
