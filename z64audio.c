@@ -141,7 +141,9 @@ s32 Main(s32 argc, char* argv[]) {
 			sToolName,
 			sToolUsage
 		);
-		getchar();
+		#ifdef _WIN32
+			getchar();
+		#endif
 		
 		return 1;
 	}
