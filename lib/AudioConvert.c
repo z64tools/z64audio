@@ -313,12 +313,21 @@ void Audio_FreeSample(AudioSampleInfo* sampleInfo) {
 void Audio_GetSampleInfo_Wav(WaveInstrumentInfo** waveInstInfo, WaveSampleInfo** waveSampleInfo, WaveHeader* header, u32 fileSize) {
 	WaveInfo* wavInfo = Lib_MemMem(header, fileSize, "fmt ", 4);
 	WaveDataInfo* wavData = Lib_MemMem(header, fileSize, "data", 4);
-	u32 startOffset = sizeof(WaveHeader) + sizeof(WaveChunk) + wavInfo->chunk.size + sizeof(WaveChunk) + wavData->chunk.size;
-	u32 searchLength = header->chunk.size - startOffset;
+	s32 startOffset = sizeof(WaveHeader) + sizeof(WaveChunk) + wavInfo->chunk.size + sizeof(WaveChunk) + wavData->chunk.size;
+	s32 searchLength = header->chunk.size - startOffset;
 	u8* hayStart = ((u8*)header) + startOffset;
 	
 	OsPrintfEx("StartOffset  [0x%08X]", startOffset);
-	OsPrintfEx("SearchLength [0x%08X]", searchLength);
+	OsPrintf("SearchLength [0x%08X]", searchLength);
+	OsPrintf("FileSize [0x%08X]", fileSize);
+	
+	if (searchLength <= 0) {
+		OsPrintf("searchLength <= 0", fileSize);
+		*waveInstInfo = NULL;
+		*waveSampleInfo = NULL;
+		
+		return;
+	}
 	
 	*waveInstInfo = Lib_MemMem(hayStart, searchLength, "inst", 4);
 	*waveSampleInfo = Lib_MemMem(hayStart, searchLength, "smpl", 4);
@@ -333,12 +342,21 @@ void Audio_GetSampleInfo_Wav(WaveInstrumentInfo** waveInstInfo, WaveSampleInfo**
 }
 void Audio_GetSampleInfo_Aiff(AiffInstrumentInfo** aiffInstInfo, AiffMarkerInfo** aiffMarkerInfo, AiffHeader* header, u32 fileSize) {
 	AiffInfo* aiffInfo = Lib_MemMem(header, fileSize, "COMM", 4);
-	u32 startOffset = sizeof(AiffHeader) + aiffInfo->chunk.size;
-	u32 searchLength = header->chunk.size - startOffset;
+	s32 startOffset = sizeof(AiffHeader) + aiffInfo->chunk.size;
+	s32 searchLength = header->chunk.size - startOffset;
 	u8* hayStart = ((u8*)header) + startOffset;
 	
 	OsPrintfEx("StartOffset  [0x%08X]", startOffset);
 	OsPrintfEx("SearchLength [0x%08X]", searchLength);
+	OsPrintf("FileSize [0x%08X]", fileSize);
+	
+	if (searchLength <= 0) {
+		OsPrintf("searchLength <= 0", fileSize);
+		*aiffInstInfo = NULL;
+		*aiffMarkerInfo = NULL;
+		
+		return;
+	}
 	
 	*aiffInstInfo = Lib_MemMem(hayStart, searchLength, "INST", 4);
 	*aiffMarkerInfo = Lib_MemMem(hayStart, searchLength, "MARK", 4);
@@ -419,6 +437,7 @@ void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
 	WaveSampleInfo* waveSampleInfo;
 	
 	Audio_GetSampleInfo_Wav(&waveInstInfo, &waveSampleInfo, waveHeader, sampleInfo->memFile.dataSize);
+	
 	if (waveInfo->format == IEEE_FLOAT) {
 		printf_info("32-bit Float");
 		sampleInfo->dataIsFloat = true;
@@ -815,21 +834,48 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 	/* Write chunk headers */ {
 		info.chunk.size = sizeof(AiffInfo) - sizeof(AiffChunk) - 2;
 		dataInfo.chunk.size = sampleInfo->size + 0x8;
-		markerInfo.chunk.size = sizeof(u16) + sizeof(AiffMarker) * 2;
-		instrument.chunk.size = sizeof(AiffInstrumentInfo) - sizeof(AiffChunk);
 		header.chunk.size = info.chunk.size +
 			dataInfo.chunk.size +
-			markerInfo.chunk.size +
-			instrument.chunk.size +
-			sizeof(AiffChunk) +
-			sizeof(AiffChunk) +
 			sizeof(AiffChunk) +
 			sizeof(AiffChunk) + 4;
 		
+		if (sampleInfo->instrument.loop.count) {
+			markerInfo.chunk.size = sizeof(u16) + sizeof(AiffMarker) * 2;
+			instrument.chunk.size = sizeof(AiffInstrumentInfo) - sizeof(AiffChunk);
+			header.chunk.size += sizeof(AiffChunk) * 2;
+			header.chunk.size += markerInfo.chunk.size;
+			header.chunk.size += instrument.chunk.size;
+			SwapBE(markerInfo.chunk.size);
+			SwapBE(instrument.chunk.size);
+			WriteBE(instrument.sustainLoop.start, 1);
+			WriteBE(instrument.sustainLoop.end, 2);
+			WriteBE(instrument.sustainLoop.playMode, 1);
+			
+			markerInfo.markerNum = 2;
+			marker[0].index = 1;
+			Audio_ByteSwap_ToHighLow(&sampleInfo->instrument.loop.start, &marker[0].positionH);
+			marker[1].index = 2;
+			Audio_ByteSwap_ToHighLow(&sampleInfo->instrument.loop.end, &marker[1].positionH);
+			
+			SwapBE(markerInfo.markerNum);
+			SwapBE(marker[0].index);
+			SwapBE(marker[1].index);
+			
+			instrument.baseNote = sampleInfo->instrument.note;
+			instrument.detune = sampleInfo->instrument.fineTune;
+			instrument.lowNote = sampleInfo->instrument.lowNote;
+			instrument.highNote = sampleInfo->instrument.highNote;
+			instrument.lowVelocity = 0;
+			instrument.highNote = 127;
+			instrument.gain = __INT16_MAX__;
+			SwapBE(instrument.gain);
+			
+			memcpy(markerInfo.chunk.name, "MARK", 4);
+			memcpy(instrument.chunk.name, "INST", 4);
+		}
+		
 		SwapBE(info.chunk.size);
 		SwapBE(dataInfo.chunk.size);
-		SwapBE(markerInfo.chunk.size);
-		SwapBE(instrument.chunk.size);
 		SwapBE(header.chunk.size);
 		
 		f80 sampleRate = sampleInfo->sampleRate;
@@ -845,41 +891,12 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 		SwapBE(info.channelNum);
 		SwapBE(info.bit);
 		
-		markerInfo.markerNum = 2;
-		marker[0].index = 1;
-		Audio_ByteSwap_ToHighLow(&sampleInfo->instrument.loop.start, &marker[0].positionH);
-		marker[1].index = 2;
-		Audio_ByteSwap_ToHighLow(&sampleInfo->instrument.loop.end, &marker[1].positionH);
-		
-		SwapBE(markerInfo.markerNum);
-		SwapBE(marker[0].index);
-		SwapBE(marker[1].index);
-		
-		instrument.baseNote = sampleInfo->instrument.note;
-		instrument.detune = sampleInfo->instrument.fineTune;
-		instrument.lowNote = sampleInfo->instrument.lowNote;
-		instrument.highNote = sampleInfo->instrument.highNote;
-		instrument.lowVelocity = 0;
-		instrument.highNote = 127;
-		instrument.gain = __INT16_MAX__;
-		SwapBE(instrument.gain);
-		
-		if (sampleInfo->instrument.loop.count) {
-			instrument.sustainLoop.start = 1;
-			instrument.sustainLoop.end = 2;
-			instrument.sustainLoop.playMode = 1;
-			SwapBE(instrument.sustainLoop.start);
-			SwapBE(instrument.sustainLoop.end);
-			SwapBE(instrument.sustainLoop.playMode);
-		}
+		memcpy(header.chunk.name, "FORM", 4);
+		memcpy(header.formType, "AIFF", 4);
+		memcpy(info.chunk.name, "COMM", 4);
+		memcpy(info.compressionType, "NONE", 4);
+		memcpy(dataInfo.chunk.name, "SSND", 4);
 	}
-	memcpy(header.chunk.name, "FORM", 4);
-	memcpy(header.formType, "AIFF", 4);
-	memcpy(info.chunk.name, "COMM", 4);
-	memcpy(info.compressionType, "NONE", 4);
-	memcpy(dataInfo.chunk.name, "SSND", 4);
-	memcpy(markerInfo.chunk.name, "MARK", 4);
-	memcpy(instrument.chunk.name, "INST", 4);
 	
 	FILE* output = fopen(sampleInfo->output, "wb");
 	
@@ -888,10 +905,12 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 	
 	fwrite(&header, 1, sizeof(header), output);
 	fwrite(&info, 1, 0x16 + sizeof(AiffChunk), output);
-	fwrite(&markerInfo, 1, 0xA, output);
-	fwrite(&marker[0], 1, sizeof(AiffMarker), output);
-	fwrite(&marker[1], 1, sizeof(AiffMarker), output);
-	fwrite(&instrument, 1, sizeof(instrument), output);
+	if (sampleInfo->instrument.loop.count) {
+		fwrite(&markerInfo, 1, 0xA, output);
+		fwrite(&marker[0], 1, sizeof(AiffMarker), output);
+		fwrite(&marker[1], 1, sizeof(AiffMarker), output);
+		fwrite(&instrument, 1, sizeof(instrument), output);
+	}
 	fwrite(&dataInfo, 1, 16, output);
 	fwrite(sampleInfo->audio.p, 1, sampleInfo->size, output);
 	fclose(output);
@@ -1114,7 +1133,7 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 			OsPrintfEx("%s", funcName[i]);
 			
 			saveSample[i](sampleInfo);
-			OsPrintfEx("Loop: [%X] - [%X]", sampleInfo->instrument.loop.start, sampleInfo->instrument.loop.end);
+			OsPrintf("Loop: [%X] - [%X]", sampleInfo->instrument.loop.start, sampleInfo->instrument.loop.end);
 			break;
 		}
 	}
