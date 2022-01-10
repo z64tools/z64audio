@@ -281,9 +281,9 @@ s32 main(s32 argc, char **argv)
                 currPos += 16;
             }
 
-            flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-            flags &= ~FNDELAY;
-            fcntl(STDIN_FILENO, F_SETFL, flags);
+            // flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+            // flags &= ~FNDELAY;
+            // fcntl(STDIN_FILENO, F_SETFL, flags);
         }
     }
     else

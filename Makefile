@@ -1,55 +1,121 @@
-GCC         = gcc
-GPP         = g++
-WIN_GCC     = ~/c/mxe/usr/bin/i686-w64-mingw32.static-gcc
-WIN_GPP     = ~/c/mxe/usr/bin/i686-w64-mingw32.static-g++
-MAGIC       = -Ofast
-ADPCM       = tools/sdk-tools/adpcm/
-DEP         = -mwindows -lgdi32 -luser32 -lkernel32 -lm
+CFLAGS         := -Os -s -flto -Wall -Wno-unused-result
+SOURCE_C       := $(shell find lib/* -maxdepth 0 -type f -name '*.c')
+SOURCE_O_WIN32 := $(foreach f,$(SOURCE_C:.c=.o),bin/win32/$f)
+SOURCE_O_LINUX := $(foreach f,$(SOURCE_C:.c=.o),bin/linux/$f)
 
-.PHONY: objlinux objwin32 clean objects all
+ADPCM_C         := $(shell find sdk/adpcm/* -type f -name '*.c')
+ADPCM_CW        := $(shell find sdk/adpcm/* -type f -name '*.c' -not -name 'vadpcm_dec*')
+ADPCM_C_B       := $(shell find sdk/adpcm/* -type f -name '*.c' -not -name 'vadpcm_*')
+ADPCM_O_LINUX   := $(foreach f,$(ADPCM_C:.c=.o), bin/linux/$f)
+ADPCM_O_LINUX_B := $(foreach f,$(ADPCM_C_B:.c=.o), bin/linux/$f)
+ADPCM_O_WIN32   := $(foreach f,$(ADPCM_CW:.c=.o), bin/win32/$f)
+ADPCM_O_WIN32_B := $(foreach f,$(ADPCM_C_B:.c=.o), bin/win32/$f)
 
-default: win32 linux
+TABLEDESIGN_C       := $(shell find sdk/tabledesign/* -maxdepth 0 -type f -name '*.c')
+TABLEDESIGN_O_LINUX := $(foreach f,$(TABLEDESIGN_C:.c=.o), bin/linux/$f)
+TABLEDESIGN_O_WIN32 := $(foreach f,$(TABLEDESIGN_C:.c=.o), bin/win32/$f)
+AUDIOFILE_CPP       := sdk/tabledesign/audiofile/audiofile.cpp
+AUDIOFILE_O_LINUX   := $(foreach f,$(AUDIOFILE_CPP:.cpp=.o), bin/linux/$f)
+AUDIOFILE_O_WIN32   := $(foreach f,$(AUDIOFILE_CPP:.cpp=.o), bin/win32/$f)
 
-objects: objwin32 objlinux
+PRNT_DGRY := \e[90;2m
+PRNT_GRAY := \e[0;90m
+PRNT_DRED := \e[91;2m
+PRNT_REDD := \e[0;91m
+PRNT_GREN := \e[0;92m
+PRNT_YELW := \e[0;93m
+PRNT_BLUE := \e[0;94m
+PRNT_PRPL := \e[0;95m
+PRNT_CYAN := \e[0;96m
+PRNT_RSET := \e[m
 
-linux: z64audio
-win32: z64audio.exe
-win32cl: z64audio-cl.exe
+# Make build directories
+$(shell mkdir -p bin/ $(foreach dir, \
+	$(dir $(TABLEDESIGN_O_LINUX)) \
+	$(dir $(TABLEDESIGN_O_WIN32)) \
+	$(dir $(ADPCM_O_LINUX)) \
+	$(dir $(ADPCM_O_WIN32)) \
+	$(dir $(SOURCE_O_WIN32)) \
+	$(dir $(SOURCE_O_LINUX)), $(dir)))
 
-all: objects default
+.PHONY: clean default win lin
 
-objlinux:
-	@rm -f bin/o/linux/*.o
-	@$(GPP) -std=c++11 -c -s -Ofast -DNDEBUG tools/audiofile/audiofile.cpp -Itools/audiofile -Iwowlib -DWOW_OVERLOAD_FILE
-	@$(GCC) -c tools/sdk-tools/tabledesign/*.c -s -Ofast -DNDEBUG -Itools/audiofile -Iwowlib -DWOW_OVERLOAD_FILE
-	@$(GCC) -c $(ADPCM)quant.c $(ADPCM)sampleio.c $(ADPCM)util.c $(ADPCM)vpredictor.c $(ADPCM)vadpcm_enc.c $(ADPCM)vencode.c -s -Ofast -DNDEBUG -Itools/audiofile -Iwowlib -DWOW_OVERLOAD_FILE
-	@mkdir -p bin/o/linux
-	@mv *.o bin/o/linux
-
-z64audio: z64snd.c include/z64snd.h
-	@$(GCC) -c z64snd.c -Wall -Os -s -flto -DNDEBUG -Iwowlib -DWOW_OVERLOAD_FILE -Wno-format-truncation -Wno-strict-aliasing -Wno-unused-function
-	@$(GPP) -o z64audio z64snd.o bin/o/linux/*.o -Os -s -flto -DNDEBUG
-	@rm -f *.o
-
-objwin32:
-	@rm -f bin/o/win32/*.o
-	@$(WIN_GPP) -std=c++11 -c -Ofast -s -DNDEBUG tools/audiofile/audiofile.cpp -Itools/audiofile -Iwowlib -DWOW_OVERLOAD_FILE -municode -DUNICODE -D_UNICODE
-	@$(WIN_GCC) -c tools/sdk-tools/tabledesign/*.c -Ofast -s -DNDEBUG -Itools/audiofile -Iwowlib -DWOW_OVERLOAD_FILE -municode -DUNICODE -D_UNICODE
-	@$(WIN_GCC) -c $(ADPCM)quant.c $(ADPCM)sampleio.c $(ADPCM)util.c $(ADPCM)vpredictor.c $(ADPCM)vadpcm_enc.c $(ADPCM)vencode.c -Ofast -s -DNDEBUG -Itools/audiofile -Iwowlib -DWOW_OVERLOAD_FILE -municode -DUNICODE -D_UNICODE
-	@mkdir -p bin/o/win32
-	@mv *.o bin/o/win32
-
-z64audio.exe: z64snd.c include/z64snd.h
-	@$(WIN_GCC) -c z64snd.c -Wall -Os -s -flto -DNDEBUG -Iwowlib -DWOW_OVERLOAD_FILE -municode -DUNICODE -D_UNICODE $(DEP)
-	@~/c/mxe/usr/bin/i686-w64-mingw32.static-windres icon.rc -o bin/o/win32/icon.o
-	@$(WIN_GPP) -o z64audio.exe z64snd.o bin/o/win32/*.o -Os -s -flto -DNDEBUG -municode -DUNICODE -D_UNICODE $(DEP)
-	@rm -f *.o
-
-z64audio-cl.exe: z64snd.c include/z64snd.h
-	@$(WIN_GCC) -c z64snd.c -Wall -Os -s -flto -DNDEBUG -Iwowlib -DWOW_OVERLOAD_FILE -municode -DUNICODE -D_UNICODE -Wno-strict-aliasing -Wno-unused-function -D__Z64AUDIO_TERMINAL__
-	@~/c/mxe/usr/bin/i686-w64-mingw32.static-windres icon_cl.rc -o bin/o/win32/icon.o
-	@$(WIN_GPP) -o z64audio-cl.exe z64snd.o bin/o/win32/*.o -Os -s -flto -DNDEBUG -municode -DUNICODE -D_UNICODE
-	@rm -f *.o
+default: linux
+all: lin-tools win-tools lin win
+lin-tools: $(ADPCM_O_LINUX) $(TABLEDESIGN_O_LINUX) $(AUDIOFILE_O_LINUX) tabledesign vadpcm_enc vadpcm_dec
+win-tools: $(ADPCM_O_WIN32) $(TABLEDESIGN_O_WIN32) $(AUDIOFILE_O_WIN32) tabledesign.exe vadpcm_enc.exe
+linux: lin-tools $(SOURCE_O_LINUX) z64audio
+win32: win-tools $(SOURCE_O_WIN32) bin/icon.o z64audio.exe
 
 clean:
-	@rm -f *.tsv *.bin *.aifc *.aiff *.table
+	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find bin/* -type f)$(PRNT_RSET)]"
+	@rm -f $(shell find bin/* -type f)
+	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find z64audi* -type f -not -name '*.c')$(PRNT_RSET)]"
+	@rm -f z64audio *.exe
+	@rm -f $(shell find *.c -type f -not -name 'z64audio.c')
+	@rm -f *.bin
+	@rm -f tabledesign
+	@rm -f vadpcm_*
+
+# LINUX
+bin/linux/%.o: %.c %.h
+	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
+	@gcc -c -o $@ $< $(CFLAGS)
+
+z64audio: z64audio.c $(SOURCE_O_LINUX)
+	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
+	@gcc -o $@ $^ $(CFLAGS) -lm
+
+# WINDOWS32
+bin/win32/%.o: %.c %.h
+	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
+	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32
+
+bin/icon.o: lib/icon.rc lib/icon.ico
+	@i686-w64-mingw32.static-windres -o $@ $<
+
+z64audio.exe: z64audio.c bin/icon.o $(SOURCE_O_WIN32)
+	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
+	@i686-w64-mingw32.static-gcc -o $@ $^ $(CFLAGS) -lm -D_WIN32
+
+# AUDIOTOOLS LINUX
+
+bin/linux/sdk/%.o: sdk/%.c
+	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
+	@gcc -c -o $@ $< $(CFLAGS)
+
+bin/linux/sdk/%.o: sdk/%.cpp
+	@g++ -std=c++11 -O2 -I. -c $< -o $@
+
+tabledesign: $(TABLEDESIGN_O_LINUX) $(AUDIOFILE_O_LINUX)
+	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
+	@g++ -o $@ $^ -Wall -Wno-uninitialized -O2 -lm
+
+vadpcm_enc: bin/linux/sdk/adpcm/vadpcm_enc.o $(ADPCM_O_LINUX_B)
+	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
+	@gcc -o $@ $^ $(CFLAGS)
+
+vadpcm_dec: bin/linux/sdk/adpcm/vadpcm_dec.o $(ADPCM_O_LINUX_B)
+	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
+	@gcc -o $@ $^ $(CFLAGS)
+
+# AUDIOTOOLS WIN32
+
+bin/win32/sdk/%.o: sdk/%.c
+	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
+	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32 -DNDEBUG
+
+bin/win32/sdk/%.o: sdk/%.cpp
+	@i686-w64-mingw32.static-g++ -std=c++11 -O2 -I. -c $< -o $@ -DNDEBUG
+
+tabledesign.exe: $(TABLEDESIGN_O_WIN32) $(AUDIOFILE_O_WIN32)
+	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
+	@i686-w64-mingw32.static-g++ -o $@ $^ -Wall -Wno-uninitialized -O2 -lm
+
+vadpcm_enc.exe: bin/win32/sdk/adpcm/vadpcm_enc.o $(ADPCM_O_WIN32_B)
+	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
+	@i686-w64-mingw32.static-gcc -o $@ $^ $(CFLAGS) -D_WIN32
+
+vadpcm_dec.exe: bin/win32/sdk/adpcm/vadpcm_dec.o $(ADPCM_O_WIN32_B)
+	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
+	@i686-w64-mingw32.static-gcc -o $@ $^ $(CFLAGS) -D_WIN32

@@ -620,8 +620,6 @@ extern "C" {
 #define __attribute__(x)
 #endif
 
-extern int wow_open(const char *path, int flags, int mode);
-
 void _af_error (int errorCode, const char *fmt, ...)
 	__attribute__((format(printf, 2, 3)));
 
@@ -887,7 +885,7 @@ AFAPI int AUpvgetval (AUpvlist, int item, void *val);
 #ifndef AUDIOFILE_H
 #define AUDIOFILE_H
 
-#include <aupvlist.h>
+#include "aupvlist.h"
 #include <stdint.h>
 #include <sys/types.h>
 
@@ -2734,7 +2732,7 @@ private:
 #define PacketTable_h
 
 
-#include <audiofile.h>
+#include "audiofile.h"
 
 #include <stdint.h>
 #include <sys/types.h>
@@ -2999,7 +2997,7 @@ int _af_ulaw2linear (unsigned char u_val);
 #ifndef AUDIOFILE_VFS_H
 #define AUDIOFILE_VFS_H
 
-#include <audiofile.h>
+#include "audiofile.h"
 #include <sys/types.h>
 
 #ifdef __cplusplus
@@ -8248,7 +8246,7 @@ File *File::open(const char *path, File::AccessMode mode)
 #if defined(_WIN32) || defined(__CYGWIN__)
 	flags |= O_BINARY;
 #endif
-	int fd = wow_open(path, flags, 0666);
+	int fd = ::open(path, flags, 0666);
 	if (fd == -1)
 		return NULL;
 	File *file = new FilePOSIX(fd, mode);
@@ -14332,7 +14330,7 @@ int _af_ulaw2linear (unsigned char u_val)
 #include <unistd.h>
 #endif
 
-#include <audiofile.h>
+#include "audiofile.h"
 
 
 static status _afOpenFile (int access, File *f, const char *filename,
