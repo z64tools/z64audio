@@ -40,7 +40,7 @@ $(shell mkdir -p bin/ $(foreach dir, \
 
 .PHONY: clean default win lin
 
-default: lin
+default: linux
 all: lin-tools win-tools lin win
 lin-tools: $(ADPCM_O_LINUX) $(TABLEDESIGN_O_LINUX) $(AUDIOFILE_O_LINUX) tabledesign vadpcm_enc vadpcm_dec
 win-tools: $(ADPCM_O_WIN32) $(TABLEDESIGN_O_WIN32) $(AUDIOFILE_O_WIN32) tabledesign.exe vadpcm_enc.exe
