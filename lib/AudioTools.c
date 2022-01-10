@@ -29,11 +29,11 @@ void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
 	String_Merge(sys, " > ");
 	String_Merge(sys, buffer);
 	
-	printf_info("Saving [%s]", buffer);
 	OsPrintfEx("%s", sys);
 	
 	if (system(sys))
 		printf_error("TableDesign has failed");
+	printf_align("TableDesign", "%s", buffer);
 }
 void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
 	char buffer[256];
@@ -52,11 +52,11 @@ void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
 	String_SwapExtension(buffer, sampleInfo->output, ".aifc");
 	String_Merge(sys, buffer);
 	
-	printf_info("Saving [%s]", buffer);
 	OsPrintfEx("[%s]", sys);
 	
 	if (system(sys))
 		printf_error("VadpcmEnc has failed");
+	printf_align("VadpcmEnc", "%s", buffer);
 }
 
 void AudioTools_ReadCodeBook(AudioSampleInfo* sampleInfo, s32**** table, s32* destOrder, s32* destNPred) {
@@ -667,7 +667,7 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	
 	if (gPrintfSuppress <= PSL_DEBUG) {
 		for (s32 i = 0; i < (0x8 * sampleInfo->vadBook.cast.u16[0]) * sampleInfo->vadBook.cast.u16[1]; i++) {
-			printf("%6d", sampleInfo->vadBook.cast.s16[2 + i]);
+			printf("%04X ", sampleInfo->vadBook.cast.u16[2 + i]);
 			if ((i % 8) == 7)
 				printf("\n");
 		}
@@ -737,14 +737,13 @@ void AudioTools_LoadCodeBook(AudioSampleInfo* sampleInfo, char* file) {
 	u16 order;
 	u16 nPred;
 	
-	if (vadBook) {
+	if (vadBook->data) {
 		printf_debugExt("VadBook already exists");
 	}
 	
-	printf_debugExt("Loading Predictors [%s]", file);
 	MemFile_LoadFile(&temp, file);
 	for (s32 i = 0; i < temp.dataSize / 2; i++) {
-		Lib_ByteSwap(&temp.cast.u16[i], SWAP_U16);
+		SwapBE(temp.cast.u16[i]);
 	}
 	order = temp.cast.u16[1];
 	nPred = temp.cast.u16[3];
@@ -757,4 +756,6 @@ void AudioTools_LoadCodeBook(AudioSampleInfo* sampleInfo, char* file) {
 	}
 	
 	MemFile_Free(&temp);
+	
+	printf_align("Load Book", "%s", file);
 }

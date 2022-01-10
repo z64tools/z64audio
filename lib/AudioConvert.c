@@ -1,6 +1,21 @@
 #include "AudioConvert.h"
 #include "AudioTools.h"
 
+u32 gBinNameIndex;
+
+char* sBinName[][3] = {
+	{
+		"Sample.bin",
+		"Book.bin",
+		"BookLoop.bin"
+	},
+	{
+		"_sample.bin",
+		"_predictors.bin",
+		"_looppredictors.bin"
+	},
+};
+
 u32 Audio_ConvertBigEndianFloat80(AiffInfo* aiffInfo) {
 	f80 float80 = 0;
 	u8* pointer = (u8*)&float80;
@@ -64,7 +79,7 @@ void Audio_Normalize(AudioSampleInfo* sampleInfo) {
 	f32 max;
 	f32 mult;
 	
-	printf_info("Normalizing.");
+	printf_align("Normalizing", "");
 	
 	if (sampleInfo->bit == 16) {
 		max = 0;
@@ -114,7 +129,7 @@ void Audio_ConvertToMono(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->channelNum != 2)
 		return;
 	
-	printf_info("Converting to mono.");
+	printf_align("Mono", "");
 	
 	if (sampleInfo->bit == 24) {
 		printf_error("%s: 24-bit not supported yet.", __FUNCTION__);
@@ -136,9 +151,10 @@ void Audio_ConvertToMono(AudioSampleInfo* sampleInfo) {
 	sampleInfo->channelNum = 1;
 }
 void Audio_Downsample(AudioSampleInfo* sampleInfo) {
+	printf_align("Downsampling", "%d-bit -> %d-bit", sampleInfo->bit, sampleInfo->targetBit);
+	
 	if (sampleInfo->targetBit == 16) {
 		if (sampleInfo->bit == 24) {
-			printf_info("Resampling from 24-bit to 16-bit.");
 			for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
 				u16 samp = *(u16*)&sampleInfo->audio.u8[3 * i + 1];
 				sampleInfo->audio.s16[i] = samp;
@@ -150,7 +166,6 @@ void Audio_Downsample(AudioSampleInfo* sampleInfo) {
 		
 		if (sampleInfo->bit == 32) {
 			if (sampleInfo->dataIsFloat == true) {
-				printf_info("Resampling from 32-bit float to 16-bit.");
 				for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
 					sampleInfo->audio.s16[i] = sampleInfo->audio.f32[i] * __INT16_MAX__;
 				}
@@ -159,7 +174,6 @@ void Audio_Downsample(AudioSampleInfo* sampleInfo) {
 				sampleInfo->size *= 0.5;
 				sampleInfo->dataIsFloat = false;
 			} else {
-				printf_info("Resampling from 32-bit int to 16-bit.");
 				for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
 					sampleInfo->audio.s16[i] = sampleInfo->audio.s32[i] * ((f32)__INT16_MAX__ / (f32)__INT32_MAX__);
 				}
@@ -172,7 +186,6 @@ void Audio_Downsample(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->targetBit == 24) {
 		if (sampleInfo->bit == 32) {
 			printf_error("Resample to 24-bit not supported yet.");
-			// printf_info("Resampling from 32-bit to 16-bit.");
 			// for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
 			// 	sampleInfo->audio.data[i] = sampleInfo->audio.dataFloat[i] * __INT16_MAX__;
 			// }
@@ -187,7 +200,7 @@ void Audio_Upsample(AudioSampleInfo* sampleInfo) {
 	u32 samplesNum = sampleInfo->samplesNum;
 	u32 channelNum = sampleInfo->channelNum;
 	
-	printf_info("Target bitrate higher than source. Upsampling.");
+	printf_align("Upsampling", "%d-bit -> 32-bit", sampleInfo->bit);
 	OsPrintfEx("Upsampling will iterate %d times. %d x %d", samplesNum * channelNum, samplesNum, channelNum);
 	
 	MemFile_Malloc(&newMem, samplesNum * sizeof(f32) * channelNum);
@@ -221,7 +234,8 @@ void Audio_Resample(AudioSampleInfo* sampleInfo) {
 		Audio_Upsample(sampleInfo);
 	}
 	
-	Audio_Downsample(sampleInfo);
+	if (sampleInfo->targetBit != sampleInfo->bit)
+		Audio_Downsample(sampleInfo);
 }
 void Audio_Compare(AudioSampleInfo* sampleA, AudioSampleInfo* sampleB) {
 	char* addString[] = {
@@ -289,7 +303,7 @@ void Audio_Compare(AudioSampleInfo* sampleA, AudioSampleInfo* sampleB) {
 	if (diffCount) {
 		printf("\n");
 	} else {
-		printf_info("Data matches%s.", addString[flag]);
+		printf_align("Data matches", "%s", addString[flag]);
 	}
 }
 
@@ -439,7 +453,7 @@ void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
 	Audio_GetSampleInfo_Wav(&waveInstInfo, &waveSampleInfo, waveHeader, sampleInfo->memFile.dataSize);
 	
 	if (waveInfo->format == IEEE_FLOAT) {
-		printf_info("32-bit Float");
+		OsPrintfEx("32-bit Float");
 		sampleInfo->dataIsFloat = true;
 	}
 	if (waveInstInfo) {
@@ -739,9 +753,9 @@ void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 			char* basename;
 			
 			basename = String_GetBasename(sampleInfo->input);
-			printf_info("Loading [%s%s]", basename, keyword[i]);
 			
 			loadSample[i](sampleInfo);
+			printf_align("Load Sample", "%s%s", basename, keyword[i]);
 			break;
 		}
 	}
@@ -754,6 +768,7 @@ void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo) {
 	WaveInstrumentInfo instrument = { 0 };
 	WaveSampleInfo sample = { 0 };
 	WaveSampleLoop loop = { 0 };
+	MemFile output;
 	
 	/* Write chunk headers */ {
 		header.chunk.size = 4 +
@@ -790,29 +805,27 @@ void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo) {
 			loop.start = sampleInfo->instrument.loop.start;
 			loop.end = sampleInfo->instrument.loop.end;
 		}
+		
+		memcpy(header.chunk.name, "RIFF", 4);
+		memcpy(header.format, "WAVE", 4);
+		memcpy(info.chunk.name, "fmt ", 4);
+		memcpy(dataInfo.chunk.name, "data", 4);
+		memcpy(sample.chunk.name, "smpl", 4);
+		memcpy(instrument.chunk.name, "inst", 4);
 	}
 	
-	memcpy(header.chunk.name, "RIFF", 4);
-	memcpy(header.format, "WAVE", 4);
-	memcpy(info.chunk.name, "fmt ", 4);
-	memcpy(dataInfo.chunk.name, "data", 4);
-	memcpy(sample.chunk.name, "smpl", 4);
-	memcpy(instrument.chunk.name, "inst", 4);
+	MemFile_Malloc(&output, sampleInfo->size * 2);
 	
-	FILE* output = fopen(sampleInfo->output, "wb");
+	MemFile_Write(&output, &header, sizeof(header));
+	MemFile_Write(&output, &info, sizeof(info));
+	MemFile_Write(&output, &dataInfo, sizeof(dataInfo));
+	MemFile_Write(&output, sampleInfo->audio.p, sampleInfo->size);
+	MemFile_Write(&output, &instrument, sizeof(instrument));
+	MemFile_Write(&output, &sample, sizeof(sample));
+	MemFile_Write(&output, &loop, sizeof(loop));
 	
-	if (output == NULL)
-		printf_error("Audio_SaveSample_Wav: Could not open outputfile [%s]", sampleInfo->output);
-	
-	fwrite(&header, 1, sizeof(header), output);
-	fwrite(&info, 1, sizeof(info), output);
-	fwrite(&dataInfo, 1, sizeof(dataInfo), output);
-	fwrite(sampleInfo->audio.p, 1, sampleInfo->size, output);
-	fwrite(&instrument, 1, sizeof(instrument), output);
-	fwrite(&sample, 1, sizeof(sample), output);
-	fwrite(&loop, 1, sizeof(loop), output);
-	
-	fclose(output);
+	MemFile_SaveFile(&output, sampleInfo->output);
+	MemFile_Free(&output);
 }
 void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 	AiffHeader header = { 0 };
@@ -821,6 +834,7 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 	AiffMarker marker[2] = { 0 };
 	AiffMarkerInfo markerInfo = { 0 };
 	AiffInstrumentInfo instrument = { 0 };
+	MemFile output;
 	
 	// AIFF 32-bit == s32
 	if (sampleInfo->bit == 32 && sampleInfo->dataIsFloat) {
@@ -898,43 +912,111 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 		memcpy(dataInfo.chunk.name, "SSND", 4);
 	}
 	
-	FILE* output = fopen(sampleInfo->output, "wb");
+	MemFile_Malloc(&output, sampleInfo->size * 2);
 	
-	if (output == NULL)
-		printf_error("Audio_SaveSample_Aiff: Could not open outputfile [%s]", sampleInfo->output);
-	
-	fwrite(&header, 1, sizeof(header), output);
-	fwrite(&info, 1, 0x16 + sizeof(AiffChunk), output);
+	MemFile_Write(&output, &header, sizeof(header));
+	MemFile_Write(&output, &info, 0x16 + sizeof(AiffChunk));
 	if (sampleInfo->instrument.loop.count) {
-		fwrite(&markerInfo, 1, 0xA, output);
-		fwrite(&marker[0], 1, sizeof(AiffMarker), output);
-		fwrite(&marker[1], 1, sizeof(AiffMarker), output);
-		fwrite(&instrument, 1, sizeof(instrument), output);
+		MemFile_Write(&output, &markerInfo, 0xA);
+		MemFile_Write(&output, &marker[0], sizeof(AiffMarker));
+		MemFile_Write(&output, &marker[1], sizeof(AiffMarker));
+		MemFile_Write(&output, &instrument, sizeof(instrument));
 	}
-	fwrite(&dataInfo, 1, 16, output);
-	fwrite(sampleInfo->audio.p, 1, sampleInfo->size, output);
-	fclose(output);
+	MemFile_Write(&output, &dataInfo, 16);
+	MemFile_Write(&output, sampleInfo->audio.p, sampleInfo->size);
+	
+	MemFile_SaveFile(&output, sampleInfo->output);
+	MemFile_Free(&output);
+}
+void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
+	MemFile output;
+	u16 emp = 0;
+	char buffer[265 * 4];
+	
+	MemFile_Malloc(&output, sampleInfo->size * 2);
+	
+	String_SwapExtension(buffer, sampleInfo->output, sBinName[gBinNameIndex][0]);
+	MemFile_Clear(&output);
+	MemFile_Write(&output, sampleInfo->audio.p, sampleInfo->size);
+	MemFile_SaveFile(&output, buffer);
+	printf_align("Save Sample", "%s", buffer);
+	
+	String_SwapExtension(buffer, sampleInfo->output, sBinName[gBinNameIndex][1]);
+	MemFile_Clear(&output);
+	for (s32 i = 0; i < sampleInfo->vadBook.dataSize / 2; i++) {
+		SwapBE(sampleInfo->vadBook.cast.s16[i]);
+	}
+	MemFile_Write(&output, &emp, sizeof(u16));
+	MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[0], sizeof(u16));
+	MemFile_Write(&output, &emp, sizeof(u16));
+	MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[1], sizeof(u16));
+	MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[2], sampleInfo->vadBook.dataSize - sizeof(u16) * 2);
+	MemFile_SaveFile(&output, buffer);
+	printf_align("Save Book", "%s", buffer);
+	
+	if (sampleInfo->vadLoopBook.data) {
+		String_SwapExtension(buffer, sampleInfo->output, sBinName[gBinNameIndex][2]);
+		MemFile_Clear(&output);
+		
+		for (s32 i = 0; i < 16; i++) {
+			Lib_ByteSwap(&sampleInfo->vadLoopBook.cast.s16[i], SWAP_U16);
+		}
+		
+		MemFile_Write(&output, sampleInfo->vadLoopBook.cast.p, 16 * 2);
+		MemFile_SaveFile(&output, buffer);
+		printf_align("Save Loop Book", "%s", buffer);
+	}
+	
+	String_SwapExtension(buffer, sampleInfo->output, ".tsv");
+	MemFile_Clear(&output);
+	MemFile_Printf(&output, "precision\tloopstart\tloopend  \tloopcount\tlooptail \n");
+	MemFile_Printf(
+		&output,
+		"%08X\t%08X\t%08X\t%08X\t%08X\n",
+		0,
+		sampleInfo->instrument.loop.start,
+		sampleInfo->instrument.loop.end,
+		sampleInfo->instrument.loop.count,
+		sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0
+	);
+	MemFile_SaveFile_String(&output, buffer);
+	printf_align("Save TSV", "%s", buffer);
+	
+	OsPrintfEx(
+		"%08X %f",
+		(f32)((f32)sampleInfo->sampleRate / 32000.0f) * pow(
+			pow(2, 1.0 / 12.0),
+			60.0 - (f64)sampleInfo->instrument.note +
+			0.01 * sampleInfo->instrument.fineTune
+		),
+		(f32)((f32)sampleInfo->sampleRate / 32000.0f) * pow(
+			pow(2, 1.0 / 12.0),
+			60.0 - (f64)sampleInfo->instrument.note +
+			0.01 * sampleInfo->instrument.fineTune
+		)
+	);
+	
+	MemFile_Free(&output);
 }
 void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	char* basename;
-	FILE* output;
+	MemFile output;
 	u32 order;
 	u32 numPred;
 	
-	AudioTools_VadpcmEnc(sampleInfo);
-	output = fopen(sampleInfo->output, "w");
+	MemFile_Malloc(&output, 0x40000);
 	order = sampleInfo->vadBook.cast.u16[0];
 	numPred = sampleInfo->vadBook.cast.u16[1];
 	basename = String_GetBasename(sampleInfo->output);
 	basename[0] = toupper(basename[0]);
 	
-	fprintf(
-		output,
+	MemFile_Printf(
+		&output,
 		"#include \"include/z64.h\"\n\n"
 	);
 	
-	fprintf(
-		output,
+	MemFile_Printf(
+		&output,
 		"AdpcmBook s%sBook = {\n"
 		"	%d, %d,\n"
 		"	{\n",
@@ -960,12 +1042,12 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 			char buf[128];
 			
 			sprintf(buf, "%d,", sampleInfo->vadBook.cast.s16[2 + i + 0x10 * j]);
-			fprintf(output, "%s%-6s%s", indent[i % 4], buf, nl[i % 4]);
+			MemFile_Printf(&output, "%s%-6s%s", indent[i % 4], buf, nl[i % 4]);
 		}
 	}
 	
-	fprintf(
-		output,
+	MemFile_Printf(
+		&output,
 		"	},\n"
 		"};\n\n"
 	);
@@ -973,8 +1055,8 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	u32 loopStateLen = sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0;
 	u8* loopStatePtr = (u8*)&loopStateLen;
 	
-	fprintf(
-		output,
+	MemFile_Printf(
+		&output,
 		"AdpcmLoop s%sLoop = {\n"
 		/* start */ "	%d,"
 		/* end   */ " %d,\n"
@@ -991,30 +1073,30 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	);
 	
 	if (sampleInfo->vadLoopBook.cast.p != NULL) {
-		fprintf(
-			output,
+		MemFile_Printf(
+			&output,
 			"	{\n"
 		);
 		
 		for (s32 i = 0; i < 0x10; i++) {
-			fprintf(
-				output,
+			MemFile_Printf(
+				&output,
 				"		%d,\n",
 				sampleInfo->vadLoopBook.cast.s16[i]
 			);
 		}
-		fprintf(
-			output,
+		MemFile_Printf(
+			&output,
 			"	},\n"
 		);
 	}
-	fprintf(
-		output,
+	MemFile_Printf(
+		&output,
 		"};\n\n"
 	);
 	
-	fprintf(
-		output,
+	MemFile_Printf(
+		&output,
 		"SoundFontSample s%sSample = {\n"
 		/* codec  */ "	0,"
 		/* medium */ " 0,"
@@ -1030,8 +1112,8 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 		basename
 	);
 	
-	fprintf(
-		output,
+	MemFile_Printf(
+		&output,
 		"SoundFontSound s%sSound = {\n"
 		"	&s%sSample,\n"
 		"	%ff\n"
@@ -1045,70 +1127,29 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 		)
 	);
 	
-	fclose(output);
-	printf_info("Saving [%s]", sampleInfo->output);
-	
-	u16 emp = 0;
-	char* path;
-	char buffer[265];
-	
-	path = String_GetPath(sampleInfo->output);
-	basename = String_GetBasename(sampleInfo->output);
-	String_Copy(buffer, path);
-	String_Merge(buffer, basename);
-	String_Merge(buffer, "Sample.bin");
-	
-	output = fopen(buffer, "wb");
-	fwrite(sampleInfo->audio.p, 1, sampleInfo->size, output);
-	fclose(output);
-	printf_info("Saving [%s]", buffer);
-	
-	String_Copy(buffer, path);
-	String_Merge(buffer, basename);
-	String_Merge(buffer, "Book.bin");
-	output = fopen(buffer, "wb");
-	for (s32 i = 0; i < sampleInfo->vadBook.dataSize / 2; i++) {
-		Lib_ByteSwap(&sampleInfo->vadBook.cast.s16[i], SWAP_U16);
-	}
-	fwrite(&emp, sizeof(u16), 1, output);
-	fwrite(&sampleInfo->vadBook.cast.u16[0], sizeof(u16), 1, output);
-	fwrite(&emp, sizeof(u16), 1, output);
-	fwrite(&sampleInfo->vadBook.cast.u16[1], sizeof(u16), 1, output);
-	fwrite(&sampleInfo->vadBook.cast.u16[2], 1, sampleInfo->vadBook.dataSize - sizeof(u16) * 2, output);
-	fclose(output);
-	printf_info("Saving [%s]", buffer);
-	
-	if (sampleInfo->vadLoopBook.data) {
-		String_Copy(buffer, path);
-		String_Merge(buffer, basename);
-		String_Merge(buffer, "LoopBook.bin");
-		output = fopen(buffer, "wb");
-		
-		for (s32 i = 0; i < 16; i++) {
-			Lib_ByteSwap(&sampleInfo->vadLoopBook.cast.s16[i], SWAP_U16);
-		}
-		
-		fwrite(sampleInfo->vadLoopBook.cast.p, 2, 16, output);
-		fclose(output);
-		printf_info("Saving [%s]", buffer);
-	}
+	MemFile_SaveFile_String(&output, sampleInfo->output);
+	MemFile_Free(&output);
+	Audio_SaveSample_Binary(sampleInfo);
 }
 void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 	char* keyword[] = {
 		".wav",
 		".aiff",
 		".c",
+		".bin",
 	};
 	AudioFunc saveSample[] = {
 		Audio_SaveSample_Wav,
 		Audio_SaveSample_Aiff,
 		Audio_SaveSample_VadpcmC,
+		Audio_SaveSample_Binary,
 		NULL
 	};
 	char* funcName[] = {
 		"Audio_SaveSample_Wav",
 		"Audio_SaveSample_Aiff",
-		"Audio_SaveSample_VadpcmC"
+		"Audio_SaveSample_VadpcmC",
+		"Audio_SaveSample_Binary"
 	};
 	
 	if (!sampleInfo->output)
@@ -1128,11 +1169,14 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 			char* basename;
 			
 			basename = String_GetBasename(sampleInfo->output);
-			if (i != 2)
-				printf_info("Saving [%s%s]", basename, keyword[i]);
 			OsPrintfEx("%s", funcName[i]);
 			
+			if (i >= 2 && !String_MemMem(sampleInfo->input, ".aifc")) {
+				AudioTools_VadpcmEnc(sampleInfo);
+			}
 			saveSample[i](sampleInfo);
+			if (i != 3)
+				printf_align("Save Sample", "%s", sampleInfo->output);
 			OsPrintf("Loop: [%X] - [%X]", sampleInfo->instrument.loop.start, sampleInfo->instrument.loop.end);
 			break;
 		}

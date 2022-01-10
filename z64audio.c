@@ -21,7 +21,7 @@ void sleep(u32);
 #define Z64ARTD(xarg, comment) PRNT_DGRY "\e[9m" xarg PRNT_RSET "\r\033[18C" PRNT_DGRY "// " PRNT_RSET PRNT_TODO PRNT_RNL
 
 char* sToolName = {
-	"z64audio-cli 2.0 beta"
+	"z64audio" PRNT_GRAY " 2.0"
 };
 
 char* sToolUsage = {
@@ -53,6 +53,7 @@ char* sToolUsage = {
 	Z64ARGX("-D",            "Debug Print")
 	Z64ARGX("-s",            "Silence")
 	Z64ARGX("-N",            "Print Info of input [file]")
+	Z64ARGX("-Z",            "Name BIN output to match ZZRTL")
 	// Z64ARTD("ZZRTLMode",     "DragNDrop [zzrpl] file on z64audio")
 };
 
@@ -61,10 +62,13 @@ s32 Main(s32 argc, char* argv[]) {
 	char* input = NULL;
 	char* output = NULL;
 	u32 parArg;
-	u8 wait = 0;
 	
 	printf_WinFix();
 	printf_SetPrefix("");
+	
+	if (ParseArg("-z") || ParseArg("--z")) {
+		gBinNameIndex = 1;
+	}
 	
 	if (ParseArg("-D") || ParseArg("--D")) {
 		printf_SetSuppressLevel(PSL_DEBUG);
@@ -116,24 +120,12 @@ s32 Main(s32 argc, char* argv[]) {
 			
 			return 0;
 		}
-		if (String_MemMem(argv[1], ".wav")) {
-			String_Copy(outbuf, String_GetPath(argv[1]));
-			String_Merge(outbuf, String_GetBasename(argv[1]));
-			String_Merge(outbuf, ".aiff");
+		if (String_MemMem(argv[1], ".wav") || String_MemMem(argv[1], ".aiff")) {
+			String_SwapExtension(outbuf, argv[1], ".bin");
 			
 			input = argv[1];
 			output = outbuf;
 		}
-		if (String_MemMem(argv[1], ".aiff")) {
-			String_Copy(outbuf, String_GetPath(argv[1]));
-			String_Merge(outbuf, String_GetBasename(argv[1]));
-			String_Merge(outbuf, ".wav");
-			
-			input = argv[1];
-			output = outbuf;
-		}
-		
-		wait++;
 	}
 	
 	if (input == NULL) {
@@ -141,9 +133,6 @@ s32 Main(s32 argc, char* argv[]) {
 			sToolName,
 			sToolUsage
 		);
-		#ifdef _WIN32
-			getchar();
-		#endif
 		
 		return 1;
 	}
@@ -155,16 +144,37 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	OsPrintfEx("Audio_InitSampleInfo");
 	Audio_InitSampleInfo(&sample, input, output);
+	
+	if (ParseArg("-p") || ParseArg("--p")) {
+		AudioTools_LoadCodeBook(&sample, argv[parArg]);
+	} else {
+		if (ParseArg("-I") || ParseArg("--I")) {
+			gTableDesignIteration = argv[parArg];
+		}
+		if (ParseArg("-F") || ParseArg("--F")) {
+			gTableDesignFrameSize = argv[parArg];
+		}
+		if (ParseArg("-B") || ParseArg("--B")) {
+			gTableDesignBits = argv[parArg];
+		}
+		if (ParseArg("-O") || ParseArg("--O")) {
+			gTableDesignOrder = argv[parArg];
+		}
+		if (ParseArg("-T") || ParseArg("--T")) {
+			gTableDesignThreshold = argv[parArg];
+		}
+	}
+	
 	OsPrintfEx("Audio_LoadSample");
 	Audio_LoadSample(&sample);
 	
 	if (ParseArg("-N") || ParseArg("--N")) {
-		printf_info("BitDepth    [ %8d ] " PRNT_GRAY "[%s]", sample.bit, sample.input);
-		printf_info("Sample Rate [ %8d ] " PRNT_GRAY "[%s]", sample.sampleRate, sample.input);
-		printf_info("Channels    [ %8d ] " PRNT_GRAY "[%s]", sample.channelNum, sample.input);
-		printf_info("Frames      [ %8d ] " PRNT_GRAY "[%s]", sample.samplesNum, sample.input);
-		printf_info("Data Size   [ %8d ] " PRNT_GRAY "[%s]", sample.size, sample.input);
-		printf_info("File Size   [ %8d ] " PRNT_GRAY "[%s]", sample.memFile.dataSize, sample.input);
+		printf_align("BitDepth", "%10d", sample.bit);
+		printf_align("Sample Rate", "%10d", sample.sampleRate);
+		printf_align("Channels", "%10d", sample.channelNum);
+		printf_align("Frames", "%10d", sample.samplesNum);
+		printf_align("Data Size", "%10d", sample.size);
+		printf_align("File Size", "%10d", sample.memFile.dataSize);
 		
 		if (output == NULL)
 			return 0;
@@ -204,26 +214,6 @@ s32 Main(s32 argc, char* argv[]) {
 		Audio_ConvertToMono(&sample);
 	}
 	
-	if (ParseArg("-p") || ParseArg("--p")) {
-		AudioTools_LoadCodeBook(&sample, argv[parArg]);
-	} else {
-		if (ParseArg("-I") || ParseArg("--I")) {
-			gTableDesignIteration = argv[parArg];
-		}
-		if (ParseArg("-F") || ParseArg("--F")) {
-			gTableDesignFrameSize = argv[parArg];
-		}
-		if (ParseArg("-B") || ParseArg("--B")) {
-			gTableDesignBits = argv[parArg];
-		}
-		if (ParseArg("-O") || ParseArg("--O")) {
-			gTableDesignOrder = argv[parArg];
-		}
-		if (ParseArg("-T") || ParseArg("--T")) {
-			gTableDesignThreshold = argv[parArg];
-		}
-	}
-	
 	Audio_SaveSample(&sample);
 	
 	if (ParseArg("-v") || ParseArg("--v")) {
@@ -236,12 +226,6 @@ s32 Main(s32 argc, char* argv[]) {
 	}
 	
 	Audio_FreeSample(&sample);
-	
-	if (wait) {
-		#ifdef _WIN32
-			sleep(2);
-		#endif
-	}
 	
 	return 0;
 }

@@ -123,11 +123,13 @@ typedef struct {
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_SetPrefix(char* fmt);
+void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i);
 void printf_toolinfo(const char* toolname, const char* fmt, ...);
 void printf_debug(const char* fmt, ...);
 void printf_warning(const char* fmt, ...);
 void printf_error(const char* fmt, ...);
 void printf_info(const char* fmt, ...);
+void printf_align(const char* info, const char* fmt, ...);
 void printf_WinFix();
 
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
@@ -150,6 +152,7 @@ void MemFile_Malloc(MemFile* memFile, u32 size);
 void MemFile_Realloc(MemFile* memFile, u32 size);
 void MemFile_Rewind(MemFile* memFile);
 s32 MemFile_Write(MemFile* dest, void* src, u32 size);
+s32 MemFile_Printf(MemFile* dest, const char* fmt, ...);
 s32 MemFile_Read(MemFile* src, void* dest, u32 size);
 s32 MemFile_LoadFile(MemFile* memFile, char* filepath);
 s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath);
@@ -158,6 +161,7 @@ s32 MemFile_SaveFile_String(MemFile* memFile, char* filepath);
 s32 MemFile_LoadFile_ReqExt(MemFile* memFile, char* filepath, const char* ext);
 s32 MemFile_SaveFile_ReqExt(MemFile* memFile, char* filepath, s32 size, const char* ext);
 void MemFile_Free(MemFile* memFile);
+void MemFile_Clear(MemFile* memFile);
 
 #define String_MemMem(src, comp) Lib_MemMem(src, strlen(src), comp, strlen(comp))
 u32 String_HexStrToInt(char* string);

@@ -9,6 +9,22 @@
 // Print
 PrintfSuppressLevel gPrintfSuppress = 0;
 char* sPrintfPrefix = "ExtLib";
+u8 sPrintfType = 1;
+
+char* sPrintfPreType[][4] = {
+	{
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+	},
+	{
+		"debg",
+		"warn",
+		"err!",
+		"info"
+	}
+};
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
 	gPrintfSuppress = lvl;
@@ -18,43 +34,57 @@ void printf_SetPrefix(char* fmt) {
 	sPrintfPrefix = fmt;
 }
 
+void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i) {
+	sPrintfType = 0;
+	sPrintfPreType[sPrintfType][0] = String_Generate(d);
+	sPrintfPreType[sPrintfType][1] = String_Generate(w);
+	sPrintfPreType[sPrintfType][2] = String_Generate(e);
+	sPrintfPreType[sPrintfType][3] = String_Generate(i);
+}
+
 void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
 	va_list args;
 	
-	// [0;36m%s\e[m
 	va_start(args, fmt);
-	#if 1
-		printf(
-			"\e[90;2m"
-			"=----------------------------------=\n"
-			"|                                  |\n"
-		);
-		printf("\033[1A" "\033[3C");
-		printf("\e[0;96m%s\e[90;2m", toolname);
-		printf(
-			"\n"
-			"=----------------------------------=\e[m\n"
-		);
-	#else
-		printf(
-			"\e[90;2m"
-			"╔══════════════════════════════════╗\n"
-			"║                                  ║\n"
-		);
-		printf("\033[1A" "\033[3C");
-		printf("\e[0;96m%s\e[90;2m", toolname);
-		printf(
-			"\n"
-			"╚══════════════════════════════════╝\e[m\n"
-		);
-	#endif
+	printf(
+		PRNT_GRAY
+		">----------------------------------<\n"
+		"|                                  |\n"
+	);
+	printf("\033[1A" "\033[3C");
+	printf(PRNT_CYAN "%s" PRNT_GRAY, toolname);
+	printf(
+		"\n"
+		">----------------------------------<\n"
+		PRNT_RSET
+	);
 	vprintf(
 		fmt,
 		args
 	);
 	va_end(args);
+}
+
+static void __printf_call(u32 type) {
+	char* color[4] = {
+		PRNT_GRAY,
+		PRNT_YELW,
+		PRNT_REDD,
+		PRNT_CYAN
+	};
+	
+	printf(
+		"%s"
+		PRNT_GRAY "["
+		"%s%s"
+		PRNT_GRAY "]:\t"
+		PRNT_RSET,
+		sPrintfPrefix,
+		color[type],
+		sPrintfPreType[sPrintfType][type]
+	);
 }
 
 void printf_debug(const char* fmt, ...) {
@@ -63,18 +93,12 @@ void printf_debug(const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	printf(
-		"%s"
-		"\e[90;2m"
-		"[\e[0;90mdebg\e[90;2m]:\t"
-		"\e[m",
-		sPrintfPrefix
-	);
+	__printf_call(0);
 	vprintf(
 		fmt,
 		args
 	);
-	printf("\n");
+	printf(PRNT_RSET "\n");
 	va_end(args);
 }
 
@@ -84,13 +108,7 @@ void printf_warning(const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	printf(
-		"%s"
-		"\e[90;2m"
-		"[\e[0;93mwarn\e[90;2m]:\t"
-		"\e[m",
-		sPrintfPrefix
-	);
+	__printf_call(1);
 	vprintf(
 		fmt,
 		args
@@ -104,13 +122,7 @@ void printf_error(const char* fmt, ...) {
 		va_list args;
 		
 		va_start(args, fmt);
-		printf(
-			"%s"
-			"\e[90;2m"
-			"[\e[0;91merr!\e[90;2m]:\t"
-			"\e[m",
-			sPrintfPrefix
-		);
+		__printf_call(2);
 		vprintf(
 			fmt,
 			args
@@ -127,18 +139,31 @@ void printf_info(const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	printf(
-		"%s"
-		"\e[90;2m"
-		"[\e[0;94minfo\e[90;2m]:\t"
-		"\e[m",
-		sPrintfPrefix
-	);
+	__printf_call(3);
 	vprintf(
 		fmt,
 		args
 	);
 	printf("\n");
+	va_end(args);
+}
+
+void printf_align(const char* info, const char* fmt, ...) {
+	if (gPrintfSuppress >= PSL_NO_INFO)
+		return;
+	va_list args;
+	
+	va_start(args, fmt);
+	__printf_call(3);
+	printf(
+		"%-16s [ " PRNT_GRAY,
+		info
+	);
+	vprintf(
+		fmt,
+		args
+	);
+	printf(PRNT_RSET " ]\n");
 	va_end(args);
 }
 
@@ -428,6 +453,21 @@ s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 	return 0;
 }
 
+s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
+	char buffer[1024 * 8];
+	va_list args;
+	
+	va_start(args, fmt);
+	vsprintf(
+		buffer,
+		fmt,
+		args
+	);
+	va_end(args);
+	
+	return MemFile_Write(dest, buffer, strlen(buffer));
+}
+
 s32 MemFile_Read(MemFile* src, void* dest, u32 size) {
 	if (src->seekPoint + size > src->dataSize) {
 		OsPrintfEx("Extended dataSize");
@@ -584,6 +624,12 @@ void MemFile_Free(MemFile* memFile) {
 		
 		memset(memFile, 0, sizeof(MemFile));
 	}
+}
+
+void MemFile_Clear(MemFile* memFile) {
+	memset(memFile->data, 0, memFile->memSize);
+	memFile->dataSize = 0;
+	memFile->seekPoint = 0;
 }
 
 #define __EXT_STR_MAX 32
