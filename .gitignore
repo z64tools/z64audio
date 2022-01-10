@@ -20,3 +20,4 @@ vadpcm_enc
 !sdk/vadpcm_dec
 !sdk/vadpcm_enc
 *.book
+audio/*
