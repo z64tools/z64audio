@@ -13,3 +13,6 @@ output/*
 *.bin
 wowlib/
 *.exe
+tabledesign
+vadpcm_dec
+vadpcm_enc
