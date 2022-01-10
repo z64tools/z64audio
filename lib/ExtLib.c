@@ -26,29 +26,29 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 	// [0;36m%s\e[m
 	va_start(args, fmt);
 	#if 1
-	printf(
-		"\e[90;2m"
-		"=----------------------------------=\n"
-		"|                                  |\n"
-	);
-	printf("\033[1A" "\033[3C");
-	printf("\e[0;96m%s\e[90;2m", toolname);
-	printf(
-		"\n"
-		"=----------------------------------=\e[m\n"
-	);
+		printf(
+			"\e[90;2m"
+			"=----------------------------------=\n"
+			"|                                  |\n"
+		);
+		printf("\033[1A" "\033[3C");
+		printf("\e[0;96m%s\e[90;2m", toolname);
+		printf(
+			"\n"
+			"=----------------------------------=\e[m\n"
+		);
 	#else
-	printf(
-		"\e[90;2m"
-		"╔══════════════════════════════════╗\n"
-		"║                                  ║\n"
-	);
-	printf("\033[1A" "\033[3C");
-	printf("\e[0;96m%s\e[90;2m", toolname);
-	printf(
-		"\n"
-		"╚══════════════════════════════════╝\e[m\n"
-	);
+		printf(
+			"\e[90;2m"
+			"╔══════════════════════════════════╗\n"
+			"║                                  ║\n"
+		);
+		printf("\033[1A" "\033[3C");
+		printf("\e[0;96m%s\e[90;2m", toolname);
+		printf(
+			"\n"
+			"╚══════════════════════════════════╝\e[m\n"
+		);
 	#endif
 	vprintf(
 		fmt,
@@ -385,6 +385,7 @@ MemFile MemFile_Initialize() {
 }
 
 void MemFile_Malloc(MemFile* memFile, u32 size) {
+	*memFile = MemFile_Initialize();
 	memset(memFile, 0, sizeof(MemFile));
 	memFile->data = malloc(size);
 	

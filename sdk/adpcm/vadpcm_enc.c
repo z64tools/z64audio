@@ -9,7 +9,7 @@
 
 static char usage[] = "[-t -l min_loop_length] -c codebook aifcfile compressedfile";
 
-int vadpcm_enc(int argc, char** argv) {
+int main(int argc, char** argv) {
 	s32 c = 0;
 	char* progname = argv[0];
 	s16 nloops = 0;

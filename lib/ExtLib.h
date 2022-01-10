@@ -238,11 +238,12 @@ void String_Remove(char* point, s32 amount);
 		u8* tstP = (u8*)&tst; \
 		if (tstP[0] != 0) { \
 			s32 size = sizeof(in); \
-			u8* b = (u8*)&in; \
 			if (size == 2) { \
-				out = (b[0] << 8) | b[1]; \
+				out = __builtin_bswap16(out); \
 			} else if (size == 4) { \
-				out = (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3]; \
+				out = __builtin_bswap32(out); \
+			} else if (size == 8) { \
+				out = __builtin_bswap64(out); \
 			} else { \
 				out = in; \
 			} \
@@ -312,7 +313,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
     #endif
 	
 #else
-	#define OsPrintf(...) if (0) {}   
+	#define OsPrintf(...) if (0) {}
 	#define OsPrintfEx(...) if (0) {}
 	#define OsAssert(exp) if (0) {}
 #endif

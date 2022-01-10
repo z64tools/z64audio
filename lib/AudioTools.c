@@ -7,110 +7,89 @@ char* gTableDesignBits = "2";
 char* gTableDesignOrder = "2";
 char* gTableDesignThreshold = "10.0";
 
-#if 0
-	void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
-		char basename[256];
-		char path[256];
-		char buffer[256];
-		char* tableDesignArgv[] = {
-			"tabledesign",
-			"-i",
-			gTableDesignIteration,
-			"-f",
-			gTableDesignFrameSize,
-			"-s",
-			gTableDesignBits,
-			"-o",
-			gTableDesignOrder,
-			sampleInfo->output
-		};
-		
-		String_GetBasename(basename, sampleInfo->output);
-		String_GetPath(path, sampleInfo->output);
-		
-		String_Copy(buffer, path);
-		String_Merge(buffer, basename);
-		String_Merge(buffer, ".table");
-		
-		printf_info("Saving [%s]", buffer);
-		
-		FILE* table = fopen(buffer, "w");
-		
-		if (table == NULL) {
-			printf_error("Audio_TableDesign: Could not create/open file [%s]", buffer);
-		}
-		
-		printf_debug(
-			"Run:%s %s %s %s %s %s %s %s %s %s",
-			tableDesignArgv[0],
-			tableDesignArgv[1],
-			tableDesignArgv[2],
-			tableDesignArgv[3],
-			tableDesignArgv[4],
-			tableDesignArgv[5],
-			tableDesignArgv[6],
-			tableDesignArgv[7],
-			tableDesignArgv[8],
-			tableDesignArgv[9]
-		);
-		
-		if (tabledesign(ARRAY_COUNT(tableDesignArgv), tableDesignArgv, table))
-			printf_error("TableDesign has failed");
-		
-		fclose(table);
-	}
-	void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
-		char basename[256];
-		char path[256];
-		char buffer[256];
-		char* vadpcmArgv[] = {
-			"vadpcm_enc",
-			"-c",
-			NULL,
-			sampleInfo->output,
-			NULL,
-			NULL
-		};
-		
-		String_GetBasename(basename, sampleInfo->output);
-		String_GetPath(path, sampleInfo->output);
-		String_Copy(buffer, path);
-		String_Merge(buffer, basename);
-		String_Merge(buffer, ".table");
-		vadpcmArgv[2] = String_Generate(buffer);
-		
-		String_GetBasename(basename, sampleInfo->output);
-		String_GetPath(path, sampleInfo->output);
-		String_Copy(buffer, path);
-		String_Merge(buffer, basename);
-		String_Merge(buffer, ".aifc");
-		vadpcmArgv[4] = String_Generate(buffer);
-		
-		printf_info("Saving [%s]", buffer);
-		
-		FILE* table = fopen(buffer, "w");
-		
-		if (table == NULL) {
-			printf_error("Audio_TableDesign: Could not create/open file [%s]", buffer);
-		}
-		
-		printf_debug(
-			"%s %s %s %s %s",
-			vadpcmArgv[0],
-			vadpcmArgv[1],
-			vadpcmArgv[2],
-			vadpcmArgv[3],
-			vadpcmArgv[4]
-		);
-		
-		if (vadpcm_enc(5, vadpcmArgv))
-			printf_error("VadpcmEnc has failed");
-		
-		fclose(table);
-		free(vadpcmArgv[2]);
-		free(vadpcmArgv[4]);
-	}
-#endif
+void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
+	char* basename;
+	char* path;
+	char buffer[256];
+	char sys[526];
+	
+	basename = String_GetBasename(sampleInfo->output);
+	path = String_GetPath(sampleInfo->output);
+	
+	String_Copy(buffer, path);
+	String_Merge(buffer, basename);
+	String_Merge(buffer, ".table");
+	
+	printf_info("Saving [%s]", buffer);
+	
+	String_Copy(sys, "tabledesign");
+	String_Merge(sys, "-i ");
+	String_Merge(sys, gTableDesignIteration);
+	String_Merge(sys, " -f ");
+	String_Merge(sys, gTableDesignFrameSize);
+	String_Merge(sys, " -s ");
+	String_Merge(sys, gTableDesignBits);
+	String_Merge(sys, " -o ");
+	String_Merge(sys, gTableDesignBits);
+	String_Merge(sys, " -o ");
+	String_Merge(sys, gTableDesignOrder);
+	String_Merge(sys, " >> ");
+	String_Merge(sys, buffer);
+	
+	if (system(sys))
+		printf_error("TableDesign has failed");
+}
+void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
+	// char* basename;
+	// char* path;
+	// char buffer[256];
+	// char* vadpcmArgv[] = {
+	// 	"vadpcm_enc",
+	// 	"-c",
+	// 	NULL,
+	// 	sampleInfo->output,
+	// 	NULL,
+	// 	NULL
+	// };
+	//
+	// basename = String_GetBasename(sampleInfo->output);
+	// path = String_GetPath(sampleInfo->output);
+	// String_Copy(buffer, path);
+	// String_Merge(buffer, basename);
+	// String_Merge(buffer, ".table");
+	// vadpcmArgv[2] = String_Generate(buffer);
+	//
+	// String_GetBasename(basename, sampleInfo->output);
+	// String_GetPath(path, sampleInfo->output);
+	// String_Copy(buffer, path);
+	// String_Merge(buffer, basename);
+	// String_Merge(buffer, ".aifc");
+	// vadpcmArgv[4] = String_Generate(buffer);
+	//
+	// printf_info("Saving [%s]", buffer);
+	//
+	// FILE* table = fopen(buffer, "w");
+	//
+	// if (table == NULL) {
+	// 	printf_error("Audio_TableDesign: Could not create/open file [%s]", buffer);
+	// }
+	//
+	// printf_debug(
+	// 	"%s %s %s %s %s",
+	// 	vadpcmArgv[0],
+	// 	vadpcmArgv[1],
+	// 	vadpcmArgv[2],
+	// 	vadpcmArgv[3],
+	// 	vadpcmArgv[4]
+	// );
+	//
+	// if (vadpcm_enc(5, vadpcmArgv))
+	// 	printf_error("VadpcmEnc has failed");
+	//
+	// fclose(table);
+	// free(vadpcmArgv[2]);
+	// free(vadpcmArgv[4]);
+}
 
 void AudioTools_ReadCodeBook(AudioSampleInfo* sampleInfo, s32**** table, s32* destOrder, s32* destNPred) {
 	s32** tableEntry;
@@ -353,6 +332,51 @@ void AudioTools_VencodeFrame(AudioSampleInfo* sampleInfo, MemFile* mem, s16* buf
 		MemFile_Write(mem, &c, sizeof(u8));
 	}
 }
+void AudioTools_VdecodeFrame(u8* frame, s32* state, s32 order, s32*** coefTable) {
+	s32 ix[16];
+	
+	u8 header = frame[0];
+	s32 scale = 1 << (header >> 4);
+	s32 optimalp = header & 0xf;
+	
+	for (s32 i = 0; i < 16; i += 2) {
+		u8 c = frame[1 + i / 2];
+		ix[i] = c >> 4;
+		ix[i + 1] = c & 0xf;
+		
+		if (ix[i] <= 7) {
+			ix[i] *= scale;
+		} else {
+			ix[i] = (-0x10 - -ix[i]) * scale;
+		}
+		
+		if (ix[i + 1] <= 7) {
+			ix[i + 1] *= scale;
+		} else {
+			ix[i + 1] = (-0x10 - -ix[i + 1]) * scale;
+		}
+	}
+	
+	for (s32 j = 0; j < 2; j++) {
+		s32 inVec[16];
+		if (j == 0) {
+			for (s32 i = 0; i < order; i++) {
+				inVec[i] = state[16 - order + i];
+			}
+		} else {
+			for (s32 i = 0; i < order; i++) {
+				inVec[i] = state[8 - order + i];
+			}
+		}
+		
+		for (s32 i = 0; i < 8; i++) {
+			s32 ind = j * 8 + i;
+			inVec[order + i] = ix[ind];
+			state[ind] = inner_product(order + i, coefTable[optimalp][i], inVec) + ix[ind];
+		}
+	}
+}
+
 void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	#define FREE_PP(PP, NUM) \
 		if (PP) { \
@@ -675,6 +699,55 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 				printf("\n");
 		}
 	}
+}
+void AudioTools_VadpcmDec(AudioSampleInfo* sampleInfo) {
+	MemFile memDec;
+	u32 pos = 0;
+	s32 order;
+	s32 nPred;
+	s32 output[16] = { 0 };
+	s32*** table = NULL;
+	u32 nFrames = sampleInfo->samplesNum;
+	
+	MemFile_Malloc(&memDec, nFrames * sizeof(s32) + 0x100);
+	AudioTools_ReadCodeBook(sampleInfo, &table, &order, &nPred);
+	
+	while (pos < nFrames) {
+		u8 buffer[16];
+		
+		memcpy(buffer, &sampleInfo->audio.u8[pos], sizeof(u8) * 16);
+		AudioTools_VdecodeFrame(buffer, output, order, table);
+		for (s32 i = 0; i < 16; i++) {
+			output[i] = ReadBE(output[i]);
+		}
+		MemFile_Write(&memDec, buffer, sizeof(output));
+		pos += 16;
+	}
+	
+	if (table) {
+		int i;
+		int k;
+		for (i = 0; i < nPred; ++i) {
+			if (!table[i])
+				continue;
+			for (k = 0; k < 8; ++k) {
+				if (table[i][k])
+					free(table[i][k]);
+			}
+			free(table[i]);
+		}
+		free(table);
+	}
+	
+	printf_debugExt("Old MemFile Size [0x%X]", sampleInfo->size);
+	
+	MemFile_Free(&sampleInfo->memFile);
+	sampleInfo->memFile = memDec;
+	sampleInfo->audio.p = memDec.data;
+	sampleInfo->size = memDec.dataSize;
+	sampleInfo->bit = 32;
+	
+	printf_debugExt("New MemFile Size [0x%X]", sampleInfo->size);
 }
 void AudioTools_LoadCodeBook(AudioSampleInfo* sampleInfo, char* file) {
 	MemFile temp = { 0 };

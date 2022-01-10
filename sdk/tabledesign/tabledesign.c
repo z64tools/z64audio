@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <getopt.h>
-#include <audiofile.h>
+#include "audiofile/audiofile.h"
 #include "tabledesign.h"
 
 #ifdef __sgi
@@ -33,7 +33,7 @@ typedef int SampleFormat;
 
 char usage[80] = "[-o order -s bits -t thresh -i refine_iter -f frame_size] aifcfile";
 
-int tabledesign(int argc, char **argv, FILE *outstream)
+int main(int argc, char **argv)
 {
     const char *programName; // sp118
     double thresh; // sp110
@@ -251,11 +251,11 @@ int tabledesign(int argc, char **argv, FILE *outstream)
     }
 
     npredictors = 1 << curBits;
-    fprintf(outstream, "%d\n%d\n", order, npredictors);
+    fprintf(stdout, "%d\n%d\n", order, npredictors);
 
     for (i = 0; i < npredictors; i++)
     {
-        numOverflows += print_entry(outstream, temp_s1[i], order);
+        numOverflows += print_entry(stdout, temp_s1[i], order);
     }
 
     if (numOverflows > 0)

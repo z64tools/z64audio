@@ -679,6 +679,8 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 		Lib_ByteSwap(&sampleInfo->instrument.loop.start, SWAP_U32);
 		Lib_ByteSwap(&sampleInfo->instrument.loop.end, SWAP_U32);
 	}
+	
+	AudioTools_VadpcmDec(sampleInfo);
 }
 void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 	char* keyword[] = {
@@ -1094,7 +1096,7 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 			printf_error("Closing.");
 		}
 		
-		if (Lib_MemMem(sampleInfo->output, strlen(sampleInfo->output), keyword[i], strlen(keyword[i]))) {
+		if (String_MemMem(sampleInfo->output, keyword[i])) {
 			char* basename;
 			
 			basename = String_GetBasename(sampleInfo->output);

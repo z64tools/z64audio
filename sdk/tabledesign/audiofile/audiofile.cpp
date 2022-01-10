@@ -885,7 +885,7 @@ AFAPI int AUpvgetval (AUpvlist, int item, void *val);
 #ifndef AUDIOFILE_H
 #define AUDIOFILE_H
 
-#include <aupvlist.h>
+#include "aupvlist.h"
 #include <stdint.h>
 #include <sys/types.h>
 
@@ -2732,7 +2732,7 @@ private:
 #define PacketTable_h
 
 
-#include <audiofile.h>
+#include "audiofile.h"
 
 #include <stdint.h>
 #include <sys/types.h>
@@ -2997,7 +2997,7 @@ int _af_ulaw2linear (unsigned char u_val);
 #ifndef AUDIOFILE_VFS_H
 #define AUDIOFILE_VFS_H
 
-#include <audiofile.h>
+#include "audiofile.h"
 #include <sys/types.h>
 
 #ifdef __cplusplus
@@ -14330,7 +14330,7 @@ int _af_ulaw2linear (unsigned char u_val)
 #include <unistd.h>
 #endif
 
-#include <audiofile.h>
+#include "audiofile.h"
 
 
 static status _afOpenFile (int access, File *f, const char *filename,

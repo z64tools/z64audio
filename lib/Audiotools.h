@@ -20,6 +20,7 @@ extern char* gTableDesignThreshold;
 
 void AudioTools_TableDesign(AudioSampleInfo* sampleInfo);
 void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo);
+void AudioTools_VadpcmDec(AudioSampleInfo* sampleInfo);
 
 void AudioTools_LoadCodeBook(AudioSampleInfo* sampleInfo, char* file);
 
