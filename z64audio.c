@@ -117,9 +117,7 @@ void z64params(char* argv[]) {
 			printf_error("Oh no... [%s]:[%s]:[%d]", __FILE__, __FUNCTION__, __LINE__);
 		}
 	}
-	
-	printf("%d\n", gDefaultFormat);
-	
+		
 	MemFile_Free(&param);
 }
 
