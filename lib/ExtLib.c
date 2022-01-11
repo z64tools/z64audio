@@ -491,21 +491,18 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 		return 1;
 	}
 	
+	printf_debugExt("File: [%s]", filepath);
+	
 	fseek(file, 0, SEEK_END);
 	tempSize = ftell(file);
 	
+	MemFile_Malloc(memFile, tempSize);
+	memFile->memSize = memFile->dataSize = tempSize;
 	if (memFile->data == NULL) {
-		MemFile_Malloc(memFile, tempSize);
-		memFile->memSize = memFile->dataSize = tempSize;
-		if (memFile->data == NULL) {
-			printf_warning("Failed to malloc MemFile.\n\tAttempted size is [0x%X] bytes to store data from [%s].", tempSize, filepath);
-			
-			return 1;
-		}
-	} else if (memFile->memSize < tempSize) {
-		MemFile_Realloc(memFile, tempSize);
+		printf_warning("Failed to malloc MemFile.\n\tAttempted size is [0x%X] bytes to store data from [%s].", tempSize, filepath);
+		
+		return 1;
 	}
-	memFile->dataSize = tempSize;
 	
 	rewind(file);
 	fread(memFile->data, 1, memFile->dataSize, file);
@@ -516,7 +513,6 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 		free(memFile->info.name);
 	memFile->info.name = String_Generate(filepath);
 	
-	printf_debugExt("File: [%s]", filepath);
 	printf_debug("Ptr: %08X", memFile->data);
 	printf_debug("Size: %08X", memFile->dataSize);
 	
@@ -534,21 +530,18 @@ s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
 		return 1;
 	}
 	
+	printf_debugExt("File: [%s]", filepath);
+	
 	fseek(file, 0, SEEK_END);
 	tempSize = ftell(file);
 	
+	MemFile_Malloc(memFile, tempSize);
+	memFile->memSize = memFile->dataSize = tempSize;
 	if (memFile->data == NULL) {
-		MemFile_Malloc(memFile, tempSize);
-		memFile->memSize = memFile->dataSize = tempSize;
-		if (memFile->data == NULL) {
-			printf_warning("Failed to malloc MemFile.\n\tAttempted size is [0x%X] bytes to store data from [%s].", tempSize, filepath);
-			
-			return 1;
-		}
-	} else if (memFile->memSize < tempSize) {
-		MemFile_Realloc(memFile, tempSize);
+		printf_warning("Failed to malloc MemFile.\n\tAttempted size is [0x%X] bytes to store data from [%s].", tempSize, filepath);
+		
+		return 1;
 	}
-	memFile->dataSize = tempSize;
 	
 	rewind(file);
 	fread(memFile->data, 1, memFile->dataSize, file);
@@ -559,7 +552,6 @@ s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
 		free(memFile->info.name);
 	memFile->info.name = String_Generate(filepath);
 	
-	printf_debugExt("File: [%s]", filepath);
 	printf_debug("Ptr: %08X", memFile->data);
 	printf_debug("Size: %08X", memFile->dataSize);
 	
@@ -993,4 +985,51 @@ char* String_GetSpacedArg(char* argv[], s32 cur) {
 	return argv[cur];
 	
 	#undef __EXT_BUFFER
+}
+
+// Config
+bool Config_GetBool(MemFile* memFile, char* boolName) {
+	char* ptr;
+	
+	ptr = String_MemMem(memFile->data, boolName);
+	if (ptr) {
+		char* word = String_GetWord(ptr, 2);
+		if (!String_IsDiff(word, "true")) {
+			return true;
+		}
+		if (!String_IsDiff(word, "false")) {
+			return false;
+		}
+	}
+	
+	printf_warning("[%s] is missing bool [%s]", memFile->info.name, boolName);
+	
+	return true;
+}
+
+char* Config_GetString(MemFile* memFile, char* stringName) {
+	char* ptr;
+	
+	ptr = String_MemMem(memFile->data, stringName);
+	if (ptr) {
+		return String_GetWord(ptr, 2);
+	}
+	
+	printf_warning("[%s] is missing string [%s]", memFile->info.name, stringName);
+	
+	return NULL;
+}
+
+s32 Config_GetInt(MemFile* memFile, char* intName) {
+	static char* wow = "\"wow\"";
+	char* ptr;
+	
+	ptr = String_MemMem(memFile->data, intName);
+	if (ptr) {
+		return String_NumStrToInt(String_GetWord(ptr, 2));
+	}
+	
+	printf_warning("[%s] is missing integer [%s]", memFile->info.name, intName);
+	
+	return 0;
 }

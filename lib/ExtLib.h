@@ -185,6 +185,10 @@ void String_Remove(char* point, s32 amount);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 
+bool Config_GetBool(MemFile* memFile, char* boolName);
+char* Config_GetString(MemFile* memFile, char* stringName);
+s32 Config_GetInt(MemFile* memFile, char* intName);
+
 #define Node_Add(head, node) { \
 		OsAssert(node != NULL) \
 		typeof(node) lastNode = head; \
@@ -328,6 +332,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define String_Copy(dst, src)   strcpy(dst, src)
 #define String_Merge(dst, src)  strcat(dst, src)
 #define String_Generate(string) strdup(string)
+#define String_IsDiff(a, b)     strcmp(a, b)
 
 #define printf_debugExt(...) if (gPrintfSuppress <= PSL_DEBUG) { \
 		printf(PRNT_DGRY "[%s]: " PRNT_REDD "%s: " PRNT_GRAY "[%d]\n"PRNT_RSET, __FILE__, __FUNCTION__, __LINE__); \

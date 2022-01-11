@@ -1,47 +1,45 @@
 #ifndef __AUDIOCONVERT_H__
-	#define __AUDIOCONVERT_H__
-	
-    #include "ExtLib.h"
-	
-	typedef long double f80;
-	
-	struct AudioSampleInfo;
-	
-	typedef void (* AudioFunc)(struct AudioSampleInfo*);
-	
-	typedef struct {
-		u32 start;
-		u32 end;
-		u32 count;
-	} SampleLoop;
-	
-	typedef struct {
-		s8 note;
-		s8 fineTune;
-		u8 highNote;
-		u8 lowNote;
-		SampleLoop loop;
-	} SampleInstrument;
-	
-	typedef struct AudioSampleInfo {
-		char*   input;
-		char*   output;
-		bool    useExistingPred;
-		MemFile memFile;
-		u8  channelNum;
-		u8  bit;
-		u32 sampleRate;
-		u32 samplesNum;
-		u32 size;
-		u16 targetBit;
-		PointerCast audio;
-		u32 dataIsFloat;
-		SampleInstrument instrument;
-		MemFile vadBook;
-		MemFile vadLoopBook;
-	} AudioSampleInfo;
-	
-#endif /* __Z64AUDIO_HEADER__ */
+#define __AUDIOCONVERT_H__
+
+#include "ExtLib.h"
+
+typedef long double f80;
+
+struct AudioSampleInfo;
+
+typedef void (* AudioFunc)(struct AudioSampleInfo*);
+
+typedef struct {
+	u32 start;
+	u32 end;
+	u32 count;
+} SampleLoop;
+
+typedef struct {
+	s8 note;
+	s8 fineTune;
+	u8 highNote;
+	u8 lowNote;
+	SampleLoop loop;
+} SampleInstrument;
+
+typedef struct AudioSampleInfo {
+	char*   input;
+	char*   output;
+	bool    useExistingPred;
+	MemFile memFile;
+	u8  channelNum;
+	u8  bit;
+	u32 sampleRate;
+	u32 samplesNum;
+	u32 size;
+	u16 targetBit;
+	PointerCast audio;
+	u32 dataIsFloat;
+	SampleInstrument instrument;
+	MemFile vadBook;
+	MemFile vadLoopBook;
+} AudioSampleInfo;
 
 #ifndef __WAVE_HEADER__
 	#define __WAVE_HEADER__
@@ -182,7 +180,19 @@
 	
 #endif /* __AIFF_HEADER__ */
 
-extern u32 gBinNameIndex;
+typedef enum {
+	NAMEPARAM_DEFAULT,
+	NAMEPARAM_ZZRTL,
+} NameParam;
+
+typedef enum {
+	FORMPARAM_BIN,
+	FORMPARAM_WAV,
+	FORMPARAM_AIF,
+	FORMPARAM_CCC,
+} FormatParam;
+
+extern NameParam gBinNameIndex;
 
 void Audio_ByteSwap(AudioSampleInfo* sampleInfo);
 void Audio_Normalize(AudioSampleInfo* sampleInfo);
@@ -202,3 +212,5 @@ void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo);
 void Audio_SaveSample(AudioSampleInfo* sampleInfo);
 
 void Audio_ZZRTLMode(AudioSampleInfo* sampleInfo, char* input);
+
+#endif /* __Z64AUDIO_HEADER__ */

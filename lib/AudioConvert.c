@@ -1,18 +1,20 @@
 #include "AudioConvert.h"
 #include "AudioTools.h"
 
-u32 gBinNameIndex;
+NameParam gBinNameIndex;
 
-char* sBinName[][3] = {
+char* sBinName[][4] = {
 	{
 		"Sample.bin",
 		"Book.bin",
-		"BookLoop.bin"
+		"BookLoop.bin",
+		"Config.tsv"
 	},
 	{
 		"_sample.bin",
 		"_predictors.bin",
-		"_looppredictors.bin"
+		"_looppredictors.bin",
+		"_config.tsv"
 	},
 };
 
@@ -965,7 +967,7 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 		printf_align("Save Loop Book", "%s", buffer);
 	}
 	
-	String_SwapExtension(buffer, sampleInfo->output, ".tsv");
+	String_SwapExtension(buffer, sampleInfo->output, sBinName[gBinNameIndex][3]);
 	MemFile_Clear(&output);
 	MemFile_Printf(&output, "precision\tloopstart\tloopend  \tloopcount\tlooptail \n");
 	MemFile_Printf(

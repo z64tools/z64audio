@@ -22,3 +22,4 @@ vadpcm_enc
 *.book
 audio/*
 *.sh
+*.cfg

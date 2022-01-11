@@ -51,9 +51,77 @@ char* sToolUsage = {
 	Z64ARGX("-D",            "Debug Print")
 	Z64ARGX("-s",            "Silence")
 	Z64ARGX("-N",            "Print Info of input [file]")
-	Z64ARGX("-Z",            "Name BIN output to match ZZRTL")
 	// Z64ARTD("ZZRTLMode",     "DragNDrop [zzrpl] file on z64audio")
 };
+
+u32 gDefaultFormat;
+
+void z64params(char* argv[]) {
+	MemFile param;
+	char file[256 * 4];
+	char* ptr;
+	
+	String_Copy(file, String_GetPath(argv[0]));
+	String_Merge(file, "z64audio.cfg");
+	
+	if (MemFile_LoadFile_String(&param, file)) {
+		printf_info("Generating settings [%s]", file);
+		MemFile_Malloc(&param, 0x1000);
+		MemFile_Printf(
+			&param,
+			"# z64audio settings\n\n"
+		);
+		
+		MemFile_Printf(
+			&param,
+			"# nameBook.bin vs name_predictors.bin, more suitable for Jared's\n"
+			"# zzrtl script\n"
+			"%-15s = %-8s # %s\n\n",
+			/* param_name */ "zz_naming",
+			/* defaultval */ "false",
+			/* options    */ "[true/false]"
+		);
+		
+		MemFile_Printf(
+			&param,
+			"# Default format to export when drag'n'dropping files on to z64audio\n"
+			"%-15s = %-8s # %s\n\n",
+			/* param_name */ "def_dnd_fmt",
+			/* defaultval */ "\"bin\"",
+			/* options    */ "[bin/wav/aiff/c]"
+		);
+		
+		if (MemFile_SaveFile_String(&param, file)) {
+			printf_error("Could not create param file [%s]", file);
+		}
+		
+		MemFile_Free(&param);
+		
+		return;
+	}
+	
+	gBinNameIndex = Config_GetBool(&param, "zz_naming");
+	ptr = Config_GetString(&param, "def_dnd_fmt");
+	
+	if (ptr) {
+		if (String_MemMem(ptr, "\"bin\"")) {
+			gDefaultFormat = FORMPARAM_BIN;
+		} else if (String_MemMem(ptr, "\"wav\"")) {
+			gDefaultFormat = FORMPARAM_WAV;
+		} else if (String_MemMem(ptr, "\"aiff\"")) {
+			gDefaultFormat = FORMPARAM_AIF;
+		} else if (String_MemMem(ptr, "\"c\"")) {
+			gDefaultFormat = FORMPARAM_CCC;
+		} else {
+			printf_warning("[%s]", ptr);
+			printf_error("Oh no... [%s]:[%s]:[%d]", __FILE__, __FUNCTION__, __LINE__);
+		}
+	}
+	
+	printf("%d\n", gDefaultFormat);
+	
+	MemFile_Free(&param);
+}
 
 s32 Main(s32 argc, char* argv[]) {
 	AudioSampleInfo sample;
@@ -63,10 +131,7 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	printf_WinFix();
 	printf_SetPrefix("");
-	
-	if (ParseArg("-z") || ParseArg("--z")) {
-		gBinNameIndex = 1;
-	}
+	z64params(argv);
 	
 	if (ParseArg("-D") || ParseArg("--D")) {
 		printf_SetSuppressLevel(PSL_DEBUG);
@@ -119,7 +184,14 @@ s32 Main(s32 argc, char* argv[]) {
 			return 0;
 		}
 		if (String_MemMem(argv[1], ".wav") || String_MemMem(argv[1], ".aiff")) {
-			String_SwapExtension(outbuf, argv[1], ".bin");
+			char* format[] = {
+				".bin",
+				".wav",
+				".aiff",
+				".c"
+			};
+			
+			String_SwapExtension(outbuf, argv[1], format[gDefaultFormat]);
 			
 			input = argv[1];
 			output = outbuf;
