@@ -1021,7 +1021,6 @@ char* Config_GetString(MemFile* memFile, char* stringName) {
 }
 
 s32 Config_GetInt(MemFile* memFile, char* intName) {
-	static char* wow = "\"wow\"";
 	char* ptr;
 	
 	ptr = String_MemMem(memFile->data, intName);
