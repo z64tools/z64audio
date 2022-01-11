@@ -50,7 +50,7 @@ win32: win-tools $(SOURCE_O_WIN32) bin/icon.o z64audio.exe
 clean:
 	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find bin/* -type f)$(PRNT_RSET)]"
 	@rm -f $(shell find bin/* -type f)
-	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find z64audi* -type f -not -name '*.c')$(PRNT_RSET)]"
+	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find z64audi* -type f -not -name '*.c*')$(PRNT_RSET)]"
 	@rm -f z64audio *.exe
 	@rm -f $(shell find *.c -type f -not -name 'z64audio.c')
 	@rm -f *.bin

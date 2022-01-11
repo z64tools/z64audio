@@ -333,7 +333,7 @@ s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg) {
 		*parArg = 0;
 	
 	while (argv[i] != NULL) {
-		if (Lib_MemMem(argv[i], strlen(arg), arg, strlen(arg))) {
+		if (!String_IsDiff(argv[i], arg)) {
 			if (parArg != NULL)
 				*parArg =  i + 1;
 			
@@ -959,36 +959,41 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 }
 
 char* String_GetSpacedArg(char* argv[], s32 cur) {
-	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
+	#define CONDITION (argv[i] != NULL && ( \
+			!(argv[i][0] == '-' && isalnum(argv[i][1]) && strlen(argv[i]) == 2) && \
+			!(argv[i][0] == '-' && argv[i][1] == '-' && isalnum(argv[i][2]) && strlen(argv[i]) == 3)) \
+	)
+	#define STRING_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
 	static char* buffer[__EXT_STR_MAX];
 	char tempBuf[1024];
 	static s32 index;
 	s32 i = cur + 1;
 	
-	if (argv[cur + 1] != NULL && argv[cur + 1][0] != '-') {
-		if (__EXT_BUFFER(0) != NULL)
-			free(__EXT_BUFFER(0));
+	if (CONDITION) {
+		if (STRING_BUFFER(0) != NULL)
+			free(STRING_BUFFER(0));
 		
 		String_Copy(tempBuf, argv[cur]);
 		
-		while (argv[i] != NULL && argv[i][0] != '-') {
+		while (CONDITION) {
 			String_Merge(tempBuf, " ");
 			String_Merge(tempBuf, argv[i++]);
 		}
 		
-		__EXT_BUFFER(0) = String_Generate(tempBuf);
+		STRING_BUFFER(0) = String_Generate(tempBuf);
 		index++;
 		
-		return __EXT_BUFFER(-1);
+		return STRING_BUFFER(-1);
 	}
 	
 	return argv[cur];
 	
-	#undef __EXT_BUFFER
+	#undef STRING_BUFFER
+	#undef CONDITION
 }
 
 // Config
-bool Config_GetBool(MemFile* memFile, char* boolName) {
+s32 Config_GetBool(MemFile* memFile, char* boolName) {
 	char* ptr;
 	
 	ptr = String_MemMem(memFile->data, boolName);
@@ -1004,7 +1009,40 @@ bool Config_GetBool(MemFile* memFile, char* boolName) {
 	
 	printf_warning("[%s] is missing bool [%s]", memFile->info.name, boolName);
 	
-	return true;
+	return -1;
+}
+
+s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]) {
+	char* ptr;
+	char* word;
+	s32 i = 0;
+	
+	ptr = String_MemMem(memFile->data, stringName);
+	if (ptr) {
+		word = String_GetWord(ptr, 2);
+		while (strList[i] != NULL && !String_MemMem(word, strList[i]))
+			i++;
+		
+		if (strList != NULL)
+			return i;
+	}
+	
+	printf_warning("[%s] is missing option [%s]", memFile->info.name, stringName);
+	
+	return -1;
+}
+
+s32 Config_GetInt(MemFile* memFile, char* intName) {
+	char* ptr;
+	
+	ptr = String_MemMem(memFile->data, intName);
+	if (ptr) {
+		return String_NumStrToInt(String_GetWord(ptr, 2));
+	}
+	
+	printf_warning("[%s] is missing integer [%s]", memFile->info.name, intName);
+	
+	return 404040404;
 }
 
 char* Config_GetString(MemFile* memFile, char* stringName) {
@@ -1018,17 +1056,4 @@ char* Config_GetString(MemFile* memFile, char* stringName) {
 	printf_warning("[%s] is missing string [%s]", memFile->info.name, stringName);
 	
 	return NULL;
-}
-
-s32 Config_GetInt(MemFile* memFile, char* intName) {
-	char* ptr;
-	
-	ptr = String_MemMem(memFile->data, intName);
-	if (ptr) {
-		return String_NumStrToInt(String_GetWord(ptr, 2));
-	}
-	
-	printf_warning("[%s] is missing integer [%s]", memFile->info.name, intName);
-	
-	return 0;
 }

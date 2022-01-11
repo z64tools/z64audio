@@ -185,13 +185,6 @@ typedef enum {
 	NAMEPARAM_ZZRTL,
 } NameParam;
 
-typedef enum {
-	FORMPARAM_BIN,
-	FORMPARAM_WAV,
-	FORMPARAM_AIF,
-	FORMPARAM_CCC,
-} FormatParam;
-
 extern NameParam gBinNameIndex;
 
 void Audio_ByteSwap(AudioSampleInfo* sampleInfo);
