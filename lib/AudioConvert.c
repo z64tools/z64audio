@@ -750,12 +750,8 @@ void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 			printf_error("Closing.");
 		}
 		if (Lib_MemMem(sampleInfo->input, strlen(sampleInfo->input), keyword[i], strlen(keyword[i]))) {
-			char* basename;
-			
-			basename = String_GetBasename(sampleInfo->input);
-			
 			loadSample[i](sampleInfo);
-			printf_align("Load Sample", "%s%s", basename, keyword[i]);
+			printf_align("Load Sample", "%s", sampleInfo->input);
 			break;
 		}
 	}
@@ -941,18 +937,20 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	MemFile_SaveFile(&output, buffer);
 	printf_align("Save Sample", "%s", buffer);
 	
-	String_SwapExtension(buffer, sampleInfo->output, sBinName[gBinNameIndex][1]);
-	MemFile_Clear(&output);
-	for (s32 i = 0; i < sampleInfo->vadBook.dataSize / 2; i++) {
-		SwapBE(sampleInfo->vadBook.cast.s16[i]);
+	if (sampleInfo->useExistingPred == false) {
+		String_SwapExtension(buffer, sampleInfo->output, sBinName[gBinNameIndex][1]);
+		MemFile_Clear(&output);
+		for (s32 i = 0; i < sampleInfo->vadBook.dataSize / 2; i++) {
+			SwapBE(sampleInfo->vadBook.cast.s16[i]);
+		}
+		MemFile_Write(&output, &emp, sizeof(u16));
+		MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[0], sizeof(u16));
+		MemFile_Write(&output, &emp, sizeof(u16));
+		MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[1], sizeof(u16));
+		MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[2], sampleInfo->vadBook.dataSize - sizeof(u16) * 2);
+		MemFile_SaveFile(&output, buffer);
+		printf_align("Save Book", "%s", buffer);
 	}
-	MemFile_Write(&output, &emp, sizeof(u16));
-	MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[0], sizeof(u16));
-	MemFile_Write(&output, &emp, sizeof(u16));
-	MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[1], sizeof(u16));
-	MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[2], sampleInfo->vadBook.dataSize - sizeof(u16) * 2);
-	MemFile_SaveFile(&output, buffer);
-	printf_align("Save Book", "%s", buffer);
 	
 	if (sampleInfo->vadLoopBook.data) {
 		String_SwapExtension(buffer, sampleInfo->output, sBinName[gBinNameIndex][2]);
@@ -1166,9 +1164,6 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 		}
 		
 		if (String_MemMem(sampleInfo->output, keyword[i])) {
-			char* basename;
-			
-			basename = String_GetBasename(sampleInfo->output);
 			OsPrintfEx("%s", funcName[i]);
 			
 			if (i >= 2 && !String_MemMem(sampleInfo->input, ".aifc")) {

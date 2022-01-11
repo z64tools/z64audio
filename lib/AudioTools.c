@@ -11,7 +11,7 @@ void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
 	char buffer[256];
 	char sys[526];
 	
-	String_SwapExtension(buffer, sampleInfo->output, ".book");
+	String_SwapExtension(buffer, sampleInfo->output, "Book.txt");
 	
 	String_Copy(sys, "./tabledesign");
 	String_Merge(sys, " -i ");
@@ -42,7 +42,7 @@ void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
 	String_Copy(sys, "./vadpcm_enc -c");
 	String_Merge(sys, " ");
 	
-	String_SwapExtension(buffer, sampleInfo->output, ".book");
+	String_SwapExtension(buffer, sampleInfo->output, "Book.txt");
 	String_Merge(sys, buffer);
 	String_Merge(sys, " ");
 	
@@ -111,10 +111,10 @@ void AudioTools_VencodeFrame(AudioSampleInfo* sampleInfo, MemFile* mem, s16* buf
 		buffer[i] = 0;
 	}
 	
+	s16 ix[16] = { 0 };
+	s32 prediction[16];
 	s32 inVector[16];
 	s32 saveState[16];
-	s16 prediction[16];
-	s16 ix[16];
 	f32 e[16];
 	s32 ie[16];
 	f32 se;
@@ -230,13 +230,12 @@ void AudioTools_VencodeFrame(AudioSampleInfo* sampleInfo, MemFile* mem, s16* buf
 	s32 maxClip = 0;
 	
 	do {
-		nIter++;
-		s32 maxClip = 0;
 		s32 cV;
+		
+		nIter++;
 		scale++;
-		if (scale > 12) {
-			scale = 12;
-		}
+		maxClip = 0;
+		scale = CLAMP_MAX(scale, 12);
 		
 		// Copy over the last 'order' samples from the previous output.
 		for (s32 i = 0; i < order; i++) {
@@ -572,6 +571,7 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	s32 order;
 	s32 nPred;
 	u32 nSam;
+	u32 nBytes = 0;
 	
 	s32 state[16] = { 0 };
 	s16 buffer[16] = { 0 };
@@ -601,6 +601,7 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 			memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * 16);
 			AudioTools_VencodeFrame(sampleInfo, &memEnc, buffer, state, table, 16);
 			pos += 16;
+			nBytes += 9;
 		}
 		
 		for (s32 i = 0; i < 16; i++) {
@@ -612,6 +613,7 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 			for (; pos + 16 < aO; pos += 16) {
 				memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * 16);
 				AudioTools_VencodeFrame(sampleInfo, &memEnc, buffer, state, table, 16);
+				nBytes += 9;
 			}
 			
 			u32 left = aO - pos;
@@ -619,6 +621,8 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 			memcpy(&buffer[left], &sampleInfo->audio.s16[aI], sizeof(s16) * (16 - left));
 			AudioTools_VencodeFrame(sampleInfo, &memEnc, buffer, state, table, 16);
 			pos = aI - left + 16;
+			nBytes += 9;
+			nRepeats--;
 		}
 	}
 	
@@ -633,10 +637,17 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 			memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * 16);
 			AudioTools_VencodeFrame(sampleInfo, &memEnc, buffer, state, table, nSam);
 			pos += nSam;
+			nBytes += 9;
 		} else {
 			printf_warning("VadpcmEnc: Missed a frame!");
 			break;
 		}
+	}
+	
+	if (nBytes % 2) {
+		nBytes++;
+		u16 ts = 0;
+		MemFile_Write(&memEnc, &ts, 2);
 	}
 	
 	if (table) {

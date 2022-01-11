@@ -26,6 +26,7 @@
 	typedef struct AudioSampleInfo {
 		char*   input;
 		char*   output;
+		bool    useExistingPred;
 		MemFile memFile;
 		u8  channelNum;
 		u8  bit;

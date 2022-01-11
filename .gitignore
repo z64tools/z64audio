@@ -21,3 +21,4 @@ vadpcm_enc
 !sdk/vadpcm_enc
 *.book
 audio/*
+*.sh

@@ -145,6 +145,7 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	if (ParseArg("-p") || ParseArg("--p")) {
 		AudioTools_LoadCodeBook(&sample, argv[parArg]);
+		sample.useExistingPred = 1;
 	} else {
 		if (ParseArg("-I") || ParseArg("--I")) {
 			gTableDesignIteration = argv[parArg];
