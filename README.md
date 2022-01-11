@@ -30,3 +30,6 @@ Extra:
 -s                // Silence
 -N                // Print Info of input [file]
 ```
+## Credits
+`z64me`: helping on various things \
+`sm64 decomp`: sdk audio tools `tabledesign` `vadpcm_enc` and `vadpcm_dec`
