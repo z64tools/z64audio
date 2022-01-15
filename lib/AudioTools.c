@@ -29,11 +29,11 @@ void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
 	String_Merge(sys, " > ");
 	String_Merge(sys, buffer);
 	
-	OsPrintfEx("%s", sys);
+	printf_debugExt("%s", sys);
 	
 	if (system(sys))
 		printf_error("TableDesign has failed");
-	printf_align("TableDesign", "%s", buffer);
+	printf_debug_align("TableDesign", "%s", buffer);
 }
 void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
 	char buffer[256];
@@ -52,11 +52,11 @@ void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
 	String_SwapExtension(buffer, sampleInfo->output, ".aifc");
 	String_Merge(sys, buffer);
 	
-	OsPrintfEx("[%s]", sys);
+	printf_debugExt("[%s]", sys);
 	
 	if (system(sys))
 		printf_error("VadpcmEnc has failed");
-	printf_align("VadpcmEnc", "%s", buffer);
+	printf_debug_align("VadpcmEnc", "%s", buffer);
 }
 
 void AudioTools_ReadCodeBook(AudioSampleInfo* sampleInfo, s32**** table, s32* destOrder, s32* destNPred) {
@@ -815,7 +815,7 @@ void AudioTools_VadpcmDec(AudioSampleInfo* sampleInfo) {
 	s32 decompressed[16];
 	s32 state[16];
 	
-	OsPrintfEx("MemFile_Malloc(memDec, 0x%X);", nSamples * sizeof(s32) + 0x100);
+	printf_debugExt("MemFile_Malloc(memDec, 0x%X);", nSamples * sizeof(s32) + 0x100);
 	MemFile_Malloc(&memDec, nSamples * sizeof(s32) + 0x100);
 	MemFile_Malloc(&encode, sizeof(s16) * 16);
 	AudioTools_ReadCodeBook(sampleInfo, &coefTable, &order, &npredictors);
@@ -937,5 +937,5 @@ void AudioTools_LoadCodeBook(AudioSampleInfo* sampleInfo, char* file) {
 	
 	MemFile_Free(&temp);
 	
-	printf_align("Load Book", "%s", file);
+	printf_info_align("Load Book", "%s", file);
 }

@@ -154,7 +154,7 @@ s32 Main(s32 argc, char* argv[]) {
 		""
 	);
 	
-	OsPrintfEx("Audio_InitSampleInfo");
+	printf_debugExt("Audio_InitSampleInfo");
 	Audio_InitSampleInfo(&sample, input, output);
 	
 	if (ParseArg("-p") || ParseArg("--p")) {
@@ -178,16 +178,16 @@ s32 Main(s32 argc, char* argv[]) {
 		}
 	}
 	
-	OsPrintfEx("Audio_LoadSample");
+	printf_debugExt("Audio_LoadSample");
 	Audio_LoadSample(&sample);
 	
 	if (ParseArg("-N") || ParseArg("--N")) {
-		printf_align("BitDepth", "%10d", sample.bit);
-		printf_align("Sample Rate", "%10d", sample.sampleRate);
-		printf_align("Channels", "%10d", sample.channelNum);
-		printf_align("Frames", "%10d", sample.samplesNum);
-		printf_align("Data Size", "%10d", sample.size);
-		printf_align("File Size", "%10d", sample.memFile.dataSize);
+		printf_info_align("BitDepth", "%10d", sample.bit);
+		printf_info_align("Sample Rate", "%10d", sample.sampleRate);
+		printf_info_align("Channels", "%10d", sample.channelNum);
+		printf_info_align("Frames", "%10d", sample.samplesNum);
+		printf_info_align("Data Size", "%10d", sample.size);
+		printf_info_align("File Size", "%10d", sample.memFile.dataSize);
 		
 		if (output == NULL)
 			return 0;

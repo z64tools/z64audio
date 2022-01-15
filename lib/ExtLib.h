@@ -24,6 +24,7 @@ typedef float f32;
 typedef double f64;
 typedef uintptr_t uPtr;
 typedef intptr_t sPtr;
+typedef u32 void32;
 
 typedef struct {
 	u8 hue;
@@ -89,6 +90,7 @@ typedef enum {
 	SWAP_U64 = 8,
 	SWAP_F80 = 10
 } SwapSize;
+
 typedef union {
 	void* p;
 	u8*   u8;
@@ -108,7 +110,7 @@ typedef struct Node {
 	struct Node* next;
 } Node;
 
-typedef struct {
+typedef struct MemFile {
 	union {
 		void* data;
 		PointerCast cast;
@@ -122,15 +124,48 @@ typedef struct {
 	} info;
 } MemFile;
 
+typedef struct ItemList {
+	char** item;
+	u32    num;
+} ItemList;
+
+typedef enum {
+	DIR__MAKE_ON_ENTER = (1) << 0,
+} DirParam;
+
+void SetSegment(const u8 id, void* segment);
+void* SegmentedToVirtual(const u8 id, void32 ptr);
+void32 VirtualToSegmented(const u8 id, void* ptr);
+
+void Dir_SetParam(DirParam w);
+void Dir_UnsetParam(DirParam w);
+void Dir_Set(char* path, ...);
+void Dir_Enter(char* ent, ...);
+void Dir_Leave(void);
+void Dir_Make(char* dir, ...);
+void Dir_MakeCurrent(void);
+char* Dir_Current(void);
+char* Dir_File(char* fmt, ...);
+void Dir_ItemList(ItemList* itemList, bool isPath);
+void MakeDir(char* dir, ...);
+char* CurWorkDir(void);
+
+void ItemList_Free(ItemList* itemList);
+
+char* TempPrintf(char* fmt, ...);
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_SetPrefix(char* fmt);
 void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i);
 void printf_toolinfo(const char* toolname, const char* fmt, ...);
 void printf_debug(const char* fmt, ...);
+void printf_debug_align(const char* info, const char* fmt, ...);
 void printf_warning(const char* fmt, ...);
+void printf_warning_align(const char* info, const char* fmt, ...);
 void printf_error(const char* fmt, ...);
+void printf_error_align(const char* info, const char* fmt, ...);
 void printf_info(const char* fmt, ...);
-void printf_align(const char* info, const char* fmt, ...);
+void printf_info_align(const char* info, const char* fmt, ...);
+void printf_progress(const char* info, u32 a, u32 b);
 void printf_WinFix();
 
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
@@ -182,6 +217,7 @@ char* String_GetBasename(char* src);
 char* String_GetFilename(char* src);
 void String_Insert(char* point, char* insert);
 void String_Remove(char* point, s32 amount);
+s32 String_Replace(char* src, char* word, char* replacement);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 
@@ -293,32 +329,6 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define PRNT_RNL  PRNT_RSET PRNT_NL
 #define PRNT_TODO "\e[91;2m" "TODO"
 
-#ifndef NDEBUG
-	#define OsPrintf     printf_debug
-	#define OsPrintfEx   printf_debugExt
-	#define OsPrintfLine printf_debugInfo
-	#define OsAssert(exp) if (!(exp)) { \
-			printf(PRNT_DGRY "[%s]: " PRNT_REDD "%s: " PRNT_GRAY "[%d]\n"PRNT_RSET, __FILE__, __FUNCTION__, __LINE__); \
-			printf_debug(PRNT_YELW "OsAssert(\a " PRNT_RSET # exp PRNT_YELW " );"); \
-			exit(EXIT_FAILURE); \
-	}
-	
-    #ifndef __EXTLIB_C__
-		
-		#define Lib_Malloc(data, size) Lib_Malloc(data, size); \
-			OsPrintfEx("Lib_Malloc: size [0x%X]", size);
-		
-		#define Lib_Calloc(data, size) Lib_Calloc(data, size); \
-			OsPrintfEx("Lib_Calloc: size [0x%X]", size);
-		
-    #endif
-	
-#else
-	#define OsPrintf(...)   if (0) {}
-	#define OsPrintfEx(...) if (0) {}
-	#define OsAssert(exp)   if (0) {}
-#endif
-
 #define MAX(a, b)            ((a) > (b) ? (a) : (b))
 #define MIN(a, b)            ((a) < (b) ? (a) : (b))
 #define ABS_MAX(a, b)        (ABS(a) > ABS(b) ? (a) : (b))
@@ -330,21 +340,107 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define CLAMP_MAX(val, max)  ((val) > (max) ? (max) : (val))
 #define ArrayCount(arr)      (u32)(sizeof(arr) / sizeof(arr[0]))
 
+#define BinToMb(x) ((f32)(x) / (f32)0x100000)
+#define BinToKb(x) ((f32)(x) / (f32)0x400)
+#define MbToBin(x) (0x100000 * (x))
+#define KbToBin(x) (0x400 * (x))
+
 #define String_Copy(dst, src)   strcpy(dst, src)
 #define String_Merge(dst, src)  strcat(dst, src)
+#define String_SMerge(dst, ...) sprintf(dst + strlen(dst), __VA_ARGS__);
 #define String_Generate(string) strdup(string)
 #define String_IsDiff(a, b)     strcmp(a, b)
 
-#define printf_debugExt(...) if (gPrintfSuppress <= PSL_DEBUG) { \
-		printf(PRNT_DGRY "[%s]: " PRNT_REDD "%s: " PRNT_GRAY "[%d]\n"PRNT_RSET, __FILE__, __FUNCTION__, __LINE__); \
-		printf_debug(__VA_ARGS__); \
-}
+#define Config_WriteTitle(title) MemFile_Printf( \
+		config, \
+		title \
+)
 
-#define printf_debugInfo(x) if (gPrintfSuppress <= PSL_DEBUG) { \
-		printf(PRNT_DGRY "[%s]: " PRNT_REDD "%s: " PRNT_GRAY "[%d] " PRNT_RSET "%s\n", __FILE__, __FUNCTION__, __LINE__, # x); \
-		x; \
-}
+#define Config_WriteTitle_Str(title) MemFile_Printf( \
+		config, \
+		"# %s\n", \
+		title \
+)
+
+#define Config_WriteVar(com1, name, defval, com2) MemFile_Printf( \
+		config, \
+		com1 \
+		"%-15s = %-10s # %s\n\n", \
+		name, \
+		# defval, \
+		com2 \
+)
+
+#define Config_WriteVar_Hex(name, defval) MemFile_Printf( \
+		config, \
+		"%-15s = 0x%X\n", \
+		name, \
+		defval \
+)
+
+#define Config_WriteVar_Int(name, defval) MemFile_Printf( \
+		config, \
+		"%-15s = %d\n", \
+		name, \
+		defval \
+)
+
+#define Config_WriteVar_Flo(name, defval) MemFile_Printf( \
+		config, \
+		"%-15s = %f\n", \
+		name, \
+		defval \
+)
+
+#define Config_WriteVar_Str(name, defval) MemFile_Printf( \
+		config, \
+		"%-15s = %s\n", \
+		name, \
+		defval \
+)
+
+#define Config_SPrintf(...) MemFile_Printf( \
+		config, \
+		__VA_ARGS__ \
+)
+
+#ifndef NDEBUG
+	#define printf_debugExt(...) if (gPrintfSuppress <= PSL_DEBUG) { \
+			printf(PRNT_DGRY "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
+			printf_debug(__VA_ARGS__); \
+	}
+	
+	#define printf_debugExt_align(title, ...) if (gPrintfSuppress <= PSL_DEBUG) { \
+			printf(PRNT_DGRY "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
+			printf_debug_align(title, __VA_ARGS__); \
+	}
+	
+	#define Assert(exp) if (!(exp)) { \
+			printf(PRNT_DGRY "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
+			printf_debug(PRNT_YELW "Assert(\a " PRNT_RSET # exp PRNT_YELW " );"); \
+			exit(EXIT_FAILURE); \
+	}
+	
+    #ifndef __EXTLIB_C__
+		
+		#define Lib_Malloc(data, size) Lib_Malloc(data, size); \
+			printf_debugExt_align("Lib_Malloc", "0x%X", size);
+		
+		#define Lib_Calloc(data, size) Lib_Calloc(data, size); \
+			printf_debugExt_align("Lib_Calloc", "0x%X", size);
+		
+    #endif
+#else
+	#define printf_debugExt(...)
+	#define printf_debugExt_align(title, ...)
+	#define Assert(exp)
+#endif
 
 #define Main(y1, y2) main(y1, y2)
+
+#define ParArg(arg) Lib_ParseArguments(argv, arg, &parArg)
+
+#define AttPacked __attribute__ ((packed))
+#define AttAligned(x) __attribute__((aligned(x)))
 
 #endif /* __EXTLIB_H__ */

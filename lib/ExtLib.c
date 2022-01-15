@@ -2,6 +2,14 @@
 #include "ExtLib.h"
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <dirent.h>
+#include <unistd.h>
+
+#ifdef __COMFLAG__
+    #ifdef _WIN32
+	#undef _WIN32
+    #endif
+#endif
 
 // ExtendedLibrary
 
@@ -9,7 +17,8 @@
 PrintfSuppressLevel gPrintfSuppress = 0;
 char* sPrintfPrefix = "ExtLib";
 u8 sPrintfType = 1;
-
+u8* sSegment[255];
+char sCurrentPath[256 * 4];
 char* sPrintfPreType[][4] = {
 	{
 		NULL,
@@ -24,6 +33,244 @@ char* sPrintfPreType[][4] = {
 		"info"
 	}
 };
+char** sSubPathList;
+u32 sSubPathNum;
+DirParam sDirParam;
+
+// Segment
+void SetSegment(const u8 id, void* segment) {
+	sSegment[id] = segment;
+}
+
+void* SegmentedToVirtual(const u8 id, void32 ptr) {
+	if (sSegment[id] == NULL)
+		printf_error("Segment 0x%X == NULL", id);
+	
+	return &sSegment[id][ptr];
+}
+
+void32 VirtualToSegmented(const u8 id, void* ptr) {
+	return (uPtr)ptr - (uPtr)sSegment[id];
+}
+
+// Dir
+void Dir_SetParam(DirParam w) {
+	sDirParam |= w;
+}
+
+void Dir_UnsetParam(DirParam w) {
+	sDirParam &= ~(w);
+}
+
+void Dir_Set(char* path, ...) {
+	va_list args;
+	
+	memset(sCurrentPath, 0, 1024);
+	va_start(args, path);
+	vsprintf(sCurrentPath, path, args);
+	va_end(args);
+}
+
+void Dir_Enter(char* ent, ...) {
+	va_list args;
+	
+	va_start(args, ent);
+	vsprintf(sCurrentPath + strlen(sCurrentPath), ent, args);
+	va_end(args);
+	if (sDirParam & DIR__MAKE_ON_ENTER) {
+		Dir_MakeCurrent();
+	} else {
+		struct stat st = { 0 };
+		if (stat(sCurrentPath, &st) == -1)
+			printf_error_align("Can't enter", "%s", sCurrentPath);
+	}
+}
+
+void Dir_Leave(void) {
+	char* new;
+	
+	sCurrentPath[strlen(sCurrentPath) - 1] = '\0';
+	new = String_GetPath(sCurrentPath);
+	memmove(sCurrentPath, new, strlen(new) + 1);
+}
+
+void Dir_Make(char* dir, ...) {
+	char buffer[256 * 4];
+	char argBuf[256 * 4];
+	
+	va_list args;
+	
+	va_start(args, dir);
+	String_Copy(buffer, sCurrentPath);
+	vsprintf(argBuf, dir, args);
+	String_Merge(buffer, argBuf);
+	
+	MakeDir(buffer);
+	va_end(args);
+}
+
+void Dir_MakeCurrent(void) {
+	struct stat st = { 0 };
+	
+	if (stat(sCurrentPath, &st) == -1) {
+		#ifdef _WIN32
+			if (mkdir(sCurrentPath)) {
+				printf_error_align("mkdir", "%s", sCurrentPath);
+			}
+		#else
+			if (mkdir(sCurrentPath, 0700)) {
+				printf_error_align("mkdir", "%s", sCurrentPath);
+			}
+		#endif
+	}
+}
+
+char* Dir_Current(void) {
+	return sCurrentPath;
+}
+
+char* Dir_File(char* fmt, ...) {
+	static char buffer[256 * 4];
+	char argBuf[256 * 4];
+	
+	va_list args;
+	
+	va_start(args, fmt);
+	String_Copy(buffer, sCurrentPath);
+	vsprintf(argBuf, fmt, args);
+	String_Merge(buffer, argBuf);
+	
+	va_end(args);
+	
+	return buffer;
+}
+
+static bool __isDir(char* path) {
+	struct stat st = { 0 };
+	
+	stat(path, &st);
+	
+	if (S_ISDIR(st.st_mode)) {
+		return true;
+	}
+	
+	return false;
+}
+
+void Dir_ItemList(ItemList* itemList, bool isPath) {
+	DIR* dir = opendir(sCurrentPath);
+	struct dirent* entry;
+	
+	*itemList = (ItemList) { 0 };
+	
+	if (dir == NULL)
+		printf_error_align("Could not opendir()", "%s", sCurrentPath);
+	
+	while ((entry = readdir(dir)) != NULL) {
+		if (isPath) {
+			if (__isDir(Dir_File(entry->d_name))) {
+				if (entry->d_name[0] == '.')
+					continue;
+				itemList->num++;
+			}
+		} else {
+			if (!__isDir(Dir_File(entry->d_name))) {
+				itemList->num++;
+			}
+		}
+	}
+	
+	if (itemList->num) {
+		u32 i = 0;
+		dir = opendir(sCurrentPath);
+		itemList->item = Lib_Malloc(0, sizeof(char*) * itemList->num);
+		
+		while ((entry = readdir(dir)) != NULL) {
+			if (isPath) {
+				if (__isDir(Dir_File(entry->d_name))) {
+					if (entry->d_name[0] == '.')
+						continue;
+					itemList->item[i] = Lib_Malloc(0, strlen(entry->d_name));
+					String_Copy(itemList->item[i++], entry->d_name);
+				}
+			} else {
+				if (!__isDir(Dir_File(entry->d_name))) {
+					itemList->item[i] = Lib_Malloc(0, strlen(entry->d_name));
+					String_Copy(itemList->item[i++], entry->d_name);
+				}
+			}
+		}
+	}
+}
+
+void MakeDir(char* dir, ...) {
+	struct stat st = { 0 };
+	char buffer[256 * 4];
+	
+	va_list args;
+	
+	va_start(args, dir);
+	vsprintf(buffer, dir, args);
+	
+	if (stat(buffer, &st) == -1) {
+		#ifdef _WIN32
+			if (mkdir(buffer)) {
+				printf_error_align("mkdir", "%s", buffer);
+			}
+		#else
+			if (mkdir(buffer, 0700)) {
+				printf_error_align("mkdir", "%s", buffer);
+			}
+		#endif
+	}
+	va_end(args);
+}
+
+char* CurWorkDir(void) {
+	static char buf[256 * 4];
+	
+	if (getcwd(buf, sizeof(buf)) == NULL) {
+		printf_error("Could not get CurWorkDir");
+	}
+	
+	for (s32 i = 0; i < strlen(buf); i++) {
+		if (buf[i] == '\\')
+			buf[i] = '/';
+	}
+	
+	String_Merge(buf, "/");
+	
+	return buf;
+}
+
+// ItemList
+void ItemList_Free(ItemList* itemList) {
+	if (itemList->num) {
+		for (s32 i = 0; i < itemList->num; i++) {
+			if (itemList->item[i])
+				free(itemList->item[i]);
+		}
+	}
+	
+	if (itemList->item)
+		free(itemList->item);
+	
+	itemList->num = 0;
+}
+
+// printf
+
+char* TempPrintf(char* fmt, ...) {
+	static char buffer[256 * 4];
+	
+	va_list args;
+	
+	va_start(args, fmt);
+	vsprintf(buffer, fmt, args);
+	va_end(args);
+	
+	return buffer;
+}
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
 	gPrintfSuppress = lvl;
@@ -101,6 +348,26 @@ void printf_debug(const char* fmt, ...) {
 	va_end(args);
 }
 
+void printf_debug_align(const char* info, const char* fmt, ...) {
+	if (gPrintfSuppress > PSL_DEBUG)
+		return;
+	
+	va_list args;
+	
+	va_start(args, fmt);
+	__printf_call(0);
+	printf(
+		"%-16s " PRNT_RSET,
+		info
+	);
+	vprintf(
+		fmt,
+		args
+	);
+	printf(PRNT_RSET "\n");
+	va_end(args);
+}
+
 void printf_warning(const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_WARNING)
 		return;
@@ -116,6 +383,26 @@ void printf_warning(const char* fmt, ...) {
 	va_end(args);
 }
 
+void printf_warning_align(const char* info, const char* fmt, ...) {
+	if (gPrintfSuppress >= PSL_NO_WARNING)
+		return;
+	
+	va_list args;
+	
+	va_start(args, fmt);
+	__printf_call(1);
+	printf(
+		"%-16s " PRNT_RSET,
+		info
+	);
+	vprintf(
+		fmt,
+		args
+	);
+	printf(PRNT_RSET "\n");
+	va_end(args);
+}
+
 void printf_error(const char* fmt, ...) {
 	if (gPrintfSuppress < PSL_NO_ERROR) {
 		va_list args;
@@ -127,6 +414,26 @@ void printf_error(const char* fmt, ...) {
 			args
 		);
 		printf("\n");
+		va_end(args);
+	}
+	exit(EXIT_FAILURE);
+}
+
+void printf_error_align(const char* info, const char* fmt, ...) {
+	if (gPrintfSuppress < PSL_NO_ERROR) {
+		va_list args;
+		
+		va_start(args, fmt);
+		__printf_call(2);
+		printf(
+			"%-16s " PRNT_RSET,
+			info
+		);
+		vprintf(
+			fmt,
+			args
+		);
+		printf(PRNT_RSET "\n");
 		va_end(args);
 	}
 	exit(EXIT_FAILURE);
@@ -147,7 +454,7 @@ void printf_info(const char* fmt, ...) {
 	va_end(args);
 }
 
-void printf_align(const char* info, const char* fmt, ...) {
+void printf_info_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
 	va_list args;
@@ -155,15 +462,32 @@ void printf_align(const char* info, const char* fmt, ...) {
 	va_start(args, fmt);
 	__printf_call(3);
 	printf(
-		"%-16s [ " PRNT_GRAY,
+		"%-16s " PRNT_RSET,
 		info
 	);
 	vprintf(
 		fmt,
 		args
 	);
-	printf(PRNT_RSET " ]\n");
+	printf(PRNT_RSET "\n");
 	va_end(args);
+}
+
+void printf_progress(const char* info, u32 a, u32 b) {
+	if (gPrintfSuppress >= PSL_NO_INFO)
+		return;
+	
+	printf("\r");
+	__printf_call(3);
+	printf(
+		"%-16s " PRNT_RSET,
+		info
+	);
+	printf("[%d / %d]", a, b);
+	
+	if (a == b) {
+		printf("\n");
+	}
 }
 
 void printf_WinFix() {
@@ -286,7 +610,9 @@ void* Lib_Malloc(void* data, s32 size) {
 
 void* Lib_Calloc(void* data, s32 size) {
 	data = Lib_Malloc(data, size);
-	memset(data, 0, size);
+	if (data != NULL) {
+		memset(data, 0, size);
+	}
 	
 	return data;
 }
@@ -365,7 +691,8 @@ void* File_Load(void* destSize, char* filepath) {
 		printf_error("Failed to malloc [0x%X] bytes to store data from [%s].", size, filepath);
 	}
 	rewind(file);
-	fread(dest, sizeof(char), size, file);
+	if (fread(dest, sizeof(char), size, file)) {
+	}
 	fclose(file);
 	
 	ss[0] = size;
@@ -380,7 +707,7 @@ void File_Save(char* filepath, void* src, s32 size) {
 		printf_error("Failed to fopen file [%s].", filepath);
 	}
 	
-	fwrite(src, sizeof(u8), size, file);
+	fwrite(src, sizeof(char), size, file);
 	fclose(file);
 }
 
@@ -409,7 +736,7 @@ MemFile MemFile_Initialize() {
 }
 
 void MemFile_Malloc(MemFile* memFile, u32 size) {
-	memset(memFile, 0, sizeof(MemFile));
+	memset(memFile, 0, sizeof(struct MemFile));
 	memFile->data = malloc(size);
 	memset(memFile->data, 0, size);
 	
@@ -421,8 +748,10 @@ void MemFile_Malloc(MemFile* memFile, u32 size) {
 }
 
 void MemFile_Realloc(MemFile* memFile, u32 size) {
-	printf_debugExt("memSize:", memFile->memSize);
-	printf_debug("reqSize", size);
+	if (memFile->memSize > size)
+		return;
+	printf_debugExt_align("memSize", "%08X", memFile->memSize);
+	printf_debug_align("reqSize", "%08X", size);
 	// Make sure to have enough space
 	if (size < memFile->memSize + 0x10000) {
 		size += 0x10000;
@@ -430,7 +759,7 @@ void MemFile_Realloc(MemFile* memFile, u32 size) {
 	
 	memFile->data = realloc(memFile->data, size);
 	memFile->memSize = size;
-	printf_debug("newSize", size);
+	printf_debug_align("newSize", "%08X", size);
 }
 
 void MemFile_Rewind(MemFile* memFile) {
@@ -469,7 +798,7 @@ s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
 
 s32 MemFile_Read(MemFile* src, void* dest, u32 size) {
 	if (src->seekPoint + size > src->dataSize) {
-		OsPrintfEx("Extended dataSize");
+		printf_debugExt("Extended dataSize");
 		
 		return 1;
 	}
@@ -491,21 +820,28 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 		return 1;
 	}
 	
-	printf_debugExt("File: [%s]", filepath);
+	printf_debugExt_align("File", "%s", filepath);
 	
 	fseek(file, 0, SEEK_END);
 	tempSize = ftell(file);
 	
-	MemFile_Malloc(memFile, tempSize);
-	memFile->memSize = memFile->dataSize = tempSize;
 	if (memFile->data == NULL) {
-		printf_warning("Failed to malloc MemFile.\n\tAttempted size is [0x%X] bytes to store data from [%s].", tempSize, filepath);
-		
-		return 1;
+		MemFile_Malloc(memFile, tempSize);
+		memFile->memSize = memFile->dataSize = tempSize;
+		if (memFile->data == NULL) {
+			printf_warning("Failed to malloc MemFile.\n\tAttempted size is [0x%X] bytes to store data from [%s].", tempSize, filepath);
+			
+			return 1;
+		}
+	} else {
+		if (memFile->memSize < tempSize)
+			MemFile_Realloc(memFile, tempSize * 2);
+		memFile->dataSize = tempSize;
 	}
 	
 	rewind(file);
-	fread(memFile->data, 1, memFile->dataSize, file);
+	if (fread(memFile->data, 1, memFile->dataSize, file)) {
+	}
 	fclose(file);
 	stat(filepath, &sta);
 	memFile->info.age = sta.st_mtime;
@@ -513,8 +849,8 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 		free(memFile->info.name);
 	memFile->info.name = String_Generate(filepath);
 	
-	printf_debug("Ptr: %08X", memFile->data);
-	printf_debug("Size: %08X", memFile->dataSize);
+	printf_debug_align("Ptr", "%08X", memFile->data);
+	printf_debug_align("Size", "%08X", memFile->dataSize);
 	
 	return 0;
 }
@@ -535,16 +871,22 @@ s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
 	fseek(file, 0, SEEK_END);
 	tempSize = ftell(file);
 	
-	MemFile_Malloc(memFile, tempSize);
-	memFile->memSize = memFile->dataSize = tempSize;
 	if (memFile->data == NULL) {
-		printf_warning("Failed to malloc MemFile.\n\tAttempted size is [0x%X] bytes to store data from [%s].", tempSize, filepath);
-		
-		return 1;
+		MemFile_Malloc(memFile, tempSize);
+		memFile->memSize = memFile->dataSize = tempSize;
+		if (memFile->data == NULL) {
+			printf_warning("Failed to malloc MemFile.\n\tAttempted size is [0x%X] bytes to store data from [%s].", tempSize, filepath);
+			
+			return 1;
+		}
+	} else {
+		MemFile_Realloc(memFile, tempSize);
+		memFile->dataSize = tempSize;
 	}
 	
 	rewind(file);
-	fread(memFile->data, 1, memFile->dataSize, file);
+	if (fread(memFile->data, 1, memFile->dataSize, file)) {
+	}
 	fclose(file);
 	stat(filepath, &sta);
 	memFile->info.age = sta.st_mtime;
@@ -567,7 +909,7 @@ s32 MemFile_SaveFile(MemFile* memFile, char* filepath) {
 		return 1;
 	}
 	
-	fwrite(memFile->data, sizeof(u8), memFile->dataSize, file);
+	fwrite(memFile->data, sizeof(char), memFile->dataSize, file);
 	fclose(file);
 	
 	return 0;
@@ -582,7 +924,7 @@ s32 MemFile_SaveFile_String(MemFile* memFile, char* filepath) {
 		return 1;
 	}
 	
-	fwrite(memFile->data, sizeof(u8), memFile->dataSize, file);
+	fwrite(memFile->data, sizeof(char), memFile->dataSize, file);
 	fclose(file);
 	
 	return 0;
@@ -613,7 +955,7 @@ void MemFile_Free(MemFile* memFile) {
 			free(memFile->info.name);
 		free(memFile->data);
 		
-		memset(memFile, 0, sizeof(MemFile));
+		memset(memFile, 0, sizeof(struct MemFile));
 	}
 }
 
@@ -939,7 +1281,7 @@ void String_Insert(char* point, char* insert) {
 	char* insEnd = point + insLen;
 	s32 remLen = strlen(point);
 	
-	memmove(insEnd, point, remLen);
+	memmove(insEnd, point, remLen + 1);
 	insEnd[remLen] = 0;
 	memcpy(point, insert, insLen);
 }
@@ -950,6 +1292,22 @@ void String_Remove(char* point, s32 amount) {
 	
 	memcpy(point, get, strlen(get));
 	point[len] = 0;
+}
+
+s32 String_Replace(char* src, char* word, char* replacement) {
+	s32 diff = 0;
+	char* ptr;
+	
+	ptr = String_MemMem(src, word);
+	
+	while (ptr != NULL) {
+		String_Remove(ptr, strlen(word));
+		String_Insert(ptr, replacement);
+		diff += strlen(replacement) - strlen(word) - 1;
+		ptr = String_MemMem(src, word);
+	}
+	
+	return diff;
 }
 
 void String_SwapExtension(char* dest, char* src, const char* ext) {
