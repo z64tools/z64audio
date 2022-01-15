@@ -315,7 +315,7 @@ s32 descent(s32 guess[16], s32 minVals[16], s32 maxVals[16], u8 input[9], s32 la
 
 s32 bruteforce(s32 guess[16], u8 input[9], s32 decoded[16], s32 decompressed[16], s32 lastState[16], s32*** coefTable, s32 order, s32 npredictors, u32 framesize) {
 	s32 scale = input[0] >> 4, predictor = input[0] & 0xF;
-	
+	u32 getMeOut = 0;
 	s32 minVals[16], maxVals[16];
 	
 	get_bounds(decoded, decompressed, 1 << scale, minVals, maxVals, framesize);
@@ -338,6 +338,9 @@ s32 bruteforce(s32 guess[16], u8 input[9], s32 decoded[16], s32 decompressed[16]
 		if (descent(guess, minVals, maxVals, input, lastState, coefTable, order, npredictors, predictor, scale, decompressed, framesize)) {
 			return 1;
 		}
+		if (getMeOut >= 5000)
+			return 1;
+		getMeOut++;
 	}
 }
 

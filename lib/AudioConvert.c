@@ -3,9 +3,10 @@
 
 NameParam gBinNameIndex;
 u32 gSampleRate = 16000;
+u32 gPrecisionFlag;
+
 u32 gBaseNote;
 u32 gFineTune;
-u32 gFrameSizeFlag;
 
 char* sBinName[][4] = {
 	{
@@ -202,7 +203,7 @@ void Audio_Downsample(AudioSampleInfo* sampleInfo) {
 	}
 }
 void Audio_Upsample(AudioSampleInfo* sampleInfo) {
-	MemFile newMem;
+	MemFile newMem = MemFile_Initialize();
 	u32 samplesNum = sampleInfo->samplesNum;
 	u32 channelNum = sampleInfo->channelNum;
 	
@@ -731,7 +732,7 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 	AudioTools_VadpcmDec(sampleInfo);
 }
 void Audio_LoadSample_Bin(AudioSampleInfo* sampleInfo) {
-	MemFile config = { 0 };
+	MemFile config = MemFile_Initialize();
 	char buffer[256 * 2];
 	u32 loopEnd;
 	u32 tailEnd;
@@ -759,7 +760,7 @@ void Audio_LoadSample_Bin(AudioSampleInfo* sampleInfo) {
 	sampleInfo->instrument.fineTune = gFineTune;
 	sampleInfo->instrument.loop.start = Config_GetInt(&config, "start");
 	sampleInfo->instrument.loop.end = Config_GetInt(&config, "end");
-	gFrameSizeFlag = Config_GetInt(&config, "codec");
+	gPrecisionFlag = Config_GetInt(&config, "codec");
 	sampleInfo->instrument.loop.count = sampleInfo->instrument.loop.start ? -1 : 0;
 	
 	sampleInfo->vadBook.cast.u16[0] = ReadBE(sampleInfo->vadBook.cast.u16[1]);
@@ -812,7 +813,7 @@ void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo) {
 	WaveInstrumentInfo instrument = { 0 };
 	WaveSampleInfo sample = { 0 };
 	WaveSampleLoop loop = { 0 };
-	MemFile output;
+	MemFile output = MemFile_Initialize();
 	
 	/* Write chunk headers */ {
 		header.chunk.size = 4 +
@@ -973,7 +974,7 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 	MemFile_Free(&output);
 }
 void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
-	MemFile output;
+	MemFile output = MemFile_Initialize();
 	u16 emp = 0;
 	char buffer[265 * 4];
 	

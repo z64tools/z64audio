@@ -73,10 +73,15 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	printf_WinFix();
 	printf_SetPrefix("");
-	z64params(argv);
 	
 	if (ParseArg("-D") || ParseArg("--D")) {
 		printf_SetSuppressLevel(PSL_DEBUG);
+	}
+	
+	z64params(argv);
+	
+	if (ParseArg("-H") || ParseArg("--H")) {
+		gSampleRate = String_NumStrToInt(argv[parArg]);
 	}
 	
 	if (ParseArg("-s") || ParseArg("--s")) {
@@ -313,7 +318,7 @@ void z64param_Generate(MemFile* param, char* file) {
 }
 
 void z64params(char* argv[]) {
-	MemFile param;
+	MemFile param = MemFile_Initialize();
 	char file[256 * 4];
 	u32 parArg;
 	s32 integer;
