@@ -2,6 +2,10 @@
 #include "AudioTools.h"
 
 NameParam gBinNameIndex;
+u32 gSampleRate = 16000;
+u32 gBaseNote;
+u32 gFineTune;
+u32 gFrameSizeFlag;
 
 char* sBinName[][4] = {
 	{
@@ -726,16 +730,59 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 	
 	AudioTools_VadpcmDec(sampleInfo);
 }
+void Audio_LoadSample_Bin(AudioSampleInfo* sampleInfo) {
+	MemFile config;
+	char buffer[256 * 2];
+	u32 loopEnd;
+	u32 tailEnd;
+	
+	MemFile_LoadFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".bin");
+	
+	String_Copy(buffer, String_GetPath(sampleInfo->input));
+	String_Merge(buffer, "book.bin");
+	MemFile_LoadFile(&sampleInfo->vadBook, buffer);
+	
+	String_Copy(buffer, String_GetPath(sampleInfo->input));
+	String_Merge(buffer, "config.cfg");
+	MemFile_LoadFile(&config, buffer);
+	
+	loopEnd = Config_GetInt(&config, "end");
+	tailEnd = Config_GetInt(&config, "tail_end");
+	
+	sampleInfo->channelNum = 1;
+	sampleInfo->bit = 16;
+	sampleInfo->sampleRate = gSampleRate;
+	sampleInfo->samplesNum = tailEnd ? tailEnd : loopEnd;
+	sampleInfo->size = sampleInfo->memFile.dataSize;
+	sampleInfo->audio.p = sampleInfo->memFile.data;
+	
+	sampleInfo->instrument.fineTune = gFineTune;
+	sampleInfo->instrument.loop.start = Config_GetInt(&config, "start");
+	sampleInfo->instrument.loop.end = Config_GetInt(&config, "end");
+	gFrameSizeFlag = Config_GetInt(&config, "codec");
+	sampleInfo->instrument.loop.count = sampleInfo->instrument.loop.start ? -1 : 0;
+	
+	sampleInfo->vadBook.cast.u16[0] = ReadBE(sampleInfo->vadBook.cast.u16[1]);
+	sampleInfo->vadBook.cast.u16[1] = ReadBE(sampleInfo->vadBook.cast.u16[3]);
+	for (s32 i = 0; i < 8 * sampleInfo->vadBook.cast.u16[0] * sampleInfo->vadBook.cast.u16[1]; i++) {
+		sampleInfo->vadBook.cast.u16[i + 2] = ReadBE(sampleInfo->vadBook.cast.u16[i + 4]);
+	}
+	
+	
+	AudioTools_VadpcmDec(sampleInfo);
+}
 void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 	char* keyword[] = {
 		".wav",
 		".aiff",
 		".aifc",
+		".bin"
 	};
 	AudioFunc loadSample[] = {
 		Audio_LoadSample_Wav,
 		Audio_LoadSample_Aiff,
 		Audio_LoadSample_AifcVadpcm,
+		Audio_LoadSample_Bin,
 		NULL
 	};
 	
@@ -995,6 +1042,14 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 			0.01 * sampleInfo->instrument.fineTune
 		)
 	);
+	
+	/*
+	   reverse, Thanks Sauraen!
+	   float y = 12.0f * log(32000.0f * tuning / sr) / log(2.0f);
+
+	   note = 60 - (s32)round(y);
+	   fineTune = y - round(y);
+	 */
 	
 	MemFile_Free(&output);
 }

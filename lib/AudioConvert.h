@@ -186,6 +186,10 @@ typedef enum {
 } NameParam;
 
 extern NameParam gBinNameIndex;
+extern u32 gSampleRate;
+extern u32 gBaseNote;
+extern u32 gFineTune;
+extern u32 gFrameSizeFlag;
 
 void Audio_ByteSwap(AudioSampleInfo* sampleInfo);
 void Audio_Normalize(AudioSampleInfo* sampleInfo);

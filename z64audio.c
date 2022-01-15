@@ -324,7 +324,7 @@ void z64params(char* argv[]) {
 	String_Copy(file, String_GetPath(argv[0]));
 	String_Merge(file, "z64audio.cfg");
 	
-	if (ParseArg("-D") || ParseArg("--D")) {
+	if (ParseArg("-P") || ParseArg("--P")) {
 		MemFile_LoadFile_String(&param, argv[parArg]);
 	} else if (MemFile_LoadFile_String(&param, file)) {
 		printf_info("Generating settings [%s]", file);

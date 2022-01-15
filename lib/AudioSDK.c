@@ -1,5 +1,346 @@
 #include "AudioSDK.h"
 
+extern u32 gFrameSizeFlag;
+s32 myrand() {
+	static u64 state = 1619236481962341ULL;
+	
+	state *= 3123692312237ULL;
+	state += 1;
+	
+	return state >> 33;
+}
+
+void clamp_to_s16(f32* in, s32* out) {
+	f32 llevel = -0x8000;
+	f32 ulevel = 0x7fff;
+	
+	for (s32 i = 0; i < 16; i++) {
+		if (in[i] > ulevel) in[i] = ulevel;
+		if (in[i] < llevel) in[i] = llevel;
+		
+		if (in[i] > 0.0f) {
+			out[i] = (s32) (in[i] + 0.5);
+		} else {
+			out[i] = (s32) (in[i] - 0.5);
+		}
+	}
+}
+
+s16 clamp_bits(s32 x, s32 bits) {
+	s32 lim = 1 << (bits - 1);
+	
+	if (x < -lim) return -lim;
+	if (x > lim - 1) return lim - 1;
+	
+	return x;
+}
+
+void permute(s32* out, s32* in, s32* decompressed, s32 scale, u32 framesize) {
+	int normal = myrand() % 3 == 0;
+	
+	for (s32 i = 0; i < 16; i++) {
+		s32 lo = in[i] - scale / 2;
+		s32 hi = in[i] + scale / 2;
+		if (framesize == 9) {
+			if (decompressed[i] == -8 && myrand() % 10 == 0) lo -= scale * 3 / 2;
+			else if (decompressed[i] == 7 && myrand() % 10 == 0) hi += scale * 3 / 2;
+		} else if (decompressed[i] == -2 && myrand() % 7 == 0) lo -= scale * 3 / 2;
+		else if (decompressed[i] == 1 && myrand() % 10 == 0) hi += scale * 3 / 2;
+		else if (normal) {
+		} else if (decompressed[i] == 0) {
+			if (myrand() % 3) {
+				lo = in[i] - scale / 5;
+				hi = in[i] + scale / 5;
+			} else if (myrand() % 2) {
+				lo = in[i] - scale / 3;
+				hi = in[i] + scale / 3;
+			}
+		} else if (myrand() % 3) {
+			if (decompressed[i] < 0) lo = in[i] + scale / 4;
+			if (decompressed[i] > 0) hi = in[i] - scale / 4;
+		} else if (myrand() % 2) {
+			if (decompressed[i] < 0) lo = in[i] - scale / 4;
+			if (decompressed[i] > 0) hi = in[i] + scale / 4;
+		}
+		out[i] = clamp_bits(lo + myrand() % (hi - lo + 1), 16);
+	}
+}
+
+void get_bounds(s32* in, s32* decompressed, s32 scale, s32* minVals, s32* maxVals, u32 framesize) {
+	s32 minv, maxv;
+	
+	if (framesize == 9) {
+		minv = -8;
+		maxv = 7;
+	} else {
+		minv = -2;
+		maxv = 1;
+	}
+	for (s32 i = 0; i < 16; i++) {
+		s32 lo = in[i] - scale / 2;
+		s32 hi = in[i] + scale / 2;
+		lo -= scale;
+		hi += scale;
+		if (decompressed[i] == minv) lo -= scale;
+		else if (decompressed[i] == maxv) hi += scale;
+		minVals[i] = lo;
+		maxVals[i] = hi;
+	}
+}
+
+s64 scored_encode(s32* inBuffer, s32* origState, s32*** coefTable, s32 order, s32 npredictors, s32 wantedPredictor, s32 wantedScale, s32 wantedIx[16], u32 framesize) {
+	s32 prediction[16];
+	s32 inVector[16];
+	s32 optimalp = 0;
+	s32 scale;
+	s32 encBits = (framesize == 5 ? 2 : 4);
+	s32 llevel = -(1 << (encBits - 1));
+	s32 ulevel = -llevel - 1;
+	s32 ie[16];
+	f32 e[16];
+	f32 min = 1e30;
+	s32 scaleFactor = 16 - encBits;
+	f32 errs[4];
+	s64 scoreA = 0, scoreB = 0, scoreC = 0;
+	
+	for (s32 k = 0; k < npredictors; k++) {
+		for (s32 j = 0; j < 2; j++) {
+			for (s32 i = 0; i < order; i++) {
+				inVector[i] = (j == 0 ? origState[16 - order + i] : inBuffer[8 - order + i]);
+			}
+			
+			for (s32 i = 0; i < 8; i++) {
+				prediction[j * 8 + i] = inner_product(order + i, coefTable[k][i], inVector);
+				inVector[i + order] = inBuffer[j * 8 + i] - prediction[j * 8 + i];
+				e[j * 8 + i] = (f32) inVector[i + order];
+			}
+		}
+		
+		f32 se = 0.0f;
+		for (s32 j = 0; j < 16; j++) {
+			se += e[j] * e[j];
+		}
+		
+		errs[k] = se;
+		
+		if (se < min) {
+			min = se;
+			optimalp = k;
+		}
+	}
+	
+	for (s32 k = 0; k < npredictors; k++) {
+		if (errs[k] < errs[wantedPredictor]) {
+			scoreA += (s64)(errs[wantedPredictor] - errs[k]);
+		}
+	}
+	if (optimalp != wantedPredictor) {
+		// probably penalized above, but add extra penalty in case the error
+		// values were the exact same
+		scoreA += 1;
+	}
+	optimalp = wantedPredictor;
+	
+	for (s32 j = 0; j < 2; j++) {
+		for (s32 i = 0; i < order; i++) {
+			inVector[i] = (j == 0 ? origState[16 - order + i] : inBuffer[8 - order + i]);
+		}
+		
+		for (s32 i = 0; i < 8; i++) {
+			prediction[j * 8 + i] = inner_product(order + i, coefTable[optimalp][i], inVector);
+			e[j * 8 + i] = inVector[i + order] = inBuffer[j * 8 + i] - prediction[j * 8 + i];
+		}
+	}
+	
+	clamp_to_s16(e, ie);
+	
+	s32 max = 0;
+	
+	for (s32 i = 0; i < 16; i++) {
+		if (abs(ie[i]) > abs(max)) {
+			max = ie[i];
+		}
+	}
+	
+	for (scale = 0; scale <= scaleFactor; scale++) {
+		if (max <= ulevel && max >= llevel) break;
+		max /= 2;
+	}
+	
+	// Preliminary ix computation, computes whether scale needs to be incremented
+	s32 state[16];
+	s32 again = 0;
+	
+	for (s32 j = 0; j < 2; j++) {
+		s32 base = j * 8;
+		for (s32 i = 0; i < order; i++) {
+			inVector[i] = (j == 0 ?
+				origState[16 - order + i] : state[8 - order + i]);
+		}
+		
+		for (s32 i = 0; i < 8; i++) {
+			prediction[base + i] = inner_product(order + i, coefTable[optimalp][i], inVector);
+			f32 se = (f32) inBuffer[base + i] - (f32) prediction[base + i];
+			s32 ix = qsample(se, 1 << scale);
+			s32 clampedIx = clamp_bits(ix, encBits);
+			s32 cV = clampedIx - ix;
+			if (cV > 1 || cV < -1) {
+				again = 1;
+			}
+			inVector[i + order] = clampedIx * (1 << scale);
+			state[base + i] = prediction[base + i] + inVector[i + order];
+		}
+	}
+	
+	if (again && scale < scaleFactor) {
+		scale++;
+	}
+	
+	if (scale != wantedScale) {
+		// We could do math to penalize scale mismatches accurately, but it's
+		// simpler to leave it as a constraint by setting an infinite penalty.
+		scoreB += 100000000;
+		scale = wantedScale;
+	}
+	
+	// Then again for real, but now also with penalty computation
+	for (s32 j = 0; j < 2; j++) {
+		s32 base = j * 8;
+		for (s32 i = 0; i < order; i++) {
+			inVector[i] = (j == 0 ?
+				origState[16 - order + i] : state[8 - order + i]);
+		}
+		
+		for (s32 i = 0; i < 8; i++) {
+			prediction[base + i] = inner_product(order + i, coefTable[optimalp][i], inVector);
+			s64 ise = (s64) inBuffer[base + i] - (s64) prediction[base + i];
+			f32 se = (f32) inBuffer[base + i] - (f32) prediction[base + i];
+			s32 ix = qsample(se, 1 << scale);
+			s32 clampedIx = clamp_bits(ix, encBits);
+			s32 val = wantedIx[base + i] * (1 << scale);
+			if (clampedIx != wantedIx[base + i]) {
+				assert(ix != wantedIx[base + i]);
+				s32 lo = val - (1 << scale) / 2;
+				s32 hi = val + (1 << scale) / 2;
+				s64 diff = 0;
+				if (ise < lo) diff = lo - ise;
+				else if (ise > hi) diff = ise - hi;
+				scoreC += diff * diff + 1;
+			}
+			inVector[i + order] = val;
+			state[base + i] = prediction[base + i] + val;
+		}
+	}
+	
+	// Penalties for going outside s16
+	for (s32 i = 0; i < 16; i++) {
+		s64 diff = 0;
+		if (inBuffer[i] < -0x8000) diff = -0x8000 - inBuffer[i];
+		if (inBuffer[i] > 0x7fff) diff = inBuffer[i] - 0x7fff;
+		scoreC += diff * diff;
+	}
+	
+	return scoreA + scoreB + 10 * scoreC;
+}
+
+s32 descent(s32 guess[16], s32 minVals[16], s32 maxVals[16], u8 input[9], s32 lastState[16], s32*** coefTable, s32 order, s32 npredictors, s32 wantedPredictor, s32 wantedScale, s32 wantedIx[32], u32 framesize) {
+	const f64 inf = 1e100;
+	s64 curScore = scored_encode(guess, lastState, coefTable, order, npredictors, wantedPredictor, wantedScale, wantedIx, framesize);
+	
+	for (;;) {
+		f64 delta[16];
+		if (curScore == 0) {
+			return 1;
+		}
+		
+		// Compute gradient, and how far to move along it at most.
+		f64 maxMove = inf;
+		for (s32 i = 0; i < 16; i++) {
+			guess[i] += 1;
+			s64 scoreUp = scored_encode(guess, lastState, coefTable, order, npredictors, wantedPredictor, wantedScale, wantedIx, framesize);
+			guess[i] -= 2;
+			s64 scoreDown = scored_encode(guess, lastState, coefTable, order, npredictors, wantedPredictor, wantedScale, wantedIx, framesize);
+			guess[i] += 1;
+			if (scoreUp >= curScore && scoreDown >= curScore) {
+				// Don't touch this coordinate
+				delta[i] = 0;
+			} else if (scoreDown < scoreUp) {
+				if (guess[i] == minVals[i]) {
+					// Don't allow moving out of bounds
+					delta[i] = 0;
+				} else {
+					delta[i] = -(f64)(curScore - scoreDown);
+					maxMove = fmin(maxMove, (minVals[i] - guess[i]) / delta[i]);
+				}
+			} else {
+				if (guess[i] == maxVals[i]) {
+					delta[i] = 0;
+				} else {
+					delta[i] = (f64)(curScore - scoreUp);
+					maxMove = fmin(maxMove, (maxVals[i] - guess[i]) / delta[i]);
+				}
+			}
+		}
+		if (maxMove == inf || maxMove <= 0) {
+			return 0;
+		}
+		
+		// Try exponentially spaced candidates along the gradient.
+		s32 nguess[16];
+		s32 bestGuess[16];
+		s64 bestScore = curScore;
+		for (;;) {
+			s32 changed = 0;
+			for (s32 i = 0; i < 16; i++) {
+				nguess[i] = (s32)round(guess[i] + delta[i] * maxMove);
+				if (nguess[i] != guess[i]) changed = 1;
+			}
+			if (!changed) break;
+			s64 score = scored_encode(nguess, lastState, coefTable, order, npredictors, wantedPredictor, wantedScale, wantedIx, framesize);
+			if (score < bestScore) {
+				bestScore = score;
+				memcpy(bestGuess, nguess, sizeof(nguess));
+			}
+			maxMove *= 0.7;
+		}
+		
+		if (bestScore == curScore) {
+			// No improvements along that line, give up.
+			return 0;
+		}
+		curScore = bestScore;
+		memcpy(guess, bestGuess, sizeof(bestGuess));
+	}
+}
+
+s32 bruteforce(s32 guess[16], u8 input[9], s32 decoded[16], s32 decompressed[16], s32 lastState[16], s32*** coefTable, s32 order, s32 npredictors, u32 framesize) {
+	s32 scale = input[0] >> 4, predictor = input[0] & 0xF;
+	
+	s32 minVals[16], maxVals[16];
+	
+	get_bounds(decoded, decompressed, 1 << scale, minVals, maxVals, framesize);
+	
+	for (;;) {
+		s64 bestScore = -1;
+		s32 bestGuess[16];
+		for (s32 it = 0; it < 100; it++) {
+			permute(guess, decoded, decompressed, 1 << scale, framesize);
+			s64 score = scored_encode(guess, lastState, coefTable, order, npredictors, predictor, scale, decompressed, framesize);
+			if (score == 0) {
+				return 1;
+			}
+			if (bestScore == -1 || score < bestScore) {
+				bestScore = score;
+				memcpy(bestGuess, guess, sizeof(bestGuess));
+			}
+		}
+		memcpy(guess, bestGuess, sizeof(bestGuess));
+		if (descent(guess, minVals, maxVals, input, lastState, coefTable, order, npredictors, predictor, scale, decompressed, framesize)) {
+			return 1;
+		}
+	}
+}
+
 s32 inner_product(s32 length, s32* v1, s32* v2) {
 	s32 j;
 	s32 dout;

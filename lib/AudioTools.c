@@ -102,15 +102,8 @@ void AudioTools_ReadCodeBook(AudioSampleInfo* sampleInfo, s32**** table, s32* de
 		}
 	}
 }
-void AudioTools_VencodeFrame(AudioSampleInfo* sampleInfo, MemFile* mem, s16* buffer, s32* state, s32*** coefTable, s32 nSam) {
-	s32 order = sampleInfo->vadBook.cast.u16[0];
-	s32 nPred = sampleInfo->vadBook.cast.u16[1];
-	
-	// We are only given 'nsam' samples; pad with zeroes to 16.
-	for (s32 i = nSam; i < 16; i++) {
-		buffer[i] = 0;
-	}
-	
+void AudioTools_VencodeFrame(MemFile* mem, s16* buffer, s32* state, s32*** coefTable, s32 order, s32 npredictors, u32 framesize, u8 precision) {
+	s32 nPred = npredictors;
 	s16 ix[16] = { 0 };
 	s32 prediction[16];
 	s32 inVector[16];
@@ -118,11 +111,12 @@ void AudioTools_VencodeFrame(AudioSampleInfo* sampleInfo, MemFile* mem, s16* buf
 	f32 e[16];
 	s32 ie[16];
 	f32 se;
-	
-	s32 llevel = -8;
+	s32 encBits = (precision == 5 ? 2 : 4);
+	s32 llevel = -(1 << (encBits - 1));
 	s32 ulevel = -llevel - 1;
 	f32 min = 1e30;
 	s32 optimalp = 0;
+	s32 scaleFactor = 16 - encBits;
 	
 	// Determine the best-fitting predictor.
 	for (s32 k = 0; k < nPred; k++) {
@@ -211,7 +205,7 @@ void AudioTools_VencodeFrame(AudioSampleInfo* sampleInfo, MemFile* mem, s16* buf
 	// The worst-case 'max' is -2^15, so this will be at most 12.
 	s32 scale;
 	
-	for (scale = 0; scale <= 12; scale++) {
+	for (scale = 0; scale <= scaleFactor; scale++) {
 		if (max <= ulevel && max >= llevel) {
 			break;
 		}
@@ -289,62 +283,186 @@ void AudioTools_VencodeFrame(AudioSampleInfo* sampleInfo, MemFile* mem, s16* buf
 		}
 	} while (maxClip >= 2 && nIter < 2);
 	
-	// The scale, the predictor index, and the 16 computed outputs are now all
-	// 4-bit numbers. Write them out as 1 + 8 bytes.
 	u8 header = (scale << 4) | (optimalp & 0xf);
 	
 	MemFile_Write(mem, &header, sizeof(u8));
-	for (s32 i = 0; i < 16; i += 2) {
-		u8 c = (ix[i] << 4) | (ix[i + 1] & 0xf);
-		MemFile_Write(mem, &c, sizeof(u8));
+	
+	if (precision == 9) {
+		for (s32 i = 0; i < 16; i += 2) {
+			u8 c = (ix[i] << 4) | (ix[i + 1] & 0xf);
+			MemFile_Write(mem, &c, sizeof(u8));
+		}
+	} else {
+		for (s32 i = 0; i < 16; i += 4) {
+			u8 c = ((ix[i] & 0x3) << 6) | ((ix[i + 1] & 0x3) << 4) | ((ix[i + 2] & 0x3) << 2) | (ix[i + 3] & 0x3);
+			MemFile_Write(mem, &c, sizeof(u8));
+		}
 	}
 }
-void AudioTools_VdecodeFrame(MemFile* src, s32* outp, s32 order, s32*** coefTable) {
+void AudioTools_VdecodeFrame(u8* frame, s32* decompressed, s32* state, s32 order, s32*** coefTable, u32 framesize) {
 	s32 ix[16];
-	u8 header;
-	s32 scale;
-	s32 optimalp;
 	
-	MemFile_Read(src, &header, 1);
-	scale = 1 << (header >> 4);
-	optimalp = header & 0xf;
+	u8 header = frame[0];
+	s32 scale = 1 << (header >> 4);
+	s32 optimalp = header & 0xf;
 	
-	for (s32 i = 0; i < 16; i += 2) {
-		u8 c;
-		
-		MemFile_Read(src, &c, 1);
-		ix[i] = c >> 4;
-		ix[i + 1] = c & 0xf;
-		
-		if (ix[i] <= 7) {
-			ix[i] *= scale;
-		} else {
-			ix[i] = (-0x10 - -ix[i]) * scale;
+	if (framesize == 5) {
+		for (s32 i = 0; i < 16; i += 4) {
+			u8 c = frame[1 + i / 4];
+			ix[i] = c >> 6;
+			ix[i + 1] = (c >> 4) & 0x3;
+			ix[i + 2] = (c >> 2) & 0x3;
+			ix[i + 3] = c & 0x3;
 		}
-		
-		if (ix[i + 1] <= 7) {
-			ix[i + 1] *= scale;
-		} else {
-			ix[i + 1] = (-0x10 - -ix[i + 1]) * scale;
+	} else {
+		for (s32 i = 0; i < 16; i += 2) {
+			u8 c = frame[1 + i / 2];
+			ix[i] = c >> 4;
+			ix[i + 1] = c & 0xf;
 		}
+	}
+	
+	for (s32 i = 0; i < 16; i++) {
+		if (framesize == 5) {
+			if (ix[i] >= 2) ix[i] -= 4;
+		} else {
+			if (ix[i] >= 8) ix[i] -= 16;
+		}
+		decompressed[i] = ix[i];
+		ix[i] *= scale;
 	}
 	
 	for (s32 j = 0; j < 2; j++) {
-		s32 inVec[16];
+		s32 in_vec[16];
 		if (j == 0) {
 			for (s32 i = 0; i < order; i++) {
-				inVec[i] = outp[16 - order + i];
+				in_vec[i] = state[16 - order + i];
 			}
 		} else {
 			for (s32 i = 0; i < order; i++) {
-				inVec[i] = outp[8 - order + i];
+				in_vec[i] = state[8 - order + i];
 			}
 		}
 		
 		for (s32 i = 0; i < 8; i++) {
 			s32 ind = j * 8 + i;
-			inVec[order + i] = ix[ind];
-			outp[ind] = inner_product(order + i, coefTable[optimalp][i], inVec) + ix[ind];
+			in_vec[order + i] = ix[ind];
+			state[ind] = inner_product(order + i, coefTable[optimalp][i], in_vec) + ix[ind];
+		}
+	}
+}
+
+void AudioTools_VencodeBrute(u8* out, s16* inBuffer, s32* origState, s32*** coefTable, s32 order, s32 npredictors, u32 framesize) {
+	s16 ix[16];
+	s32 prediction[16];
+	s32 inVector[16];
+	s32 optimalp = 0;
+	s32 scale;
+	s32 encBits = (framesize == 5 ? 2 : 4);
+	s32 llevel = -(1 << (encBits - 1));
+	s32 ulevel = -llevel - 1;
+	s32 ie[16];
+	f32 e[16];
+	f32 min = 1e30;
+	s32 scaleFactor = 16 - encBits;
+	
+	for (s32 k = 0; k < npredictors; k++) {
+		for (s32 j = 0; j < 2; j++) {
+			for (s32 i = 0; i < order; i++) {
+				inVector[i] = (j == 0 ? origState[16 - order + i] : inBuffer[8 - order + i]);
+			}
+			
+			for (s32 i = 0; i < 8; i++) {
+				prediction[j * 8 + i] = inner_product(order + i, coefTable[k][i], inVector);
+				inVector[i + order] = inBuffer[j * 8 + i] - prediction[j * 8 + i];
+				e[j * 8 + i] = (f32) inVector[i + order];
+			}
+		}
+		
+		f32 se = 0.0f;
+		for (s32 j = 0; j < 16; j++) {
+			se += e[j] * e[j];
+		}
+		
+		if (se < min) {
+			min = se;
+			optimalp = k;
+		}
+	}
+	
+	for (s32 j = 0; j < 2; j++) {
+		for (s32 i = 0; i < order; i++) {
+			inVector[i] = (j == 0 ? origState[16 - order + i] : inBuffer[8 - order + i]);
+		}
+		
+		for (s32 i = 0; i < 8; i++) {
+			prediction[j * 8 + i] = inner_product(order + i, coefTable[optimalp][i], inVector);
+			e[j * 8 + i] = inVector[i + order] = inBuffer[j * 8 + i] - prediction[j * 8 + i];
+		}
+	}
+	
+	clamp_to_s16(e, ie);
+	
+	s32 max = 0;
+	
+	for (s32 i = 0; i < 16; i++) {
+		if (abs(ie[i]) > abs(max)) {
+			max = ie[i];
+		}
+	}
+	
+	for (scale = 0; scale <= scaleFactor; scale++) {
+		if (max <= ulevel && max >= llevel) break;
+		max /= 2;
+	}
+	
+	s32 state[16];
+	
+	for (s32 i = 0; i < 16; i++) {
+		state[i] = origState[i];
+	}
+	
+	s32 nIter, again;
+	
+	for (nIter = 0, again = 1; nIter < 2 && again; nIter++) {
+		again = 0;
+		if (nIter == 1) scale++;
+		if (scale > scaleFactor) {
+			scale = scaleFactor;
+		}
+		
+		for (s32 j = 0; j < 2; j++) {
+			s32 base = j * 8;
+			for (s32 i = 0; i < order; i++) {
+				inVector[i] = (j == 0 ?
+					origState[16 - order + i] : state[8 - order + i]);
+			}
+			
+			for (s32 i = 0; i < 8; i++) {
+				prediction[base + i] = inner_product(order + i, coefTable[optimalp][i], inVector);
+				f32 se = (f32) inBuffer[base + i] - (f32) prediction[base + i];
+				ix[base + i] = qsample(se, 1 << scale);
+				s32 cV = clamp_bits(ix[base + i], encBits) - ix[base + i];
+				if (cV > 1 || cV < -1) again = 1;
+				ix[base + i] += cV;
+				inVector[i + order] = ix[base + i] * (1 << scale);
+				state[base + i] = prediction[base + i] + inVector[i + order];
+			}
+		}
+	}
+	
+	u8 header = (scale << 4) | (optimalp & 0xf);
+	
+	out[0] = header;
+	if (framesize == 5) {
+		for (s32 i = 0; i < 16; i += 4) {
+			u8 c = ((ix[i] & 0x3) << 6) | ((ix[i + 1] & 0x3) << 4) | ((ix[i + 2] & 0x3) << 2) | (ix[i + 3] & 0x3);
+			out[1 + i / 4] = c;
+		}
+	} else {
+		for (s32 i = 0; i < 16; i += 2) {
+			u8 c = ((ix[i] & 0xf) << 4) | (ix[i + 1] & 0xf);
+			out[1 + i / 2] = c;
 		}
 	}
 }
@@ -572,11 +690,11 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	s32 nPred;
 	u32 nSam;
 	u32 nBytes = 0;
-	
 	s32 state[16] = { 0 };
 	s16 buffer[16] = { 0 };
 	s32*** table = NULL;
 	u32 nFrames = sampleInfo->samplesNum;
+	u32 prec = 9; // 5 half VADPCM Precision
 	
 	MemFile_Malloc(&memEnc, sampleInfo->size * 2);
 	AudioTools_ReadCodeBook(sampleInfo, &table, &order, &nPred);
@@ -599,9 +717,9 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 		
 		while (pos <= aI) {
 			memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * 16);
-			AudioTools_VencodeFrame(sampleInfo, &memEnc, buffer, state, table, 16);
+			AudioTools_VencodeFrame(&memEnc, buffer, state, table, order, nPred, 16, prec);
 			pos += 16;
-			nBytes += 9;
+			nBytes += prec;
 		}
 		
 		for (s32 i = 0; i < 16; i++) {
@@ -612,16 +730,16 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 		while (nRepeats > 0) {
 			for (; pos + 16 < aO; pos += 16) {
 				memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * 16);
-				AudioTools_VencodeFrame(sampleInfo, &memEnc, buffer, state, table, 16);
-				nBytes += 9;
+				AudioTools_VencodeFrame(&memEnc, buffer, state, table, order, nPred, 16, prec);
+				nBytes += prec;
 			}
 			
 			u32 left = aO - pos;
 			memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * left);
 			memcpy(&buffer[left], &sampleInfo->audio.s16[aI], sizeof(s16) * (16 - left));
-			AudioTools_VencodeFrame(sampleInfo, &memEnc, buffer, state, table, 16);
+			AudioTools_VencodeFrame(&memEnc, buffer, state, table, order, nPred, 16, prec);
 			pos = aI - left + 16;
-			nBytes += 9;
+			nBytes += prec;
 			nRepeats--;
 		}
 	}
@@ -635,9 +753,9 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 		
 		if (nFrames - pos >= nSam) {
 			memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * 16);
-			AudioTools_VencodeFrame(sampleInfo, &memEnc, buffer, state, table, nSam);
+			AudioTools_VencodeFrame(&memEnc, buffer, state, table, order, nPred, 16, prec);
 			pos += nSam;
-			nBytes += 9;
+			nBytes += prec;
 		} else {
 			printf_warning("VadpcmEnc: Missed a frame!");
 			break;
@@ -688,56 +806,107 @@ void AudioTools_VadpcmDec(AudioSampleInfo* sampleInfo) {
 	MemFile memDec;
 	u32 pos = 0;
 	s32 order;
-	s32 nPred;
-	s32 output[16] = { 0 };
-	s16 masked[16];
-	s32*** table = NULL;
-	u32 nFrames = sampleInfo->samplesNum;
+	s32 npredictors;
+	s32*** coefTable = NULL;
+	u32 nSamples = sampleInfo->samplesNum;
 	void* storePoint = sampleInfo->memFile.data;
+	MemFile encode;
+	u32 framesize = gFrameSizeFlag ? 5 : 9;
+	s32 decompressed[16];
+	s32 state[16];
 	
-	OsPrintfEx("MemFile_Malloc(memDec, 0x%X);", nFrames * sizeof(s32) + 0x100);
-	MemFile_Malloc(&memDec, nFrames * sizeof(s32) + 0x100);
-	AudioTools_ReadCodeBook(sampleInfo, &table, &order, &nPred);
+	OsPrintfEx("MemFile_Malloc(memDec, 0x%X);", nSamples * sizeof(s32) + 0x100);
+	MemFile_Malloc(&memDec, nSamples * sizeof(s32) + 0x100);
+	MemFile_Malloc(&encode, sizeof(s16) * 16);
+	AudioTools_ReadCodeBook(sampleInfo, &coefTable, &order, &npredictors);
 	
 	MemFile_Rewind(&sampleInfo->memFile);
 	sampleInfo->memFile.data = sampleInfo->audio.p;
 	
-	while (pos < nFrames) {
-		AudioTools_VdecodeFrame(&sampleInfo->memFile, output, order, table);
+	while (pos < nSamples) {
+		u8 input[9];
+		u8 encoded[9];
+		s32 lastState[16];
+		s32 decoded[16];
+		s16 guess[16];
+		s16 origGuess[16];
+		
+		memcpy(lastState, state, sizeof(state));
+		MemFile_Read(&sampleInfo->memFile, input, framesize);
+		
+		// Decode for real
+		AudioTools_VdecodeFrame(input, decompressed, state, order, coefTable, framesize);
+		memcpy(decoded, state, sizeof(state));
+		
+		// Create a guess from that, by clamping to 16 bits
 		for (s32 i = 0; i < 16; i++) {
-			masked[i] = output[i];
+			guess[i] = origGuess[i] = state[i];
 		}
-		MemFile_Write(&memDec, masked, sizeof(s16) * 16);
+		
+		AudioTools_VencodeBrute(encoded, guess, lastState, coefTable, order, npredictors, framesize);
+		
+		// If it doesn't match, bruteforce the matching.
+		if (memcmp(input, encoded, framesize) != 0) {
+			s32 guess32[16];
+			if (bruteforce(guess32, input, decoded, decompressed, lastState, coefTable, order, npredictors, framesize)) {
+				for (int i = 0; i < 16; i++) {
+					assert(-0x8000 <= guess32[i] && guess32[i] <= 0x7fff);
+					guess[i] = guess32[i];
+				}
+				AudioTools_VencodeBrute(encoded, guess, lastState, coefTable, order, npredictors, framesize);
+				assert(memcmp(input, encoded, framesize) == 0);
+			}
+			
+			// Bring the matching closer to the original decode (not strictly
+			// necessary, but it will move us closer to the target on average).
+			for (s32 failures = 0; failures < 50; failures++) {
+				s32 ind = myrand() % 16;
+				s32 old = guess[ind];
+				if (old == origGuess[ind]) continue;
+				guess[ind] = origGuess[ind];
+				if (myrand() % 2) guess[ind] += (old - origGuess[ind]) / 2;
+				AudioTools_VencodeBrute(encoded, guess, lastState, coefTable, order, npredictors, framesize);
+				if (memcmp(input, encoded, framesize) == 0) {
+					failures = -1;
+				} else {
+					guess[ind] = old;
+				}
+			}
+		}
+		
+		memcpy(state, decoded, sizeof(state));
+		MemFile_Write(&memDec, guess, sizeof(guess));
 		pos += 16;
 	}
 	
 	sampleInfo->memFile.data = storePoint;
 	
-	if (table) {
+	if (coefTable) {
 		int i;
 		int k;
-		for (i = 0; i < nPred; ++i) {
-			if (!table[i])
+		for (i = 0; i < npredictors; ++i) {
+			if (!coefTable[i])
 				continue;
 			for (k = 0; k < 8; ++k) {
-				if (table[i][k])
-					free(table[i][k]);
+				if (coefTable[i][k])
+					free(coefTable[i][k]);
 			}
-			free(table[i]);
+			free(coefTable[i]);
 		}
-		free(table);
+		free(coefTable);
 	}
 	
 	printf_debugExt("Old MemFile Size [0x%X]", sampleInfo->size);
 	
 	MemFile_Free(&sampleInfo->memFile);
+	MemFile_Free(&encode);
+	sampleInfo->channelNum = 1;
+	sampleInfo->samplesNum = nSamples;
 	sampleInfo->memFile = memDec;
 	sampleInfo->audio.p = memDec.data;
 	sampleInfo->size = memDec.dataSize;
 	sampleInfo->bit = 16;
-	
-	// sampleInfo->targetBit = 16
-	// Audio_Resample(sampleInfo);
+	sampleInfo->targetBit = 16;
 	
 	printf_debugExt("New MemFile Size [0x%X]", sampleInfo->size);
 }
