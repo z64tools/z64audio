@@ -2,11 +2,9 @@
 #include "AudioTools.h"
 
 NameParam gBinNameIndex;
-u32 gSampleRate = 16000;
+u32 gSampleRate = 32000;
 u32 gPrecisionFlag;
-
-u32 gBaseNote;
-u32 gFineTune;
+f32 gTuning = 1.0f;
 
 char* sBinName[][4] = {
 	{
@@ -757,11 +755,17 @@ void Audio_LoadSample_Bin(AudioSampleInfo* sampleInfo) {
 	sampleInfo->size = sampleInfo->memFile.dataSize;
 	sampleInfo->audio.p = sampleInfo->memFile.data;
 	
-	sampleInfo->instrument.fineTune = gFineTune;
 	sampleInfo->instrument.loop.start = Config_GetInt(&config, "start");
 	sampleInfo->instrument.loop.end = Config_GetInt(&config, "end");
 	gPrecisionFlag = Config_GetInt(&config, "codec");
 	sampleInfo->instrument.loop.count = sampleInfo->instrument.loop.start ? -1 : 0;
+	
+	// Thanks Sauraen!
+	f32 y = 12.0f * log(32000.0f * gTuning / (f32)gSampleRate) / log(2.0f);
+	
+	sampleInfo->instrument.note = 60 - (s32)round(y);
+	sampleInfo->instrument.fineTune = (y - round(y)) * __INT8_MAX__;
+	printf_debug("%f, %d", y - (s32)round(y), sampleInfo->instrument.fineTune);
 	
 	sampleInfo->vadBook.cast.u16[0] = ReadBE(sampleInfo->vadBook.cast.u16[1]);
 	sampleInfo->vadBook.cast.u16[1] = ReadBE(sampleInfo->vadBook.cast.u16[3]);
@@ -825,7 +829,7 @@ void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo) {
 			sizeof(WaveSampleLoop);
 		info.chunk.size = sizeof(WaveInfo) - sizeof(WaveChunk);
 		dataInfo.chunk.size = sampleInfo->size;
-		instrument.chunk.size = sizeof(WaveInstrumentInfo) - sizeof(WaveChunk);
+		instrument.chunk.size = sizeof(WaveInstrumentInfo) - sizeof(WaveChunk) - 1;
 		sample.chunk.size = sizeof(WaveSampleInfo) - sizeof(WaveChunk) + sizeof(WaveSampleLoop);
 		
 		info.format = PCM;
@@ -838,7 +842,9 @@ void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo) {
 		info.bit = sampleInfo->bit;
 		
 		instrument.note = sampleInfo->instrument.note;
+		sample.unityNote = sampleInfo->instrument.note;
 		instrument.fineTune = sampleInfo->instrument.fineTune;
+		sample.pitchFraction = sampleInfo->instrument.note;
 		instrument.gain = __INT8_MAX__;
 		instrument.lowNote = sampleInfo->instrument.lowNote;
 		instrument.hiNote = sampleInfo->instrument.highNote;
@@ -1042,14 +1048,6 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 			0.01 * sampleInfo->instrument.fineTune
 		)
 	);
-	
-	/*
-	   reverse, Thanks Sauraen!
-	   float y = 12.0f * log(32000.0f * tuning / sr) / log(2.0f);
-
-	   note = 60 - (s32)round(y);
-	   fineTune = y - round(y);
-	 */
 	
 	MemFile_Free(&output);
 }

@@ -33,23 +33,27 @@ char* sToolName = {
 };
 char* sToolUsage = {
 	Z64ARGTITLE("File:")
-	Z64ARGX("-i [file]",     "Input:  .wav .aiff .aifc")
-	Z64ARGX("-o [file]",     "Output: .wav .aiff .bin .c")
-	Z64ARGX("-c",            "Compare I [file] & O [file]")
+	Z64ARGX("--i [file]",     "Input:  .wav .aiff .aifc")
+	Z64ARGX("--o [file]",     "Output: .wav .aiff .bin .c")
+	Z64ARGX("--c",            "Compare I [file] & O [file]")
 	PRNT_NL
 	Z64ARGTITLE("Audio Processing:")
-	Z64ARGX("-b [ 16 ]",     "Target Bit Depth")
-	Z64ARGX("-m",            "Mono")
-	Z64ARGX("-n",            "Normalize")
+	Z64ARGX("--b [ 16 ]",     "Target Bit Depth")
+	Z64ARGX("--m",            "Mono")
+	Z64ARGX("--n",            "Normalize")
+	PRNT_NL
+	Z64ARGTITLE("Bin Input Arguments:")
+	Z64ARGX("--s [ 32000 ]",            "Set Samplerate")
+	Z64ARGX("--t [ 1.0 ]",            "Set Tuning value")
 	PRNT_NL
 	Z64ARGTITLE("VADPCM:")
-	Z64ARGX("-p [file]",     "Use excisting predictors")
-	// Z64ARTD("-v",            "Generate Vadpcm Files (Only with [.aiff] output)")
-	Z64ARGX("-I [ 30 ]",     "Override TableDesign Refine Iteration")
-	Z64ARGX("-F [ 16 ]",     "Override TableDesign Frame Size")
-	Z64ARGX("-B [  2 ]",     "Override TableDesign Bits")
-	Z64ARGX("-O [  2 ]",     "Override TableDesign Order")
-	Z64ARGX("-T [ 10 ]",     "Override TableDesign Threshold")
+	Z64ARGX("--p [file]",     "Use excisting predictors")
+	// Z64ARTD("--v",            "Generate Vadpcm Files (Only with [.aiff] output)")
+	Z64ARGX("--I [ 30 ]",     "Override TableDesign Refine Iteration")
+	Z64ARGX("--F [ 16 ]",     "Override TableDesign Frame Size")
+	Z64ARGX("--B [  2 ]",     "Override TableDesign Bits")
+	Z64ARGX("--O [  2 ]",     "Override TableDesign Order")
+	Z64ARGX("--T [ 10 ]",     "Override TableDesign Threshold")
 	// PRNT_NL
 	// Z64ARGTITLE("Internal Tools:")
 	// Z64ARTD("TableDesign",   "[iteration] [input] [output]")
@@ -57,10 +61,10 @@ char* sToolUsage = {
 	// Z64ARTD("VadpcmDec",     "[input] [output]")
 	PRNT_NL
 	Z64ARGTITLE("Extra:")
-	Z64ARGX("-P",            "Load separate settings [.cfg]")
-	Z64ARGX("-D",            "Debug Print")
-	Z64ARGX("-s",            "Silence")
-	Z64ARGX("-N",            "Print Info of input [file]")
+	Z64ARGX("--P",            "Load separate settings [.cfg]")
+	Z64ARGX("--D",            "Debug Print")
+	Z64ARGX("--S",            "Silence")
+	Z64ARGX("--N",            "Print Info of input [file]")
 	// Z64ARTD("ZZRTLMode",     "DragNDrop [zzrpl] file on z64audio")
 };
 FormatParam sDefaultFormat;
@@ -78,14 +82,19 @@ s32 Main(s32 argc, char* argv[]) {
 		printf_SetSuppressLevel(PSL_DEBUG);
 	}
 	
+	if (ParseArg("-S") || ParseArg("--S")) {
+		printf_SetSuppressLevel(PSL_NO_WARNING);
+	}
+	
 	z64params(argv);
 	
-	if (ParseArg("-H") || ParseArg("--H")) {
+	if (ParseArg("-s") || ParseArg("--s")) {
 		gSampleRate = String_NumStrToInt(argv[parArg]);
 	}
 	
-	if (ParseArg("-s") || ParseArg("--s")) {
-		printf_SetSuppressLevel(PSL_NO_WARNING);
+	if (ParseArg("-t") || ParseArg("--t")) {
+		gTuning = String_NumStrToF64(argv[parArg]);
+		printf_debug("Tuning: %f", gTuning);
 	}
 	
 	if (ParseArg("-i") || ParseArg("--i")) {

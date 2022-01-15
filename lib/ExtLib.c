@@ -407,6 +407,7 @@ void printf_error(const char* fmt, ...) {
 	if (gPrintfSuppress < PSL_NO_ERROR) {
 		va_list args;
 		
+		printf("\n");
 		va_start(args, fmt);
 		__printf_call(2);
 		vprintf(
@@ -416,6 +417,10 @@ void printf_error(const char* fmt, ...) {
 		printf("\n");
 		va_end(args);
 	}
+	
+	#ifdef _WIN32
+		getchar();
+	#endif
 	exit(EXIT_FAILURE);
 }
 
@@ -527,31 +532,12 @@ void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, 
 	return NULL;
 }
 
-static int memcasecmp(const char* vs1, const char* vs2, size_t n) {
-	size_t i;
-	char const* s1 = vs1;
-	char const* s2 = vs2;
-	
-	for (i = 0; i < n; i++) {
-		unsigned char u1 = s1[i];
-		unsigned char u2 = s2[i];
-		int U1 = toupper(u1);
-		int U2 = toupper(u2);
-		int diff = (255 <= __INT_MAX__ ? U1 - U2
-	    : U1 < U2 ? -1 : U2 < U1);
-		if (diff)
-			return diff;
-	}
-	
-	return 0;
-}
-
-void* Lib_MemMemIgnCase(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize) {
+void* Lib_MemMemCase(void* haystack, size_t haystackSize, void* needle, size_t needleSize) {
 	if (haystack == NULL || needle == NULL)
 		return NULL;
 	register char* cur, * last;
-	const char* cl = (const char*)haystack;
-	const char* cs = (const char*)needle;
+	char* cl = (char*)haystack;
+	char* cs = (char*)needle;
 	
 	/* we need something to compare */
 	if (haystackSize == 0 || needleSize == 0)
@@ -569,15 +555,7 @@ void* Lib_MemMemIgnCase(const void* haystack, size_t haystackSize, const void* n
 	last = (char*)cl + haystackSize - needleSize;
 	
 	for (cur = (char*)cl; cur <= last; cur++) {
-		char lowCur = *cur;
-		
-		if (!(lowCur >= 'a' && lowCur <= 'z') && !(lowCur >= 'A' && lowCur <= 'Z')) {
-			continue;
-		}
-		
-		lowCur = lowCur < 'a' ? lowCur + 32 : lowCur;
-		
-		if (lowCur == *cs && memcasecmp(cur, cs, needleSize) == 0)
+		if (tolower(*cur) == tolower(*cs) && String_CaseComp(cur, cs, needleSize) == 0)
 			return cur;
 	}
 	
@@ -989,6 +967,18 @@ s32 String_GetLineCount(char* str) {
 	}
 	
 	return line;
+}
+
+s32 String_CaseComp(char* a, char* b, u32 compSize) {
+	u32 wow = 0;
+	
+	for (s32 i = 0; i < compSize; i++) {
+		wow = tolower(a[i]) - tolower(b[i]);
+		if (wow)
+			return 1;
+	}
+	
+	return 0;
 }
 
 char* String_GetLine(char* str, s32 line) {

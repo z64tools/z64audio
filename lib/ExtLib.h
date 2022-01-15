@@ -169,7 +169,7 @@ void printf_progress(const char* info, u32 a, u32 b);
 void printf_WinFix();
 
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
-void* Lib_MemMemIgnCase(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
+void* Lib_MemMemCase(void* haystack, size_t haystackSize, void* needle, size_t needleSize);
 void* Lib_Malloc(void* data, s32 size);
 void* Lib_Calloc(void* data, s32 size);
 void* Lib_Realloc(void* data, s32 size);
@@ -199,11 +199,13 @@ s32 MemFile_SaveFile_ReqExt(MemFile* memFile, char* filepath, s32 size, const ch
 void MemFile_Free(MemFile* memFile);
 void MemFile_Clear(MemFile* memFile);
 
-#define String_MemMem(src, comp) Lib_MemMem(src, strlen(src), comp, strlen(comp))
+#define String_MemMem(src, comp)     Lib_MemMem(src, strlen(src), comp, strlen(comp))
+#define String_MemMemCase(src, comp) Lib_MemMemCase(src, strlen(src), comp, strlen(comp))
 u32 String_HexStrToInt(char* string);
 u32 String_NumStrToInt(char* string);
 f64 String_NumStrToF64(char* string);
 s32 String_GetLineCount(char* str);
+s32 String_CaseComp(char* a, char* b, u32 compSize);
 char* String_Line(char* str, s32 line);
 char* String_Word(char* str, s32 word);
 char* String_GetLine(char* str, s32 line);
