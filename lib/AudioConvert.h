@@ -89,7 +89,8 @@ typedef struct AudioSampleInfo {
 		u32 product;
 		u32 samplePeriod;
 		u32 unityNote; // 0-127
-		u32 pitchFraction;
+		s8  _pad[3];
+		s8  fineTune;
 		u32 format;
 		u32 offset;
 		u32 numSampleLoops;

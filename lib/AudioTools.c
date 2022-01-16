@@ -59,6 +59,121 @@ void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
 	printf_debug_align("VadpcmEnc", "%s", buffer);
 }
 
+void AudioTools_VencodeBrute(u8* out, s16* inBuffer, s32* origState, s32*** coefTable, s32 order, s32 npredictors, u32 framesize) {
+	s16 ix[16];
+	s32 prediction[16];
+	s32 inVector[16];
+	s32 optimalp = 0;
+	s32 scale;
+	s32 encBits = (framesize == 5 ? 2 : 4);
+	s32 llevel = -(1 << (encBits - 1));
+	s32 ulevel = -llevel - 1;
+	s32 ie[16];
+	f32 e[16];
+	f32 min = 1e30;
+	s32 scaleFactor = 16 - encBits;
+	
+	for (s32 k = 0; k < npredictors; k++) {
+		for (s32 j = 0; j < 2; j++) {
+			for (s32 i = 0; i < order; i++) {
+				inVector[i] = (j == 0 ? origState[16 - order + i] : inBuffer[8 - order + i]);
+			}
+			
+			for (s32 i = 0; i < 8; i++) {
+				prediction[j * 8 + i] = inner_product(order + i, coefTable[k][i], inVector);
+				inVector[i + order] = inBuffer[j * 8 + i] - prediction[j * 8 + i];
+				e[j * 8 + i] = (f32) inVector[i + order];
+			}
+		}
+		
+		f32 se = 0.0f;
+		for (s32 j = 0; j < 16; j++) {
+			se += e[j] * e[j];
+		}
+		
+		if (se < min) {
+			min = se;
+			optimalp = k;
+		}
+	}
+	
+	for (s32 j = 0; j < 2; j++) {
+		for (s32 i = 0; i < order; i++) {
+			inVector[i] = (j == 0 ? origState[16 - order + i] : inBuffer[8 - order + i]);
+		}
+		
+		for (s32 i = 0; i < 8; i++) {
+			prediction[j * 8 + i] = inner_product(order + i, coefTable[optimalp][i], inVector);
+			e[j * 8 + i] = inVector[i + order] = inBuffer[j * 8 + i] - prediction[j * 8 + i];
+		}
+	}
+	
+	clamp_to_s16(e, ie);
+	
+	s32 max = 0;
+	
+	for (s32 i = 0; i < 16; i++) {
+		if (abs(ie[i]) > abs(max)) {
+			max = ie[i];
+		}
+	}
+	
+	for (scale = 0; scale <= scaleFactor; scale++) {
+		if (max <= ulevel && max >= llevel) break;
+		max /= 2;
+	}
+	
+	s32 state[16];
+	
+	for (s32 i = 0; i < 16; i++) {
+		state[i] = origState[i];
+	}
+	
+	s32 nIter, again;
+	
+	for (nIter = 0, again = 1; nIter < 2 && again; nIter++) {
+		again = 0;
+		if (nIter == 1) scale++;
+		if (scale > scaleFactor) {
+			scale = scaleFactor;
+		}
+		
+		for (s32 j = 0; j < 2; j++) {
+			s32 base = j * 8;
+			for (s32 i = 0; i < order; i++) {
+				inVector[i] = (j == 0 ?
+					origState[16 - order + i] : state[8 - order + i]);
+			}
+			
+			for (s32 i = 0; i < 8; i++) {
+				prediction[base + i] = inner_product(order + i, coefTable[optimalp][i], inVector);
+				f32 se = (f32) inBuffer[base + i] - (f32) prediction[base + i];
+				ix[base + i] = qsample(se, 1 << scale);
+				s32 cV = clamp_bits(ix[base + i], encBits) - ix[base + i];
+				if (cV > 1 || cV < -1) again = 1;
+				ix[base + i] += cV;
+				inVector[i + order] = ix[base + i] * (1 << scale);
+				state[base + i] = prediction[base + i] + inVector[i + order];
+			}
+		}
+	}
+	
+	u8 header = (scale << 4) | (optimalp & 0xf);
+	
+	out[0] = header;
+	if (framesize == 5) {
+		for (s32 i = 0; i < 16; i += 4) {
+			u8 c = ((ix[i] & 0x3) << 6) | ((ix[i + 1] & 0x3) << 4) | ((ix[i + 2] & 0x3) << 2) | (ix[i + 3] & 0x3);
+			out[1 + i / 4] = c;
+		}
+	} else {
+		for (s32 i = 0; i < 16; i += 2) {
+			u8 c = ((ix[i] & 0xf) << 4) | (ix[i + 1] & 0xf);
+			out[1 + i / 2] = c;
+		}
+	}
+}
+
 void AudioTools_ReadCodeBook(AudioSampleInfo* sampleInfo, s32**** table, s32* destOrder, s32* destNPred) {
 	s32** tableEntry;
 	
@@ -118,11 +233,14 @@ void AudioTools_VencodeFrame(MemFile* mem, s16* buffer, s32* state, s32*** coefT
 	s32 optimalp = 0;
 	s32 scaleFactor = 16 - encBits;
 	
+	for (s32 i = framesize; i < 16; i++) {
+		buffer[i] = 0;
+	}
+	
 	// Determine the best-fitting predictor.
 	for (s32 k = 0; k < nPred; k++) {
-		// Copy over the last 'order' samples from the previous output.
 		for (s32 i = 0; i < order; i++) {
-			inVector[i] = state[16 - order + 1];
+			inVector[i] = state[16 - order + i];
 		}
 		
 		// For 8 samples...
@@ -352,121 +470,6 @@ void AudioTools_VdecodeFrame(u8* frame, s32* decompressed, s32* state, s32 order
 	}
 }
 
-void AudioTools_VencodeBrute(u8* out, s16* inBuffer, s32* origState, s32*** coefTable, s32 order, s32 npredictors, u32 framesize) {
-	s16 ix[16];
-	s32 prediction[16];
-	s32 inVector[16];
-	s32 optimalp = 0;
-	s32 scale;
-	s32 encBits = (framesize == 5 ? 2 : 4);
-	s32 llevel = -(1 << (encBits - 1));
-	s32 ulevel = -llevel - 1;
-	s32 ie[16];
-	f32 e[16];
-	f32 min = 1e30;
-	s32 scaleFactor = 16 - encBits;
-	
-	for (s32 k = 0; k < npredictors; k++) {
-		for (s32 j = 0; j < 2; j++) {
-			for (s32 i = 0; i < order; i++) {
-				inVector[i] = (j == 0 ? origState[16 - order + i] : inBuffer[8 - order + i]);
-			}
-			
-			for (s32 i = 0; i < 8; i++) {
-				prediction[j * 8 + i] = inner_product(order + i, coefTable[k][i], inVector);
-				inVector[i + order] = inBuffer[j * 8 + i] - prediction[j * 8 + i];
-				e[j * 8 + i] = (f32) inVector[i + order];
-			}
-		}
-		
-		f32 se = 0.0f;
-		for (s32 j = 0; j < 16; j++) {
-			se += e[j] * e[j];
-		}
-		
-		if (se < min) {
-			min = se;
-			optimalp = k;
-		}
-	}
-	
-	for (s32 j = 0; j < 2; j++) {
-		for (s32 i = 0; i < order; i++) {
-			inVector[i] = (j == 0 ? origState[16 - order + i] : inBuffer[8 - order + i]);
-		}
-		
-		for (s32 i = 0; i < 8; i++) {
-			prediction[j * 8 + i] = inner_product(order + i, coefTable[optimalp][i], inVector);
-			e[j * 8 + i] = inVector[i + order] = inBuffer[j * 8 + i] - prediction[j * 8 + i];
-		}
-	}
-	
-	clamp_to_s16(e, ie);
-	
-	s32 max = 0;
-	
-	for (s32 i = 0; i < 16; i++) {
-		if (abs(ie[i]) > abs(max)) {
-			max = ie[i];
-		}
-	}
-	
-	for (scale = 0; scale <= scaleFactor; scale++) {
-		if (max <= ulevel && max >= llevel) break;
-		max /= 2;
-	}
-	
-	s32 state[16];
-	
-	for (s32 i = 0; i < 16; i++) {
-		state[i] = origState[i];
-	}
-	
-	s32 nIter, again;
-	
-	for (nIter = 0, again = 1; nIter < 2 && again; nIter++) {
-		again = 0;
-		if (nIter == 1) scale++;
-		if (scale > scaleFactor) {
-			scale = scaleFactor;
-		}
-		
-		for (s32 j = 0; j < 2; j++) {
-			s32 base = j * 8;
-			for (s32 i = 0; i < order; i++) {
-				inVector[i] = (j == 0 ?
-					origState[16 - order + i] : state[8 - order + i]);
-			}
-			
-			for (s32 i = 0; i < 8; i++) {
-				prediction[base + i] = inner_product(order + i, coefTable[optimalp][i], inVector);
-				f32 se = (f32) inBuffer[base + i] - (f32) prediction[base + i];
-				ix[base + i] = qsample(se, 1 << scale);
-				s32 cV = clamp_bits(ix[base + i], encBits) - ix[base + i];
-				if (cV > 1 || cV < -1) again = 1;
-				ix[base + i] += cV;
-				inVector[i + order] = ix[base + i] * (1 << scale);
-				state[base + i] = prediction[base + i] + inVector[i + order];
-			}
-		}
-	}
-	
-	u8 header = (scale << 4) | (optimalp & 0xf);
-	
-	out[0] = header;
-	if (framesize == 5) {
-		for (s32 i = 0; i < 16; i += 4) {
-			u8 c = ((ix[i] & 0x3) << 6) | ((ix[i + 1] & 0x3) << 4) | ((ix[i + 2] & 0x3) << 2) | (ix[i + 3] & 0x3);
-			out[1 + i / 4] = c;
-		}
-	} else {
-		for (s32 i = 0; i < 16; i += 2) {
-			u8 c = ((ix[i] & 0xf) << 4) | (ix[i + 1] & 0xf);
-			out[1 + i / 2] = c;
-		}
-	}
-}
-
 void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	#define FREE_PP(PP, NUM) \
 		if (PP) { \
@@ -486,11 +489,11 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->channelNum != 1)
 		Audio_ConvertToMono(sampleInfo);
 	
-	u32 refineIteration = String_NumStrToInt(gTableDesignIteration);
-	u32 frameSize = String_NumStrToInt(gTableDesignFrameSize);
-	u32 bits = String_NumStrToInt(gTableDesignBits);
-	u32 order = String_NumStrToInt(gTableDesignOrder);
-	f64 threshold = String_NumStrToF64(gTableDesignThreshold);
+	u32 refineIteration = String_GetInt(gTableDesignIteration);
+	u32 frameSize = String_GetInt(gTableDesignFrameSize);
+	u32 bits = String_GetInt(gTableDesignBits);
+	u32 order = String_GetInt(gTableDesignOrder);
+	f64 threshold = String_GetFloat(gTableDesignThreshold);
 	u32 frameCount = sampleInfo->samplesNum;
 	
 	printf_debug(
@@ -682,19 +685,20 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	}
 	MemFile memEnc = MemFile_Initialize();
 	s32 minLoopLength = 30;
-	u32 aI = 0;
-	u32 aO = 0;
-	u32 nO = 0;
+	u32 loopStart = 0;
+	u32 loopEnd = 0;
+	u32 newEnd = 0;
 	u32 pos = 0;
 	s32 order;
 	s32 nPred;
 	u32 nSam;
-	u32 nBytes = 0;
+	s32 nBytes = 0;
 	s32 state[16] = { 0 };
 	s16 buffer[16] = { 0 };
 	s32*** table = NULL;
 	u32 nFrames = sampleInfo->samplesNum;
-	u32 prec = 9; // 5 half VADPCM Precision
+	s32 prec = 9; // 5 half VADPCM Precision
+	s32 nRepeats = 0;
 	
 	if (gPrecisionFlag)
 		prec = 5;
@@ -705,20 +709,19 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	// Process Loop
 	if (sampleInfo->instrument.loop.count) {
 		MemFile_Malloc(&sampleInfo->vadLoopBook, sizeof(s16) * 16);
-		u32 nRepeats = 0;
 		
-		aI = sampleInfo->instrument.loop.start;
-		aO = sampleInfo->instrument.loop.end;
-		nO = sampleInfo->instrument.loop.end;
+		loopStart = sampleInfo->instrument.loop.start;
+		loopEnd = sampleInfo->instrument.loop.end;
+		newEnd = sampleInfo->instrument.loop.end;
 		
-		while (nO - aI < minLoopLength) {
+		while (newEnd - loopStart < minLoopLength) {
 			nRepeats++;
-			nO += aO - aI;
+			newEnd += loopEnd - loopStart;
 		}
 		
-		sampleInfo->instrument.loop.end = nO;
+		sampleInfo->instrument.loop.end = newEnd;
 		
-		while (pos <= aI) {
+		while (pos <= loopStart) {
 			memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * 16);
 			AudioTools_VencodeFrame(&memEnc, buffer, state, table, order, nPred, 16, prec);
 			pos += 16;
@@ -726,22 +729,23 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 		}
 		
 		for (s32 i = 0; i < 16; i++) {
-			state[i] = CLAMP(state[i], -0x7FFF, 0x7FFF);
+			if (state[i] >= 0x8000) state[i] = 0x7fff;
+			if (state[i] < -0x7fff) state[i] = -0x7fff;
 			sampleInfo->vadLoopBook.cast.s16[i] = state[i];
 		}
 		
 		while (nRepeats > 0) {
-			for (; pos + 16 < aO; pos += 16) {
+			for (; pos + 16 < loopEnd; pos += 16) {
 				memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * 16);
 				AudioTools_VencodeFrame(&memEnc, buffer, state, table, order, nPred, 16, prec);
 				nBytes += prec;
 			}
 			
-			u32 left = aO - pos;
+			s32 left = loopEnd - pos;
 			memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * left);
-			memcpy(&buffer[left], &sampleInfo->audio.s16[aI], sizeof(s16) * (16 - left));
+			memcpy(&buffer[left], &sampleInfo->audio.s16[loopStart], sizeof(s16) * (16 - left));
 			AudioTools_VencodeFrame(&memEnc, buffer, state, table, order, nPred, 16, prec);
-			pos = aI - left + 16;
+			pos = loopStart - left + 16;
 			nBytes += prec;
 			nRepeats--;
 		}
@@ -756,7 +760,7 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 		
 		if (nFrames - pos >= nSam) {
 			memcpy(buffer, &sampleInfo->audio.s16[pos], sizeof(s16) * 16);
-			AudioTools_VencodeFrame(&memEnc, buffer, state, table, order, nPred, 16, prec);
+			AudioTools_VencodeFrame(&memEnc, buffer, state, table, order, nPred, nSam, prec);
 			pos += nSam;
 			nBytes += prec;
 		} else {

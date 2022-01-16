@@ -133,6 +133,8 @@ typedef enum {
 	DIR__MAKE_ON_ENTER = (1) << 0,
 } DirParam;
 
+extern u8 gPrintfProgressing;
+
 void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
@@ -201,9 +203,9 @@ void MemFile_Clear(MemFile* memFile);
 
 #define String_MemMem(src, comp)     Lib_MemMem(src, strlen(src), comp, strlen(comp))
 #define String_MemMemCase(src, comp) Lib_MemMemCase(src, strlen(src), comp, strlen(comp))
-u32 String_HexStrToInt(char* string);
-u32 String_NumStrToInt(char* string);
-f64 String_NumStrToF64(char* string);
+u32 String_GetHexInt(char* string);
+s32 String_GetInt(char* string);
+f32 String_GetFloat(char* string);
 s32 String_GetLineCount(char* str);
 s32 String_CaseComp(char* a, char* b, u32 compSize);
 char* String_Line(char* str, s32 line);
@@ -408,17 +410,20 @@ extern PrintfSuppressLevel gPrintfSuppress;
 
 #ifndef NDEBUG
 	#define printf_debugExt(...) if (gPrintfSuppress <= PSL_DEBUG) { \
-			printf(PRNT_DGRY "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
+			if (gPrintfProgressing) { printf("\n"); gPrintfProgressing = 0; } \
+			printf(PRNT_YELW "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
 			printf_debug(__VA_ARGS__); \
 	}
 	
 	#define printf_debugExt_align(title, ...) if (gPrintfSuppress <= PSL_DEBUG) { \
-			printf(PRNT_DGRY "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
+			if (gPrintfProgressing) { printf("\n"); gPrintfProgressing = 0; } \
+			printf(PRNT_YELW "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
 			printf_debug_align(title, __VA_ARGS__); \
 	}
 	
 	#define Assert(exp) if (!(exp)) { \
-			printf(PRNT_DGRY "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
+			if (gPrintfProgressing) { printf("\n"); gPrintfProgressing = 0; } \
+			printf(PRNT_YELW "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
 			printf_debug(PRNT_YELW "Assert(\a " PRNT_RSET # exp PRNT_YELW " );"); \
 			exit(EXIT_FAILURE); \
 	}
@@ -444,5 +449,24 @@ extern PrintfSuppressLevel gPrintfSuppress;
 
 #define AttPacked __attribute__ ((packed))
 #define AttAligned(x) __attribute__((aligned(x)))
+
+#define renamer_remove(old, new) \
+	if (rename(old, new)) { \
+		if (remove(new)) { \
+			printf_error_align( \
+				"Delete failed", \
+				"[%s]", \
+				new \
+			); \
+		} \
+		if (rename(old, new)) { \
+			printf_error_align( \
+				"Rename failed", \
+				"[%s] -> [%s]", \
+				old, \
+				new \
+			); \
+		} \
+	}
 
 #endif /* __EXTLIB_H__ */

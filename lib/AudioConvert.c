@@ -842,9 +842,16 @@ void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo) {
 		info.bit = sampleInfo->bit;
 		
 		instrument.note = sampleInfo->instrument.note;
-		sample.unityNote = sampleInfo->instrument.note;
 		instrument.fineTune = sampleInfo->instrument.fineTune;
-		sample.pitchFraction = sampleInfo->instrument.note;
+		
+		if (sampleInfo->instrument.fineTune < 0) {
+			sampleInfo->instrument.note++;
+			sampleInfo->instrument.fineTune = 0x7F - ABS(sampleInfo->instrument.fineTune);
+		}
+		
+		sample.unityNote = sampleInfo->instrument.note;
+		sample.fineTune = sampleInfo->instrument.fineTune * 2;
+		
 		instrument.gain = __INT8_MAX__;
 		instrument.lowNote = sampleInfo->instrument.lowNote;
 		instrument.hiNote = sampleInfo->instrument.highNote;
