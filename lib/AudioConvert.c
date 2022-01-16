@@ -745,7 +745,7 @@ void Audio_LoadSample_Bin(AudioSampleInfo* sampleInfo) {
 	String_Merge(buffer, "config.cfg");
 	MemFile_LoadFile_String(&config, buffer);
 	
-	loopEnd = Config_GetInt(&config, "end");
+	loopEnd = Config_GetInt(&config, "loop_end");
 	tailEnd = Config_GetInt(&config, "tail_end");
 	
 	sampleInfo->channelNum = 1;
@@ -755,8 +755,8 @@ void Audio_LoadSample_Bin(AudioSampleInfo* sampleInfo) {
 	sampleInfo->size = sampleInfo->memFile.dataSize;
 	sampleInfo->audio.p = sampleInfo->memFile.data;
 	
-	sampleInfo->instrument.loop.start = Config_GetInt(&config, "start");
-	sampleInfo->instrument.loop.end = Config_GetInt(&config, "end");
+	sampleInfo->instrument.loop.start = Config_GetInt(&config, "loop_start");
+	sampleInfo->instrument.loop.end = Config_GetInt(&config, "loop_end");
 	gPrecisionFlag = Config_GetInt(&config, "codec");
 	sampleInfo->instrument.loop.count = sampleInfo->instrument.loop.start ? -1 : 0;
 	

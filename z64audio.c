@@ -47,6 +47,7 @@ char* sToolUsage = {
 	Z64ARGX("--tuning [ 1.0 ]",     "Set Tuning")
 	Z64ARGX("--split-hi",           "Set Low Split")
 	Z64ARGX("--split-lo",           "Set Hi Split")
+	Z64ARGX("--half-precision",     "Saves space by halfing framesize")
 	PRNT_NL
 	Z64ARGTITLE("VADPCM:")
 	Z64ARGX("--p [file]",     "Use excisting predictors")
@@ -202,6 +203,10 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	if (ParseArg("--split-lo")) {
 		sample.instrument.lowNote = String_GetInt(argv[parArg]);
+	}
+	
+	if (ParseArg("--half-precision")) {
+		gPrecisionFlag = 3;
 	}
 	
 	if (ParseArg("--N")) {
