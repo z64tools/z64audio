@@ -42,7 +42,7 @@ char* sToolUsage = {
 	Z64ARGX("--m",            "Mono")
 	Z64ARGX("--n",            "Normalize")
 	PRNT_NL
-	Z64ARGTITLE("Bin Input Arguments:")
+	Z64ARGTITLE("Arguments for [.bin] input:")
 	Z64ARGX("--srate [ 32000 ]",    "Set Samplerate")
 	Z64ARGX("--tuning [ 1.0 ]",     "Set Tuning")
 	Z64ARGX("--split-hi",           "Set Low Split")
@@ -90,14 +90,6 @@ s32 Main(s32 argc, char* argv[]) {
 	}
 	
 	z64params(argv);
-	
-	if (ParseArg("--srate")) {
-		gSampleRate = String_GetInt(argv[parArg]);
-	}
-	
-	if (ParseArg("--tuning")) {
-		gTuning = String_GetFloat(argv[parArg]);
-	}
 	
 	if (ParseArg("--i")) {
 		input = String_GetSpacedArg(argv, parArg);
@@ -165,49 +157,29 @@ s32 Main(s32 argc, char* argv[]) {
 		return 1;
 	}
 	
-	printf_toolinfo(
-		sToolName,
-		""
-	);
-	
-	printf_debugExt("Audio_InitSampleInfo");
+	printf_toolinfo(sToolName, "");
 	Audio_InitSampleInfo(&sample, input, output);
 	
 	if (ParseArg("--p")) {
 		AudioTools_LoadCodeBook(&sample, argv[parArg]);
 		sample.useExistingPred = 1;
 	} else {
-		if (ParseArg("--I")) {
-			gTableDesignIteration = argv[parArg];
-		}
-		if (ParseArg("--F")) {
-			gTableDesignFrameSize = argv[parArg];
-		}
-		if (ParseArg("--B")) {
-			gTableDesignBits = argv[parArg];
-		}
-		if (ParseArg("--O")) {
-			gTableDesignOrder = argv[parArg];
-		}
-		if (ParseArg("--T")) {
-			gTableDesignThreshold = argv[parArg];
-		}
+		if (ParseArg("--I")) gTableDesignIteration = argv[parArg];
+		if (ParseArg("--F")) gTableDesignFrameSize = argv[parArg];
+		if (ParseArg("--B")) gTableDesignBits = argv[parArg];
+		if (ParseArg("--O")) gTableDesignOrder = argv[parArg];
+		if (ParseArg("--T")) gTableDesignThreshold = argv[parArg];
 	}
+	
+	if (ParseArg("--srate")) gSampleRate = String_GetInt(argv[parArg]);
+	if (ParseArg("--tuning")) gTuning = String_GetFloat(argv[parArg]);
 	
 	printf_debugExt("Audio_LoadSample");
 	Audio_LoadSample(&sample);
 	
-	if (ParseArg("--split-hi")) {
-		sample.instrument.highNote = String_GetInt(argv[parArg]);
-	}
-	
-	if (ParseArg("--split-lo")) {
-		sample.instrument.lowNote = String_GetInt(argv[parArg]);
-	}
-	
-	if (ParseArg("--half-precision")) {
-		gPrecisionFlag = 3;
-	}
+	if (ParseArg("--split-hi")) sample.instrument.highNote = String_GetInt(argv[parArg]);
+	if (ParseArg("--split-lo")) sample.instrument.lowNote = String_GetInt(argv[parArg]);
+	if (ParseArg("--half-precision")) gPrecisionFlag = 3;
 	
 	if (ParseArg("--N")) {
 		printf_info_align("BitDepth", "%10d", sample.bit);
@@ -216,14 +188,11 @@ s32 Main(s32 argc, char* argv[]) {
 		printf_info_align("Frames", "%10d", sample.samplesNum);
 		printf_info_align("Data Size", "%10d", sample.size);
 		printf_info_align("File Size", "%10d", sample.memFile.dataSize);
+		printf_info_align("Loop Start", "%10d", sample.instrument.loop.start);
+		printf_info_align("Loop End", "%10d", sample.instrument.loop.end);
 		
 		if (output == NULL)
 			return 0;
-	} else {
-		printf_debugExt("BitDepth   [ %8d ] " PRNT_GRAY "[%s]", sample.bit, sample.input);
-		printf_debug("SampleRate [ %8d ] " PRNT_GRAY "[%s]", sample.sampleRate, sample.input);
-		printf_debug("Channels   [ %8d ] " PRNT_GRAY "[%s]", sample.channelNum, sample.input);
-		printf_debug("Frames     [ %8d ] " PRNT_GRAY "[%s]", sample.samplesNum, sample.input);
 	}
 	
 	if (output == NULL) {
