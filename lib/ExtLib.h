@@ -411,19 +411,19 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #ifndef NDEBUG
 	#define printf_debugExt(...) if (gPrintfSuppress <= PSL_DEBUG) { \
 			if (gPrintfProgressing) { printf("\n"); gPrintfProgressing = 0; } \
-			printf(PRNT_YELW "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
+			printf(PRNT_PRPL "[X]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
 			printf_debug(__VA_ARGS__); \
 	}
 	
 	#define printf_debugExt_align(title, ...) if (gPrintfSuppress <= PSL_DEBUG) { \
 			if (gPrintfProgressing) { printf("\n"); gPrintfProgressing = 0; } \
-			printf(PRNT_YELW "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
+			printf(PRNT_PRPL "[X]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
 			printf_debug_align(title, __VA_ARGS__); \
 	}
 	
 	#define Assert(exp) if (!(exp)) { \
 			if (gPrintfProgressing) { printf("\n"); gPrintfProgressing = 0; } \
-			printf(PRNT_YELW "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
+			printf(PRNT_PRPL "[X]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
 			printf_debug(PRNT_YELW "Assert(\a " PRNT_RSET # exp PRNT_YELW " );"); \
 			exit(EXIT_FAILURE); \
 	}

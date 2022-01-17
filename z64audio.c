@@ -92,7 +92,7 @@ s32 Main(s32 argc, char* argv[]) {
 		
 		printf_toolinfo(
 			sToolName,
-			0
+			"\n"
 		);
 		
 		Audio_InitSampleInfo(&sample, input, "none");
@@ -115,7 +115,7 @@ s32 Main(s32 argc, char* argv[]) {
 		if (String_MemMem(argv[1], ".zzrpl")) {
 			printf_toolinfo(
 				sToolName,
-				0
+				"\n"
 			);
 			Audio_ZZRTLMode(&sample, argv[1]);
 			
@@ -145,7 +145,7 @@ s32 Main(s32 argc, char* argv[]) {
 		return 1;
 	}
 	
-	printf_toolinfo(sToolName, "");
+	printf_toolinfo(sToolName, "\n");
 	Audio_InitSampleInfo(&sample, input, output);
 	
 	if (ParseArg("--p")) {

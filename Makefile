@@ -62,7 +62,7 @@ clean:
 	@rm -f -R bin/*
 
 # LINUX
-bin/linux/%.o: %.c %.h
+bin/linux/%.o: %.c %.h lib/ExtLib.h
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@gcc -c -o $@ $< $(CFLAGS)
 
@@ -71,7 +71,7 @@ z64audio: z64audio.c $(SOURCE_O_LINUX)
 	@gcc -o $@ $^ $(CFLAGS) -lm
 
 # WINDOWS32
-bin/win32/%.o: %.c %.h
+bin/win32/%.o: %.c %.h lib/ExtLib.h
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32
 
