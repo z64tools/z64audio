@@ -261,7 +261,7 @@ void ItemList_Free(ItemList* itemList) {
 
 // printf
 
-char* TempPrintf(char* fmt, ...) {
+char* tprintf(char* fmt, ...) {
 	static char buffer[256 * 4];
 	
 	va_list args;
@@ -292,23 +292,45 @@ void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const ch
 void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
+	
+	u32 strln = strlen(toolname);
+	u32 rmv = 0;
+	u32 tmp = strln;
 	va_list args;
+	
+	for (s32 i = 0; i < strln; i++) {
+		if (rmv) {
+			if (toolname[i] != 'm') {
+				tmp--;
+			} else {
+				tmp -= 2;
+				rmv = false;
+			}
+		} else {
+			if (toolname[i] == '\e' && toolname[i + 1] == '[') {
+				rmv = true;
+				strln--;
+			}
+		}
+	}
+	
+	strln = tmp;
 	
 	va_start(args, fmt);
 	
-	printf(PRNT_GRAY ">--");
-	for (s32 i = 0; i < strlen(toolname); i++)
+	printf(PRNT_GRAY "[>]--");
+	for (s32 i = 0; i < strln; i++)
 		printf("-");
-	printf("-------<\n");
+	printf("------[>]\n");
 	
-	printf("|  ");
+	printf(" |   ");
 	printf(PRNT_CYAN "%s" PRNT_GRAY, toolname);
 	printf("       |\n");
 	
-	printf(">--");
-	for (s32 i = 0; i < strlen(toolname); i++)
+	printf("[>]--");
+	for (s32 i = 0; i < strln; i++)
 		printf("-");
-	printf("-------<\n" PRNT_RSET);
+	printf("------[>]\n" PRNT_RSET);
 	
 	vprintf(
 		fmt,

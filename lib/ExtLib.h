@@ -154,7 +154,7 @@ char* CurWorkDir(void);
 
 void ItemList_Free(ItemList* itemList);
 
-char* TempPrintf(char* fmt, ...);
+char* tprintf(char* fmt, ...);
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_SetPrefix(char* fmt);
 void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i);

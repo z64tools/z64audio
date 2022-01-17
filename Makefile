@@ -34,6 +34,8 @@ $(shell mkdir -p bin/ $(foreach dir, \
 	$(dir $(TABLEDESIGN_O_LINUX)) \
 	$(dir $(TABLEDESIGN_O_WIN32)) \
 	$(dir $(ADPCM_O_LINUX)) \
+	$(dir $(AUDIOFILE_O_LINUX)) \
+	$(dir $(AUDIOFILE_O_WIN32)) \
 	$(dir $(ADPCM_O_WIN32)) \
 	$(dir $(SOURCE_O_WIN32)) \
 	$(dir $(SOURCE_O_LINUX)), $(dir)))
@@ -57,6 +59,7 @@ clean:
 	@rm -f *.book
 	@rm -f tabledesign
 	@rm -f vadpcm_*
+	@rm -f -R bin/*
 
 # LINUX
 bin/linux/%.o: %.c %.h

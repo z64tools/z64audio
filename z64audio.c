@@ -33,12 +33,12 @@ char* sToolUsage = {
 	PRNT_NL
 	EXT_INFO_TITLE("Audio Processing:")
 	EXT_INFO("--b [ 16 ]", 16, "Target Bit Depth")
-	EXT_INFO("--m", 16, "Mono")
-	EXT_INFO("--n", 16, "Normalize")
+	EXT_INFO("--m",        16, "Mono")
+	EXT_INFO("--n",        16, "Normalize")
 	PRNT_NL
 	EXT_INFO_TITLE("Arguments for [.bin] input:")
-	EXT_INFO("--srate", 16, "Set Samplerate")
-	EXT_INFO("--tuning", 16, "Set Tuning")
+	EXT_INFO("--srate",    16, "Set Samplerate")
+	EXT_INFO("--tuning",   16, "Set Tuning")
 	EXT_INFO("--split-hi", 16, "Set Low Split")
 	EXT_INFO("--split-lo", 16, "Set Hi Split")
 	EXT_INFO("--half-precision", 22, "Saves space by halfing framesize")
@@ -52,10 +52,10 @@ char* sToolUsage = {
 	EXT_INFO("--T [ 10 ]", 16, "Override TableDesign Threshold")
 	PRNT_NL
 	EXT_INFO_TITLE("Extra:")
-	EXT_INFO("--P", 16, "Load separate settings [.cfg]")
-	EXT_INFO("--D", 16, "Debug Print")
-	EXT_INFO("--S", 16, "Silence")
-	EXT_INFO("--N", 16, "Print Info of input [file]")
+	EXT_INFO("--P",        16, "Load separate settings [.cfg]")
+	EXT_INFO("--D",        16, "Debug Print")
+	EXT_INFO("--S",        16, "Silence")
+	EXT_INFO("--N",        16, "Print Info of input [file]")
 	// EXT_TDO("ZZRTLMode",     "DragNDrop [zzrpl] file on z64audio")
 };
 FormatParam sDefaultFormat;
