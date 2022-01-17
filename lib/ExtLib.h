@@ -450,6 +450,10 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define AttPacked __attribute__ ((packed))
 #define AttAligned(x) __attribute__((aligned(x)))
 
+#define ParseArg(xarg)         Lib_ParseArguments(argv, xarg, &parArg)
+#define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
+#define EXT_INFO(A, indent, B) PRNT_GRAY "[>] " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
+
 #define renamer_remove(old, new) \
 	if (rename(old, new)) { \
 		if (remove(new)) { \

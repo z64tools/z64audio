@@ -295,18 +295,21 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	printf(
-		PRNT_GRAY
-		">----------------------------------<\n"
-		"|                                  |\n"
-	);
-	printf("\033[1A" "\033[3C");
+	
+	printf(PRNT_GRAY ">--");
+	for (s32 i = 0; i < strlen(toolname); i++)
+		printf("-");
+	printf("-------<\n");
+	
+	printf("|  ");
 	printf(PRNT_CYAN "%s" PRNT_GRAY, toolname);
-	printf(
-		"\n"
-		">----------------------------------<\n"
-		PRNT_RSET
-	);
+	printf("       |\n");
+	
+	printf(">--");
+	for (s32 i = 0; i < strlen(toolname); i++)
+		printf("-");
+	printf("-------<\n" PRNT_RSET);
+	
 	vprintf(
 		fmt,
 		args
