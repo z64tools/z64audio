@@ -125,6 +125,8 @@ typedef struct MemFile {
 } MemFile;
 
 typedef struct ItemList {
+	char*  buffer;
+	u32    writePoint;
 	char** item;
 	u32    num;
 } ItemList;
@@ -148,6 +150,7 @@ void Dir_Make(char* dir, ...);
 void Dir_MakeCurrent(void);
 char* Dir_Current(void);
 char* Dir_File(char* fmt, ...);
+s32 Dir_Stat(char* dir);
 void Dir_ItemList(ItemList* itemList, bool isPath);
 void MakeDir(char* dir, ...);
 char* CurWorkDir(void);
@@ -168,6 +171,7 @@ void printf_error_align(const char* info, const char* fmt, ...);
 void printf_info(const char* fmt, ...);
 void printf_info_align(const char* info, const char* fmt, ...);
 void printf_progress(const char* info, u32 a, u32 b);
+s32 printf_get_answer(void);
 void printf_WinFix();
 
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
@@ -212,8 +216,6 @@ char* String_Line(char* str, s32 line);
 char* String_Word(char* str, s32 word);
 char* String_GetLine(char* str, s32 line);
 char* String_GetWord(char* str, s32 word);
-void String_GetLine2(char* dest, char* str, s32 line);
-void String_GetWord2(char* dest, char* str, s32 word);
 void String_CaseToLow(char* s, s32 i);
 void String_CaseToUp(char* s, s32 i);
 char* String_GetPath(char* src);
