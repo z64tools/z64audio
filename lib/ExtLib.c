@@ -833,8 +833,11 @@ void MemFile_Malloc(MemFile* memFile, u32 size) {
 void MemFile_Realloc(MemFile* memFile, u32 size) {
 	if (memFile->memSize > size)
 		return;
-	printf_debugExt_align("memSize", "%08X", memFile->memSize);
-	printf_debug_align("reqSize", "%08X", size);
+	
+	#ifndef NDEBUG
+		printf_debugExt_align("memSize", "%08X", memFile->memSize);
+		printf_debug_align("reqSize", "%08X", size);
+	#endif
 	// Make sure to have enough space
 	if (size < memFile->memSize + 0x10000) {
 		size += 0x10000;
@@ -842,7 +845,10 @@ void MemFile_Realloc(MemFile* memFile, u32 size) {
 	
 	memFile->data = realloc(memFile->data, size);
 	memFile->memSize = size;
-	printf_debug_align("newSize", "%08X", size);
+	
+	#ifndef NDEBUG
+		printf_debug_align("newSize", "%08X", size);
+	#endif
 }
 
 void MemFile_Rewind(MemFile* memFile) {
@@ -882,7 +888,9 @@ s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
 
 s32 MemFile_Read(MemFile* src, void* dest, u32 size) {
 	if (src->seekPoint + size > src->dataSize) {
-		printf_debugExt("Extended dataSize");
+		#ifndef NDEBUG
+			printf_debugExt("Extended dataSize");
+		#endif
 		
 		return 1;
 	}
@@ -933,8 +941,10 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 		free(memFile->info.name);
 	memFile->info.name = String_Generate(filepath);
 	
-	printf_debug_align("Ptr", "%08X", memFile->data);
-	printf_debug_align("Size", "%08X", memFile->dataSize);
+	#ifndef NDEBUG
+		printf_debug_align("Ptr", "%08X", memFile->data);
+		printf_debug_align("Size", "%08X", memFile->dataSize);
+	#endif
 	
 	return 0;
 }
@@ -978,8 +988,10 @@ s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
 		free(memFile->info.name);
 	memFile->info.name = String_Generate(filepath);
 	
-	printf_debug("Ptr: %08X", memFile->data);
-	printf_debug("Size: %08X", memFile->dataSize);
+	#ifndef NDEBUG
+		printf_debug("Ptr: %08X", memFile->data);
+		printf_debug("Size: %08X", memFile->dataSize);
+	#endif
 	
 	return 0;
 }

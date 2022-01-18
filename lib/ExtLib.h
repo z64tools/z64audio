@@ -440,9 +440,13 @@ extern PrintfSuppressLevel gPrintfSuppress;
 		
     #endif
 #else
-	#define printf_debugExt(...)
-	#define printf_debugExt_align(title, ...)
-	#define Assert(exp)
+	#define printf_debugExt(...)       if (0) {}
+	#define printf_debugExt_align(...) if (0) {}
+	#define Assert(exp)                if (0) {}
+    #ifndef __EXTLIB_C__
+		#define printf_debug(...)       if (0) {}
+		#define printf_debug_align(...) if (0) {}
+    #endif
 #endif
 
 #define Main(y1, y2) main(y1, y2)
