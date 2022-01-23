@@ -336,4 +336,8 @@ void z64params(char* argv[]) {
 	}
 	
 	MemFile_Free(&param);
+	
+	if (ParseArg("--GenCfg")) {
+		exit(65);
+	}
 }
