@@ -190,6 +190,7 @@ extern NameParam gBinNameIndex;
 extern u32 gSampleRate;
 extern u32 gPrecisionFlag;
 extern f32 gTuning;
+extern bool gRomMode;
 
 void Audio_ByteSwap(AudioSampleInfo* sampleInfo);
 void Audio_Normalize(AudioSampleInfo* sampleInfo);

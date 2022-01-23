@@ -245,13 +245,19 @@ void z64param_Generate(MemFile* param, char* file) {
 		"### z64audio settings ###\n\n"
 	);
 	GenerParam(
-		"# nameBook.bin vs name_predictors.bin, more suitable for Jared's\n# zzrtl script",
+		"# Specialized for z64rom tool usage, do not set unless this is paired\n# with z64rom!",
+		zaudio_z64rom_mode,
+		false,
+		"[true/false]"
+	);
+	GenerParam(
+		"# nameBook.bin vs name_predictors.bin, more suitable for Jared's\n# zzrtl script.",
 		zaudio_zz_naming,
 		false,
 		"[true/false]"
 	);
 	GenerParam(
-		"# Default format to export when drag'n'dropping files on to z64audio",
+		"# Default format to export when drag'n'dropping files on to z64audio.",
 		zaudio_def_dnd_fmt,
 		"bin",
 		"[bin/wav/aiff/c]"
@@ -306,8 +312,8 @@ void z64params(char* argv[]) {
 		"bin", "wav", "aiff", "c", NULL
 	};
 	
-	String_Copy(file, String_GetPath(argv[0]));
-	String_Merge(file, "z64audio.cfg");
+	strcpy(file, String_GetPath(argv[0]));
+	strcat(file, "z64audio.cfg");
 	
 	if (ParseArg("--P")) {
 		MemFile_LoadFile_String(&param, argv[parArg]);
@@ -316,6 +322,7 @@ void z64params(char* argv[]) {
 		z64param_Generate(&param, file);
 	}
 	
+	gRomMode = Config_GetBool(&param, "zaudio_z64rom_mode");
 	gBinNameIndex = Config_GetBool(&param, "zaudio_zz_naming");
 	integer = Config_GetOption(&param, "zaudio_def_dnd_fmt", list);
 	gTableDesignIteration = Config_GetString(&param, "tbl_ref_iter");

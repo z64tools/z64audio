@@ -110,6 +110,16 @@ typedef struct Node {
 	struct Node* next;
 } Node;
 
+typedef enum {
+	MEM_FILENAME = 1 << 16,
+	MEM_CRC32    = 1 << 17,
+	MEM_ALIGN    = 1 << 18,
+	MEM_REALLOC  = 1 << 19,
+	
+	MEM_CLEAR    = 1 << 30,
+	MEM_END      = 1 << 31,
+} MemInit;
+
 typedef struct MemFile {
 	union {
 		void* data;
@@ -121,7 +131,15 @@ typedef struct MemFile {
 	struct {
 		f64   age;
 		char* name;
+		u32   crc32;
 	} info;
+	struct {
+		u32 align   : 8;
+		u32 realloc : 1;
+		u32 getCrc  : 1;
+		u32 getName : 1;
+		u64 initKey;
+	} param;
 } MemFile;
 
 typedef struct ItemList {
@@ -141,6 +159,10 @@ void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
 
+void* Graph_Alloc(u32 size);
+void* Graph_Realloc(void* ptr, u32 size);
+u32 Graph_GetSize(void* ptr);
+
 void Dir_SetParam(DirParam w);
 void Dir_UnsetParam(DirParam w);
 void Dir_Set(char* path, ...);
@@ -152,10 +174,11 @@ char* Dir_Current(void);
 char* Dir_File(char* fmt, ...);
 s32 Dir_Stat(char* dir);
 void Dir_ItemList(ItemList* itemList, bool isPath);
-void MakeDir(char* dir, ...);
+void MakeDir(const char* dir, ...);
+s32 Stat(char* x);
 char* CurWorkDir(void);
 
-void ItemList_Free(ItemList* itemList);
+void ItemList_NumericalSort(ItemList* list);
 
 char* tprintf(char* fmt, ...);
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
@@ -182,20 +205,25 @@ void* Lib_Realloc(void* data, s32 size);
 void* Lib_Free(void* data);
 s32 Lib_Touch(char* file);
 void Lib_ByteSwap(void* src, s32 size);
+s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg);
+u32 Lib_Crc32(u8* s, u32 n);
 
 void* File_Load(void* destSize, char* filepath);
 void File_Save(char* filepath, void* src, s32 size);
 void* File_Load_ReqExt(void* size, char* filepath, const char* ext);
 void File_Save_ReqExt(char* filepath, void* src, s32 size, const char* ext);
-s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg);
 
 MemFile MemFile_Initialize();
+void MemFile_Params(MemFile* memFile, ...);
 void MemFile_Malloc(MemFile* memFile, u32 size);
 void MemFile_Realloc(MemFile* memFile, u32 size);
 void MemFile_Rewind(MemFile* memFile);
 s32 MemFile_Write(MemFile* dest, void* src, u32 size);
+s32 MemFile_Append(MemFile* dest, MemFile* src);
+void MemFile_Align(MemFile* src, u32 align);
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...);
 s32 MemFile_Read(MemFile* src, void* dest, u32 size);
+void MemFile_Seek(MemFile* src, u32 seek);
 s32 MemFile_LoadFile(MemFile* memFile, char* filepath);
 s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath);
 s32 MemFile_SaveFile(MemFile* memFile, char* filepath);
@@ -214,23 +242,27 @@ s32 String_GetLineCount(char* str);
 s32 String_CaseComp(char* a, char* b, u32 compSize);
 char* String_Line(char* str, s32 line);
 char* String_Word(char* str, s32 word);
-char* String_GetLine(char* str, s32 line);
-char* String_GetWord(char* str, s32 word);
+char* String_GetLine(const char* str, s32 line);
+char* String_GetWord(const char* str, s32 word);
 void String_CaseToLow(char* s, s32 i);
 void String_CaseToUp(char* s, s32 i);
-char* String_GetPath(char* src);
-char* String_GetBasename(char* src);
-char* String_GetFilename(char* src);
+char* String_GetPath(const char* src);
+char* String_GetBasename(const char* src);
+char* String_GetFilename(const char* src);
+s32 String_GetPathNum(const char* src);
+char* String_GetFolder(const char* src, s32 num);
 void String_Insert(char* point, char* insert);
 void String_Remove(char* point, s32 amount);
 s32 String_Replace(char* src, char* word, char* replacement);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 
+char* Config_Get(MemFile* memFile, char* name);
 s32 Config_GetBool(MemFile* memFile, char* boolName);
 s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]);
 s32 Config_GetInt(MemFile* memFile, char* intName);
 char* Config_GetString(MemFile* memFile, char* stringName);
+f32 Config_GetFloat(MemFile* memFile, char* floatName);
 
 #define Node_Add(head, node) { \
 		OsAssert(node != NULL) \
@@ -348,11 +380,11 @@ extern PrintfSuppressLevel gPrintfSuppress;
 
 #define BinToMb(x) ((f32)(x) / (f32)0x100000)
 #define BinToKb(x) ((f32)(x) / (f32)0x400)
-#define MbToBin(x) (0x100000 * (x))
-#define KbToBin(x) (0x400 * (x))
+#define MbToBin(x) (u32)(0x100000 * (x))
+#define KbToBin(x) (u32)(0x400 * (x))
 
-#define String_Copy(dst, src)   strcpy(dst, src)
-#define String_Merge(dst, src)  strcat(dst, src)
+// #define strcpy(dst, src)   strcpy(dst, src)
+// #define strcat(dst, src)  strcat(dst, src)
 #define String_SMerge(dst, ...) sprintf(dst + strlen(dst), __VA_ARGS__);
 #define String_Generate(string) strdup(string)
 #define String_IsDiff(a, b)     strcmp(a, b)

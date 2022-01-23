@@ -5,6 +5,7 @@ NameParam gBinNameIndex;
 u32 gSampleRate = 32000;
 u32 gPrecisionFlag;
 f32 gTuning = 1.0f;
+bool gRomMode;
 
 char* sBinName[][4] = {
 	{
@@ -466,12 +467,12 @@ void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
 		sampleInfo->instrument.note = waveInstInfo->note;
 		sampleInfo->instrument.highNote = waveInstInfo->hiNote;
 		sampleInfo->instrument.lowNote = waveInstInfo->lowNote;
-		
-		if (waveSampleInfo && waveSampleInfo->numSampleLoops) {
-			sampleInfo->instrument.loop.start = waveSampleInfo->loopData[0].start;
-			sampleInfo->instrument.loop.end = waveSampleInfo->loopData[0].end;
-			sampleInfo->instrument.loop.count = 0xFFFFFFFF;
-		}
+	}
+	
+	if (waveSampleInfo && waveSampleInfo->numSampleLoops) {
+		sampleInfo->instrument.loop.start = waveSampleInfo->loopData[0].start;
+		sampleInfo->instrument.loop.end = waveSampleInfo->loopData[0].end;
+		sampleInfo->instrument.loop.count = 0xFFFFFFFF;
 	}
 }
 void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
@@ -731,19 +732,14 @@ void Audio_LoadSample_AifcVadpcm(AudioSampleInfo* sampleInfo) {
 }
 void Audio_LoadSample_Bin(AudioSampleInfo* sampleInfo) {
 	MemFile config = MemFile_Initialize();
-	char buffer[256 * 2];
 	u32 loopEnd;
 	u32 tailEnd;
 	
 	MemFile_LoadFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".bin");
 	
-	String_Copy(buffer, String_GetPath(sampleInfo->input));
-	String_Merge(buffer, "book.bin");
-	MemFile_LoadFile(&sampleInfo->vadBook, buffer);
-	
-	String_Copy(buffer, String_GetPath(sampleInfo->input));
-	String_Merge(buffer, "config.cfg");
-	MemFile_LoadFile_String(&config, buffer);
+	Dir_Set(String_GetPath(sampleInfo->input));
+	MemFile_LoadFile(&sampleInfo->vadBook, Dir_File("*.book.bin"));
+	MemFile_LoadFile_String(&config, Dir_File("config.cfg"));
 	
 	loopEnd = Config_GetInt(&config, "loop_end");
 	tailEnd = Config_GetInt(&config, "tail_end");
@@ -991,6 +987,18 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	u16 emp = 0;
 	char buffer[265 * 4];
 	
+	if (gRomMode) {
+		Dir_Set(String_GetPath(sampleInfo->input));
+		if (Dir_File("*.vadpcm.bin"))
+			remove(Dir_File("*.vadpcm.bin"));
+		if (Dir_File("*.book.bin"))
+			remove(Dir_File("*.book.bin"));
+		if (Dir_File("*.loopbook.bin"))
+			remove(Dir_File("*.loopbook.bin"));
+		if (Dir_File("config.cfg"))
+			remove(Dir_File("config.cfg"));
+	}
+	
 	MemFile_Malloc(&output, sampleInfo->size * 2);
 	
 	String_SwapExtension(buffer, sampleInfo->output, sBinName[gBinNameIndex][0]);
@@ -1028,34 +1036,35 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	}
 	
 	String_SwapExtension(buffer, sampleInfo->output, sBinName[gBinNameIndex][3]);
+	
 	MemFile_Clear(&output);
-	MemFile_Printf(&output, "precision\tloopstart\tloopend  \tloopcount\tlooptail \n");
-	MemFile_Printf(
-		&output,
-		"%08X\t%08X\t%08X\t%08X\t%08X\n",
-		0,
-		sampleInfo->instrument.loop.start,
-		sampleInfo->instrument.loop.end,
-		sampleInfo->instrument.loop.count,
-		sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0
-	);
-	MemFile_SaveFile_String(&output, buffer);
-	printf_info_align("Save TSV", "%s", buffer);
 	
-	printf_debugExt(
-		"%08X %f",
-		(f32)((f32)sampleInfo->sampleRate / 32000.0f) * pow(
-			pow(2, 1.0 / 12.0),
-			60.0 - (f64)sampleInfo->instrument.note +
-			0.01 * sampleInfo->instrument.fineTune
-		),
-		(f32)((f32)sampleInfo->sampleRate / 32000.0f) * pow(
-			pow(2, 1.0 / 12.0),
-			60.0 - (f64)sampleInfo->instrument.note +
-			0.01 * sampleInfo->instrument.fineTune
-		)
+	MemFile* config = &output;
+	f32 tuning = (f32)((f32)sampleInfo->sampleRate / 32000.0f) * pow(
+		pow(2, 1.0 / 12.0),
+		60.0 - (f64)sampleInfo->instrument.note +
+		0.01 * sampleInfo->instrument.fineTune
 	);
 	
+	Config_WriteTitle_Str(String_GetBasename(sampleInfo->output));
+	
+	Config_WriteVar_Int("codec", gPrecisionFlag ? 3 : 0);
+	Config_WriteVar_Int("medium", 0);
+	Config_WriteVar_Int("bitA", 0);
+	Config_WriteVar_Int("bitB", 0);
+	
+	Config_SPrintf("\n");
+	Config_WriteTitle_Str("Loop");
+	Config_WriteVar_Int("loop_start", sampleInfo->instrument.loop.start);
+	Config_WriteVar_Int("loop_end", sampleInfo->instrument.loop.end);
+	Config_WriteVar_Int("loop_count", sampleInfo->instrument.loop.count);
+	Config_WriteVar_Int("tail_end", sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0);
+	
+	Config_SPrintf("\n");
+	Config_WriteTitle_Str("Instrument Info");
+	Config_WriteVar_Flo("tuning", tuning);
+	
+	MemFile_SaveFile_String(config, tprintf("%s/config.cfg", String_GetPath(sampleInfo->output)));
 	MemFile_Free(&output);
 }
 void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {

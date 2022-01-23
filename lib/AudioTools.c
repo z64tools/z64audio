@@ -13,21 +13,21 @@ void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
 	
 	String_SwapExtension(buffer, sampleInfo->output, "Book.txt");
 	
-	String_Copy(sys, "./tabledesign");
-	String_Merge(sys, " -i ");
-	String_Merge(sys, gTableDesignIteration);
-	String_Merge(sys, " -f ");
-	String_Merge(sys, gTableDesignFrameSize);
-	String_Merge(sys, " -s ");
-	String_Merge(sys, gTableDesignBits);
-	String_Merge(sys, " -o ");
-	String_Merge(sys, gTableDesignBits);
-	String_Merge(sys, " -o ");
-	String_Merge(sys, gTableDesignOrder);
-	String_Merge(sys, " ");
-	String_Merge(sys, sampleInfo->output);
-	String_Merge(sys, " > ");
-	String_Merge(sys, buffer);
+	strcpy(sys, "./tabledesign");
+	strcat(sys, " -i ");
+	strcat(sys, gTableDesignIteration);
+	strcat(sys, " -f ");
+	strcat(sys, gTableDesignFrameSize);
+	strcat(sys, " -s ");
+	strcat(sys, gTableDesignBits);
+	strcat(sys, " -o ");
+	strcat(sys, gTableDesignBits);
+	strcat(sys, " -o ");
+	strcat(sys, gTableDesignOrder);
+	strcat(sys, " ");
+	strcat(sys, sampleInfo->output);
+	strcat(sys, " > ");
+	strcat(sys, buffer);
 	
 	printf_debugExt("%s", sys);
 	
@@ -39,18 +39,18 @@ void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
 	char buffer[256];
 	char sys[256 * 2];
 	
-	String_Copy(sys, "./vadpcm_enc -c");
-	String_Merge(sys, " ");
+	strcpy(sys, "./vadpcm_enc -c");
+	strcat(sys, " ");
 	
 	String_SwapExtension(buffer, sampleInfo->output, "Book.txt");
-	String_Merge(sys, buffer);
-	String_Merge(sys, " ");
+	strcat(sys, buffer);
+	strcat(sys, " ");
 	
-	String_Merge(sys, sampleInfo->output);
-	String_Merge(sys, " ");
+	strcat(sys, sampleInfo->output);
+	strcat(sys, " ");
 	
 	String_SwapExtension(buffer, sampleInfo->output, ".aifc");
-	String_Merge(sys, buffer);
+	strcat(sys, buffer);
 	
 	printf_debugExt("[%s]", sys);
 	
