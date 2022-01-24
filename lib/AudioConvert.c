@@ -991,8 +991,9 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 		Dir_Set(String_GetPath(sampleInfo->input));
 		if (Dir_File("*.vadpcm.bin"))
 			remove(Dir_File("*.vadpcm.bin"));
-		if (Dir_File("*.book.bin"))
-			remove(Dir_File("*.book.bin"));
+		if (sampleInfo->useExistingPred == false)
+			if (Dir_File("*.book.bin"))
+				remove(Dir_File("*.book.bin"));
 		if (Dir_File("*.loopbook.bin"))
 			remove(Dir_File("*.loopbook.bin"));
 		if (Dir_File("config.cfg"))
@@ -1048,7 +1049,7 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	
 	Config_WriteTitle_Str(String_GetBasename(sampleInfo->output));
 	
-	Config_WriteVar_Int("codec", gPrecisionFlag ? 3 : 0);
+	Config_WriteVar_Int("codec", gPrecisionFlag);
 	Config_WriteVar_Int("medium", 0);
 	Config_WriteVar_Int("bitA", 0);
 	Config_WriteVar_Int("bitB", 0);

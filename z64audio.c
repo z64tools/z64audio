@@ -148,15 +148,29 @@ s32 Main(s32 argc, char* argv[]) {
 	printf_toolinfo(sToolName, "\n");
 	Audio_InitSampleInfo(&sample, input, output);
 	
-	if (ParseArg("--p")) {
-		AudioTools_LoadCodeBook(&sample, argv[parArg]);
-		sample.useExistingPred = 1;
+	if (gRomMode) {
+		Dir_Set(String_GetPath(sample.input));
+		if (Stat(Dir_File("*.book.bin"))) {
+			MemFile config = MemFile_Initialize();
+			
+			MemFile_LoadFile_String(&config, Dir_File("config.cfg"));
+			gPrecisionFlag = Config_GetInt(&config, "codec") ? 3 : 0;
+			
+			AudioTools_LoadCodeBook(&sample, Dir_File("sample.book.bin"));
+			sample.useExistingPred = true;
+			MemFile_Free(&config);
+		}
 	} else {
-		if (ParseArg("--I")) gTableDesignIteration = argv[parArg];
-		if (ParseArg("--F")) gTableDesignFrameSize = argv[parArg];
-		if (ParseArg("--B")) gTableDesignBits = argv[parArg];
-		if (ParseArg("--O")) gTableDesignOrder = argv[parArg];
-		if (ParseArg("--T")) gTableDesignThreshold = argv[parArg];
+		if (ParseArg("--p") && sample.useExistingPred == 0) {
+			AudioTools_LoadCodeBook(&sample, argv[parArg]);
+			sample.useExistingPred = true;
+		} else {
+			if (ParseArg("--I")) gTableDesignIteration = argv[parArg];
+			if (ParseArg("--F")) gTableDesignFrameSize = argv[parArg];
+			if (ParseArg("--B")) gTableDesignBits = argv[parArg];
+			if (ParseArg("--O")) gTableDesignOrder = argv[parArg];
+			if (ParseArg("--T")) gTableDesignThreshold = argv[parArg];
+		}
 	}
 	
 	if (ParseArg("--srate")) gSampleRate = String_GetInt(argv[parArg]);

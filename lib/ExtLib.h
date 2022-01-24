@@ -162,6 +162,10 @@ void32 VirtualToSegmented(const u8 id, void* ptr);
 void* Graph_Alloc(u32 size);
 void* Graph_Realloc(void* ptr, u32 size);
 u32 Graph_GetSize(void* ptr);
+char* Graph_GenStr(char* str);
+
+void Log(const char* fmt, ...);
+void LogPrint();
 
 void Dir_SetParam(DirParam w);
 void Dir_UnsetParam(DirParam w);
@@ -174,6 +178,8 @@ char* Dir_Current(void);
 char* Dir_File(char* fmt, ...);
 s32 Dir_Stat(char* dir);
 void Dir_ItemList(ItemList* itemList, bool isPath);
+void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not);
+void Dir_ItemList_Keyword(ItemList* itemList, char* ext);
 void MakeDir(const char* dir, ...);
 s32 Stat(char* x);
 char* CurWorkDir(void);
@@ -199,6 +205,7 @@ void printf_WinFix();
 
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
 void* Lib_MemMemCase(void* haystack, size_t haystackSize, void* needle, size_t needleSize);
+void* Lib_MemMem16(const void* haystack, size_t haySize, const void* needle, size_t needleSize);
 void* Lib_Malloc(void* data, s32 size);
 void* Lib_Calloc(void* data, s32 size);
 void* Lib_Realloc(void* data, s32 size);
@@ -257,6 +264,7 @@ s32 String_Replace(char* src, char* word, char* replacement);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 
+void Config_SuppressNext(void);
 char* Config_Get(MemFile* memFile, char* name);
 s32 Config_GetBool(MemFile* memFile, char* boolName);
 s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]);
@@ -478,6 +486,8 @@ extern PrintfSuppressLevel gPrintfSuppress;
     #ifndef __EXTLIB_C__
 		#define printf_debug(...)       if (0) {}
 		#define printf_debug_align(...) if (0) {}
+		#define Log(...)                if (0) {}
+		#define LogPrint()              if (0) {}
     #endif
 #endif
 

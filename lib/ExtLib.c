@@ -37,6 +37,7 @@ char* sPrintfPreType[][4] = {
 u8 sGraphBuffer[MbToBin(128)];
 u32 sGraphSize = 0x10;
 time_t sTime;
+MemFile sLog;
 
 // Segment
 void SetSegment(const u8 id, void* segment) {
@@ -65,8 +66,11 @@ void* Graph_Alloc(u32 size) {
 	if (size == 0)
 		return NULL;
 	
-	if (sGraphSize + size + 0x20 > MbToBin(128))
+	if (sGraphSize + size + 0x20 > MbToBin(128)) {
+		printf_warning("GrapRound");
+		getchar();
 		sGraphSize = 0x10;
+	}
 	
 	param = (u32*)&sGraphBuffer[sGraphSize];
 	param[-1] = size;
@@ -82,12 +86,19 @@ void* Graph_Alloc(u32 size) {
 	return ret;
 }
 
-// Graph
 void* Graph_Realloc(void* ptr, u32 size) {
 	u8* ret = Graph_Alloc(size);
 	u32* param = ptr;
 	
 	memcpy(ret, ptr, param[-1]);
+	
+	return ret;
+}
+
+char* Graph_GenStr(char* str) {
+	char* ret = Graph_Alloc(strlen(str));
+	
+	strcpy(ret, str);
 	
 	return ret;
 }
@@ -98,8 +109,30 @@ u32 Graph_GetSize(void* ptr) {
 	return val[-1];
 }
 
-// Dir
+void Log(const char* fmt, ...) {
+	if (sLog.param.initKey == 0) {
+		sLog = MemFile_Initialize();
+		MemFile_Malloc(&sLog, BinToMb(1.0));
+		MemFile_Params(&sLog, MEM_REALLOC, true, MEM_END);
+		MemFile_Printf(&sLog, "\n", 1);
+	}
+	va_list args;
+	char buffer[512];
+	
+	va_start(args, fmt);
+	vsnprintf(buffer, ArrayCount(buffer), fmt, args);
+	va_end(args);
+	
+	MemFile_Printf(&sLog, "%s\n", buffer);
+}
 
+void LogPrint() {
+	printf_info("Log");
+	printf("%s\n", (char*)sLog.data);
+	MemFile_Clear(&sLog);
+}
+
+// Dir
 struct {
 	struct {
 		s32 enterCount[512];
@@ -323,6 +356,108 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 	}
 }
 
+void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not) {
+	DIR* dir = opendir(sCurrentPath);
+	u32 bufSize = 0;
+	struct dirent* entry;
+	
+	*itemList = (ItemList) { 0 };
+	
+	if (dir == NULL)
+		printf_error_align("Could not opendir()", "%s", sCurrentPath);
+	
+	while ((entry = readdir(dir)) != NULL) {
+		if (isPath) {
+			if (__isDir(Dir_File(entry->d_name))) {
+				if (entry->d_name[0] == '.')
+					continue;
+				if (strcmp(entry->d_name, not) == 0)
+					continue;
+				itemList->num++;
+				bufSize += strlen(entry->d_name) + 2;
+			}
+		} else {
+			if (!__isDir(Dir_File(entry->d_name))) {
+				itemList->num++;
+				bufSize += strlen(entry->d_name) + 2;
+			}
+		}
+	}
+	
+	closedir(dir);
+	
+	if (itemList->num) {
+		u32 i = 0;
+		dir = opendir(sCurrentPath);
+		itemList->buffer = Graph_Alloc(bufSize);
+		itemList->item = Graph_Alloc(sizeof(char*) * itemList->num);
+		
+		while ((entry = readdir(dir)) != NULL) {
+			if (isPath) {
+				if (__isDir(Dir_File(entry->d_name))) {
+					if (entry->d_name[0] == '.')
+						continue;
+					if (strcmp(entry->d_name, not) == 0)
+						continue;
+					strcpy(&itemList->buffer[itemList->writePoint], tprintf("%s/", entry->d_name));
+					itemList->item[i] = &itemList->buffer[itemList->writePoint];
+					itemList->writePoint += strlen(itemList->item[i]) + 1;
+					i++;
+				}
+			} else {
+				if (!__isDir(Dir_File(entry->d_name))) {
+					strcpy(&itemList->buffer[itemList->writePoint], tprintf("%s", entry->d_name));
+					itemList->item[i] = &itemList->buffer[itemList->writePoint];
+					itemList->writePoint += strlen(itemList->item[i]) + 1;
+					i++;
+				}
+			}
+		}
+		closedir(dir);
+	}
+}
+
+void Dir_ItemList_Keyword(ItemList* itemList, char* ext) {
+	DIR* dir = opendir(sCurrentPath);
+	u32 bufSize = 0;
+	struct dirent* entry;
+	
+	*itemList = (ItemList) { 0 };
+	
+	if (dir == NULL)
+		printf_error_align("Could not opendir()", "%s", sCurrentPath);
+	
+	while ((entry = readdir(dir)) != NULL) {
+		if (!__isDir(Dir_File(entry->d_name))) {
+			if (!String_MemMem(entry->d_name, ext))
+				continue;
+			itemList->num++;
+			bufSize += strlen(entry->d_name) + 2;
+		}
+	}
+	
+	closedir(dir);
+	
+	if (itemList->num) {
+		u32 i = 0;
+		dir = opendir(sCurrentPath);
+		itemList->buffer = Graph_Alloc(bufSize);
+		itemList->item = Graph_Alloc(sizeof(char*) * itemList->num);
+		
+		while ((entry = readdir(dir)) != NULL) {
+			if (!__isDir(Dir_File(entry->d_name))) {
+				if (!String_MemMem(entry->d_name, ext))
+					continue;
+				strcpy(&itemList->buffer[itemList->writePoint], tprintf("%s", entry->d_name));
+				itemList->item[i] = &itemList->buffer[itemList->writePoint];
+				itemList->writePoint += strlen(itemList->item[i]) + 1;
+				i++;
+			}
+		}
+		closedir(dir);
+	}
+}
+
 s32 Stat(char* x) {
 	struct stat st = { 0 };
 	
@@ -397,23 +532,36 @@ char* CurWorkDir(void) {
 // ItemList
 void ItemList_NumericalSort(ItemList* list) {
 	ItemList sorted = { 0 };
+	u32 highestNum = 0;
 	
 	if (list->num <= 1)
 		return;
 	
-	sorted.buffer = Graph_Alloc(Graph_GetSize(list->buffer));
-	sorted.item = Graph_Alloc(sizeof(char*) * list->num);
+	for (s32 i = 0; i < list->num; i++) {
+		if (String_GetInt(list->item[i]) > highestNum)
+			highestNum = String_GetInt(list->item[i]);
+	}
 	
-	for (s32 j = 0; j < list->num; j++) {
-		for (s32 i = 0; i < list->num; i++) {
-			if (String_MemMem(list->item[i], tprintf("%d-", j)) == list->item[i]) {
+	sorted.buffer = Graph_Alloc(list->writePoint + 0x10);
+	sorted.item = Graph_Alloc(sizeof(char*) * (highestNum + 2));
+	
+	for (s32 i = 0; i <= highestNum; i++) {
+		u32 null = true;
+		
+		for (s32 j = 0; j < list->num; j++) {
+			if (String_GetInt(list->item[j]) == i) {
 				sorted.item[sorted.num] = &sorted.buffer[sorted.writePoint];
-				strcpy(sorted.item[sorted.num], list->item[i]);
-				sorted.writePoint += strlen(list->item[i]) + 1;
+				strcpy(sorted.item[sorted.num], list->item[j]);
+				sorted.writePoint += strlen(list->item[j]) + 1;
 				sorted.num++;
-				
+				null = false;
 				break;
 			}
+		}
+		
+		if (null == true) {
+			sorted.item[sorted.num] = NULL;
+			sorted.num++;
 		}
 	}
 	
@@ -822,6 +970,32 @@ void* Lib_MemMemCase(void* haystack, size_t haystackSize, void* needle, size_t n
 	return NULL;
 }
 
+void* Lib_MemMem16(const void* haystack, size_t haySize, const void* needle, size_t needleSize) {
+	if (haySize == 0 || needleSize == 0)
+		return NULL;
+	
+	if (haystack == NULL || needle == NULL)
+		return NULL;
+	
+	if (haySize < needleSize) {
+		return NULL;
+	}
+	
+	for (s32 i = 0;; i++) {
+		const u8* hay = haystack;
+		const u8* nee = needle;
+		
+		if (i * 16 > haySize - needleSize)
+			return NULL;
+		
+		if (hay[i * 16] == nee[0]) {
+			if (memcmp(&hay[i * 16], nee, needleSize) == 0) {
+				return (void*)&hay[i * 16];
+			}
+		}
+	}
+}
+
 void Lib_ByteSwap(void* src, s32 size) {
 	u32 buffer[64] = { 0 };
 	u8* temp = (u8*)buffer;
@@ -1133,8 +1307,8 @@ s32 MemFile_Append(MemFile* dest, MemFile* src) {
 }
 
 void MemFile_Align(MemFile* src, u32 align) {
-	if (src->seekPoint & 0xF) {
-		MemFile_Params(src, MEM_ALIGN, 16, MEM_END);
+	if (src->seekPoint % align) {
+		MemFile_Params(src, MEM_ALIGN, align, MEM_END);
 		MemFile_Write(src, "\0", 1);
 		MemFile_Params(src, MEM_CLEAR, MEM_END);
 	}
@@ -1350,7 +1524,6 @@ void MemFile_Free(MemFile* memFile) {
 }
 
 void MemFile_Clear(MemFile* memFile) {
-	memset(memFile->data, 0, memFile->memSize);
 	memFile->dataSize = 0;
 	memFile->seekPoint = 0;
 }
@@ -1722,6 +1895,17 @@ s32 String_Replace(char* src, char* word, char* replacement) {
 	s32 diff = 0;
 	char* ptr;
 	
+	if (strlen(word) == 1 && strlen(replacement) == 1) {
+		for (s32 i = 0; i < strlen(src); i++) {
+			if (src[i] == word[0]) {
+				src[i] = replacement[0];
+				break;
+			}
+		}
+		
+		return true;
+	}
+	
 	ptr = String_MemMem(src, word);
 	
 	while (ptr != NULL) {
@@ -1740,6 +1924,11 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 	strcat(dest, ext);
 }
 
+s32 sConfigSuppression;
+
+void Config_SuppressNext(void) {
+	sConfigSuppression = 1;
+}
 // Config
 char* Config_Get(MemFile* memFile, char* name) {
 	u32 lineCount = String_GetLineCount(memFile->data);
@@ -1772,9 +1961,11 @@ s32 Config_GetBool(MemFile* memFile, char* boolName) {
 		}
 	}
 	
-	printf_warning("[%s] is missing bool [%s]", memFile->info.name, boolName);
+	if (sConfigSuppression == 0)
+		printf_warning("[%s] is missing bool [%s]", memFile->info.name, boolName);
+	else sConfigSuppression++;
 	
-	return -1;
+	return 0;
 }
 
 s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]) {
@@ -1792,9 +1983,11 @@ s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]) {
 			return i;
 	}
 	
-	printf_warning("[%s] is missing option [%s]", memFile->info.name, stringName);
+	if (sConfigSuppression == 0)
+		printf_warning("[%s] is missing option [%s]", memFile->info.name, stringName);
+	else sConfigSuppression++;
 	
-	return -1;
+	return 0;
 }
 
 s32 Config_GetInt(MemFile* memFile, char* intName) {
@@ -1805,9 +1998,11 @@ s32 Config_GetInt(MemFile* memFile, char* intName) {
 		return String_GetInt(ptr);
 	}
 	
-	printf_warning("[%s] is missing integer [%s]", memFile->info.name, intName);
+	if (sConfigSuppression == 0)
+		printf_warning("[%s] is missing integer [%s]", memFile->info.name, intName);
+	else sConfigSuppression++;
 	
-	return 404040404;
+	return 0;
 }
 
 char* Config_GetString(MemFile* memFile, char* stringName) {
@@ -1818,7 +2013,9 @@ char* Config_GetString(MemFile* memFile, char* stringName) {
 		return ptr;
 	}
 	
-	printf_warning("[%s] is missing string [%s]", memFile->info.name, stringName);
+	if (sConfigSuppression == 0)
+		printf_warning("[%s] is missing string [%s]", memFile->info.name, stringName);
+	else sConfigSuppression++;
 	
 	return NULL;
 }
@@ -1831,7 +2028,9 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName) {
 		return String_GetFloat(ptr);
 	}
 	
-	printf_warning("[%s] is missing float [%s]", memFile->info.name, floatName);
+	if (sConfigSuppression == 0)
+		printf_warning("[%s] is missing float [%s]", memFile->info.name, floatName);
+	else sConfigSuppression++;
 	
-	return -69.6969;
+	return 0;
 }

@@ -482,13 +482,6 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 		}
 	#define FREE_P(P) if (P) free(P)
 	
-	if (sampleInfo->channelNum != 16) {
-		sampleInfo->targetBit = 16;
-		Audio_Resample(sampleInfo);
-	}
-	if (sampleInfo->channelNum != 1)
-		Audio_ConvertToMono(sampleInfo);
-	
 	u32 refineIteration = String_GetInt(gTableDesignIteration);
 	u32 frameSize = String_GetInt(gTableDesignFrameSize);
 	u32 bits = String_GetInt(gTableDesignBits);
@@ -680,6 +673,14 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	FREE_P(splitDelta);
 }
 void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
+	if (sampleInfo->channelNum != 16) {
+		sampleInfo->targetBit = 16;
+		Audio_Resample(sampleInfo);
+	}
+	if (sampleInfo->channelNum != 1)
+		Audio_ConvertToMono(sampleInfo);
+	
+	Audio_Normalize(sampleInfo);
 	if (sampleInfo->vadBook.data == NULL) {
 		AudioTools_TableDesign(sampleInfo);
 	}
@@ -700,7 +701,7 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	s32 prec = 9; // 5 half VADPCM Precision
 	s32 nRepeats = 0;
 	
-	if (gPrecisionFlag)
+	if (gPrecisionFlag == 3)
 		prec = 5;
 	
 	MemFile_Malloc(&memEnc, sampleInfo->size * 2);
@@ -795,7 +796,7 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	MemFile_Free(&sampleInfo->memFile);
 	sampleInfo->memFile = memEnc;
 	sampleInfo->audio.p = memEnc.data;
-	sampleInfo->size = memEnc.dataSize;
+	sampleInfo->size = nBytes;
 	
 	printf_debugExt("New MemFile Size [0x%X]", sampleInfo->size);
 	
