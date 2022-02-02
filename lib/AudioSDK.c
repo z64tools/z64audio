@@ -330,7 +330,7 @@ s32 bruteforce(s32 guess[16], u8 input[9], s32 decoded[16], s32 decompressed[16]
 			if (score == 0) {
 				return 1;
 			}
-			if (ABS(score) < CLAMP_MIN(freeMe - 1000, 0)) {
+			if (ABS(score) < CLAMP_MIN(freeMe - 100, 0)) {
 				return 1;
 			}
 			if (bestScore == -1 || score < bestScore) {
