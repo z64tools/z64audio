@@ -330,35 +330,6 @@ void Audio_FreeSample(AudioSampleInfo* sampleInfo) {
 	*sampleInfo = (AudioSampleInfo) { 0 };
 }
 
-void Audio_GetSampleInfo_Aiff(AiffInstrumentInfo** aiffInstInfo, AiffMarkerInfo** aiffMarkerInfo, AiffHeader* header, u32 fileSize) {
-	AiffInfo* aiffInfo = MemMem(header, fileSize, "COMM", 4);
-	s32 startOffset = sizeof(AiffHeader) + aiffInfo->chunk.size;
-	s32 searchLength = header->chunk.size - startOffset;
-	u8* hayStart = ((u8*)header) + startOffset;
-	
-	printf_debugExt("StartOffset  [0x%08X]", startOffset);
-	printf_debugExt("SearchLength [0x%08X]", searchLength);
-	printf_debug("FileSize [0x%08X]", fileSize);
-	
-	if (searchLength <= 0) {
-		printf_debug("searchLength <= 0", fileSize);
-		*aiffInstInfo = NULL;
-		*aiffMarkerInfo = NULL;
-		
-		return;
-	}
-	
-	*aiffInstInfo = MemMem(hayStart, searchLength, "INST", 4);
-	*aiffMarkerInfo = MemMem(hayStart, searchLength, "MARK", 4);
-	
-	if (*aiffInstInfo) {
-		printf_debugExt("Found InstrumentInfo");
-	}
-	
-	if (*aiffMarkerInfo) {
-		printf_debugExt("Found SampleInfo");
-	}
-}
 void Audio_GetSampleInfo_AifcVadpcm(AiffInstrumentInfo** aiffInstInfo, AiffHeader* header, u32 fileSize) {
 	*aiffInstInfo = MemMem(header, fileSize, "INST", 4);
 	
@@ -368,58 +339,36 @@ void Audio_GetSampleInfo_AifcVadpcm(AiffInstrumentInfo** aiffInstInfo, AiffHeade
 }
 
 typedef enum {
-	WAV_FMT  = 0 | (1) << 8,
-	WAV_DATA = 1 | (1) << 8,
-	WAV_SMPL = 2 | (1) << 8,
-	WAV_INST = 3 | (1) << 8,
-	AIF_FMT  = 0,
-	AIF_DATA = 1,
-	AIF_SMPL = 2,
-	AIF_INST = 3,
-} WaveFmt;
+	AUDIO_WAV,
+	AUDIO_AIFF,
+} AudioFlag;
 
-void* Audio_GetChunk(AudioSampleInfo* sampleInfo, WaveFmt param) {
-	const char* chunkType[2][4] = {
-		{ "fmt ", "data", "smpl", "inst" },
-		{ "AIFF", "AIFF", "AIFF", "AIFF" }
-	};
-	s8* data;
-	s64 size;
+void* Audio_GetChunk(AudioSampleInfo* sampleInfo, AudioFlag param, const char* type) {
+	s8* data = sampleInfo->memFile.cast.s8 + 0xC;
+	u32 fileSize = sampleInfo->memFile.cast.u32[1];
 	
-	if (param & 0x100) {
-		data = sampleInfo->memFile.data;
-		size = sampleInfo->memFile.cast.u32[1];
-		data += 0xC;
+	if (param == AUDIO_AIFF) SwapBE(fileSize);
+	
+	for (;;) {
+		struct {
+			char type[4];
+			u32  size;
+		} chunkHead;
 		
-		for (;;) {
-			WaveDataInfo* chunkHead = (void*)data;
+		memcpy(&chunkHead, data, 0x8);
+		if (param == AUDIO_AIFF) SwapBE(chunkHead.size);
+		
+		if (MemMem(type, 4, chunkHead.type, 4)) {
+			printf_debug_align("Chunk:", "%.4s", chunkHead.type);
 			
-			if (!strncmp(chunkType[0][param & 0xF], chunkHead->chunk.name, 4)) {
-				printf_debugExt_align(
-					"Offset:",
-					PRNT_BLUE "[0x%X]" PRNT_RSET,
-					(uPtr)data - (uPtr)sampleInfo->memFile.data
-				);
-				printf_debug_align(
-					"Type:",
-					PRNT_BLUE "[%c%c%c%c]" PRNT_RSET,
-					chunkHead->chunk.name[0],
-					chunkHead->chunk.name[1],
-					chunkHead->chunk.name[2],
-					chunkHead->chunk.name[3]
-				);
-				
-				return data;
-			}
-			
-			data += sizeof(WaveChunk) + chunkHead->chunk.size;
-			
-			if ((uPtr)data - (uPtr)sampleInfo->memFile.data >= size)
-				return NULL;
+			return data;
 		}
+		
+		data += 0x8 + chunkHead.size;
+		
+		if ((uPtr)data - (uPtr)sampleInfo->memFile.data >= fileSize)
+			return NULL;
 	}
-	
-	return NULL;
 }
 
 void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
@@ -450,8 +399,10 @@ void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
 			headerB
 		);
 	}
-	if ((waveInfo = Audio_GetChunk(sampleInfo, WAV_FMT)) == NULL) printf_error("Wave: No [fmt]");
-	if ((waveData = Audio_GetChunk(sampleInfo, WAV_DATA)) == NULL) printf_error("Wave: No [data]");
+	if ((waveInfo = Audio_GetChunk(sampleInfo, AUDIO_WAV, "fmt ")) == NULL) printf_error("Wave: No [fmt]");
+	if ((waveData = Audio_GetChunk(sampleInfo, AUDIO_WAV, "data")) == NULL) printf_error("Wave: No [data]");
+	waveInstInfo = Audio_GetChunk(sampleInfo, AUDIO_WAV, "inst");
+	waveSampleInfo = Audio_GetChunk(sampleInfo, AUDIO_WAV, "smpl");
 	
 	sampleInfo->channelNum = waveInfo->channelNum;
 	sampleInfo->bit = waveInfo->bit;
@@ -466,14 +417,14 @@ void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
 		sampleInfo->dataIsFloat = true;
 	}
 	
-	if ((waveInstInfo = Audio_GetChunk(sampleInfo, WAV_INST))) {
+	if (waveInstInfo) {
 		sampleInfo->instrument.fineTune = waveInstInfo->fineTune;
 		sampleInfo->instrument.note = waveInstInfo->note;
 		sampleInfo->instrument.highNote = waveInstInfo->hiNote;
 		sampleInfo->instrument.lowNote = waveInstInfo->lowNote;
 	}
 	
-	if ((waveSampleInfo = Audio_GetChunk(sampleInfo, WAV_SMPL)) && waveSampleInfo->numSampleLoops) {
+	if (waveSampleInfo && waveSampleInfo->numSampleLoops) {
 		sampleInfo->instrument.loop.start = waveSampleInfo->loopData[0].start;
 		sampleInfo->instrument.loop.end = waveSampleInfo->loopData[0].end;
 		sampleInfo->instrument.loop.count = 0xFFFFFFFF;
@@ -484,6 +435,8 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	AiffHeader* aiffHeader = sampleInfo->memFile.data;
 	AiffDataInfo* aiffData;
 	AiffInfo* aiffInfo;
+	AiffInstrumentInfo* aiffInstInfo;
+	AiffMarkerInfo* aiffMarkerInfo;
 	
 	if (!sampleInfo->memFile.data) {
 		printf_error("Closing.");
@@ -506,26 +459,12 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 		);
 	}
 	
-	printf_debugExt("File [%s] loaded to memory", sampleInfo->input);
-	
 	if (sampleInfo->memFile.dataSize == 0)
 		printf_error("Something has gone wrong loading file [%s]", sampleInfo->input);
-	aiffInfo = MemMem(aiffHeader, sampleInfo->memFile.dataSize, "COMM", 4);
-	aiffData = MemMem(aiffHeader, sampleInfo->memFile.dataSize, "SSND", 4);
-	if (!aiffInfo || !aiffData) {
-		if (!aiffData) {
-			printf_error(
-				"Could not locate [SSND] from [%s]",
-				sampleInfo->input
-			);
-		}
-		if (!aiffInfo) {
-			printf_error(
-				"Could not locate [COMM] from [%s]",
-				sampleInfo->input
-			);
-		}
-	}
+	if ((aiffInfo = Audio_GetChunk(sampleInfo, AUDIO_AIFF, "COMM")) == NULL) printf_error("Aiff: No [COMM]");
+	if ((aiffData = Audio_GetChunk(sampleInfo, AUDIO_AIFF, "SSND")) == NULL) printf_error("Aiff: No [SSND]");
+	aiffInstInfo = Audio_GetChunk(sampleInfo, AUDIO_AIFF, "INST");
+	aiffMarkerInfo = Audio_GetChunk(sampleInfo, AUDIO_AIFF, "MARK");
 	
 	// Swap Chunk Sizes
 	SwapBE(aiffHeader->chunk.size);
@@ -553,31 +492,28 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	
 	sampleInfo->instrument.loop.end = sampleInfo->samplesNum;
 	
-	AiffInstrumentInfo* aiffInstInfo;
-	AiffMarkerInfo* aiffMarkerInfo;
-	
-	Audio_GetSampleInfo_Aiff(&aiffInstInfo, &aiffMarkerInfo, aiffHeader, sampleInfo->memFile.dataSize);
+	printf_debug("sos");
 	
 	if (aiffInstInfo) {
 		sampleInfo->instrument.note = aiffInstInfo->baseNote;
 		sampleInfo->instrument.fineTune = aiffInstInfo->detune;
 		sampleInfo->instrument.highNote = aiffInstInfo->highNote;
 		sampleInfo->instrument.lowNote = aiffInstInfo->lowNote;
-	}
-	
-	if (aiffMarkerInfo && aiffInstInfo && aiffInstInfo->sustainLoop.playMode >= 1) {
-		u16 startIndex = ReadBE(aiffInstInfo->sustainLoop.start) - 1;
-		u16 endIndex = ReadBE(aiffInstInfo->sustainLoop.end) - 1;
-		u16 loopStartH = aiffMarkerInfo->marker[startIndex].positionH;
-		u16 loopStartL = aiffMarkerInfo->marker[startIndex].positionL;
-		u16 loopEndH = aiffMarkerInfo->marker[endIndex].positionH;
-		u16 loopEndL = aiffMarkerInfo->marker[endIndex].positionL;
 		
-		printf_debugExt("Loop: loopId %04X loopId %04X Gain %04X", (u16)startIndex, (u16)endIndex, aiffInstInfo->gain);
-		
-		sampleInfo->instrument.loop.start = Audio_ByteSwap_FromHighLow(&loopStartH, &loopStartL);
-		sampleInfo->instrument.loop.end = Audio_ByteSwap_FromHighLow(&loopEndH, &loopEndL);
-		sampleInfo->instrument.loop.count = 0xFFFFFFFF;
+		if (aiffMarkerInfo && aiffInstInfo->sustainLoop.playMode >= 1) {
+			u16 startIndex = ReadBE(aiffInstInfo->sustainLoop.start) - 1;
+			u16 endIndex = ReadBE(aiffInstInfo->sustainLoop.end) - 1;
+			u16 loopStartH = aiffMarkerInfo->marker[startIndex].positionH;
+			u16 loopStartL = aiffMarkerInfo->marker[startIndex].positionL;
+			u16 loopEndH = aiffMarkerInfo->marker[endIndex].positionH;
+			u16 loopEndL = aiffMarkerInfo->marker[endIndex].positionL;
+			
+			printf_debugExt("Loop: loopId %04X loopId %04X Gain %04X", (u16)startIndex, (u16)endIndex, aiffInstInfo->gain);
+			
+			sampleInfo->instrument.loop.start = Audio_ByteSwap_FromHighLow(&loopStartH, &loopStartL);
+			sampleInfo->instrument.loop.end = Audio_ByteSwap_FromHighLow(&loopEndH, &loopEndL);
+			sampleInfo->instrument.loop.count = 0xFFFFFFFF;
+		}
 	}
 	
 	Audio_ByteSwap(sampleInfo);
