@@ -23,7 +23,7 @@ void z64param_Generate(MemFile* param, char* file);
 void z64params(char* argv[]);
 
 char* sToolName = {
-	"z64audio" PRNT_GRAY " 2.0"
+	"z64audio" PRNT_GRAY " 2.0.1"
 };
 char* sToolUsage = {
 	EXT_INFO_TITLE("File:")
@@ -69,25 +69,25 @@ s32 Main(s32 argc, char* argv[]) {
 	printf_WinFix();
 	printf_SetPrefix("");
 	
-	if (ParseArg("--D")) {
+	if (ParseArg("D")) {
 		printf_SetSuppressLevel(PSL_DEBUG);
 	}
 	
-	if (ParseArg("--S")) {
+	if (ParseArg("S")) {
 		printf_SetSuppressLevel(PSL_NO_WARNING);
 	}
 	
 	z64params(argv);
 	
-	if (ParseArg("--i")) {
+	if (ParseArg("i")) {
 		input = String_GetSpacedArg(argv, parArg);
 	}
 	
-	if (ParseArg("--o")) {
+	if (ParseArg("o")) {
 		output = String_GetSpacedArg(argv, parArg);
 	}
 	
-	if (ParseArg("--c")) {
+	if (ParseArg("c")) {
 		AudioSampleInfo sampleComp;
 		
 		printf_toolinfo(
@@ -112,7 +112,7 @@ s32 Main(s32 argc, char* argv[]) {
 	if (argc == 2 /* DragNDrop */) {
 		static char outbuf[256 * 2];
 		
-		if (String_MemMem(argv[1], ".zzrpl")) {
+		if (StrStr(argv[1], ".zzrpl")) {
 			printf_toolinfo(
 				sToolName,
 				"\n"
@@ -121,7 +121,7 @@ s32 Main(s32 argc, char* argv[]) {
 			
 			return 0;
 		}
-		if (String_MemMem(argv[1], ".wav") || String_MemMem(argv[1], ".aiff")) {
+		if (StrStr(argv[1], ".wav") || StrStr(argv[1], ".aiff")) {
 			char* format[] = {
 				".bin",
 				".wav",
@@ -161,29 +161,29 @@ s32 Main(s32 argc, char* argv[]) {
 			MemFile_Free(&config);
 		}
 	} else {
-		if (ParseArg("--p") && sample.useExistingPred == 0) {
+		if (ParseArg("p") && sample.useExistingPred == 0) {
 			AudioTools_LoadCodeBook(&sample, argv[parArg]);
 			sample.useExistingPred = true;
 		} else {
-			if (ParseArg("--I")) gTableDesignIteration = argv[parArg];
-			if (ParseArg("--F")) gTableDesignFrameSize = argv[parArg];
-			if (ParseArg("--B")) gTableDesignBits = argv[parArg];
-			if (ParseArg("--O")) gTableDesignOrder = argv[parArg];
-			if (ParseArg("--T")) gTableDesignThreshold = argv[parArg];
+			if (ParseArg("I")) gTableDesignIteration = argv[parArg];
+			if (ParseArg("F")) gTableDesignFrameSize = argv[parArg];
+			if (ParseArg("B")) gTableDesignBits = argv[parArg];
+			if (ParseArg("O")) gTableDesignOrder = argv[parArg];
+			if (ParseArg("T")) gTableDesignThreshold = argv[parArg];
 		}
 	}
 	
-	if (ParseArg("--srate")) gSampleRate = String_GetInt(argv[parArg]);
-	if (ParseArg("--tuning")) gTuning = String_GetFloat(argv[parArg]);
+	if (ParseArg("srate")) gSampleRate = String_GetInt(argv[parArg]);
+	if (ParseArg("tuning")) gTuning = String_GetFloat(argv[parArg]);
 	
 	printf_debugExt("Audio_LoadSample");
 	Audio_LoadSample(&sample);
 	
-	if (ParseArg("--split-hi")) sample.instrument.highNote = String_GetInt(argv[parArg]);
-	if (ParseArg("--split-lo")) sample.instrument.lowNote = String_GetInt(argv[parArg]);
-	if (ParseArg("--half-precision")) gPrecisionFlag = 3;
+	if (ParseArg("split-hi")) sample.instrument.highNote = String_GetInt(argv[parArg]);
+	if (ParseArg("split-lo")) sample.instrument.lowNote = String_GetInt(argv[parArg]);
+	if (ParseArg("half-precision")) gPrecisionFlag = 3;
 	
-	if (ParseArg("--N")) {
+	if (ParseArg("N")) {
 		printf_info_align("BitDepth", "%10d", sample.bit);
 		printf_info_align("Sample Rate", "%10d", sample.sampleRate);
 		printf_info_align("Channels", "%10d", sample.channelNum);
@@ -201,7 +201,7 @@ s32 Main(s32 argc, char* argv[]) {
 		printf_error("No output specified!");
 	}
 	
-	if (ParseArg("--b")) {
+	if (ParseArg("b")) {
 		sample.targetBit = String_GetInt(argv[parArg]);
 		
 		if (sample.targetBit != 16 && sample.targetBit != 32) {
@@ -213,23 +213,23 @@ s32 Main(s32 argc, char* argv[]) {
 		Audio_Resample(&sample);
 	}
 	
-	if (ParseArg("--m")) {
+	if (ParseArg("m")) {
 		Audio_ConvertToMono(&sample);
 	}
 	
-	if (ParseArg("--n")) {
+	if (ParseArg("n")) {
 		Audio_Normalize(&sample);
 	}
 	
-	if (ParseArg("--v")) {
+	if (ParseArg("v")) {
 		Audio_Resample(&sample);
 		Audio_ConvertToMono(&sample);
 	}
 	
 	Audio_SaveSample(&sample);
 	
-	if (ParseArg("--v")) {
-		if (!Lib_MemMem(sample.output, strlen(sample.output), ".aiff", 5)) {
+	if (ParseArg("v")) {
+		if (!StrStr(sample.output, ".aiff")) {
 			printf_warning("Output isn't [.aiff] file. Skipping generating vadpcm files");
 		} else {
 			AudioTools_RunTableDesign(&sample);
@@ -329,7 +329,7 @@ void z64params(char* argv[]) {
 	strcpy(file, String_GetPath(argv[0]));
 	strcat(file, "z64audio.cfg");
 	
-	if (ParseArg("--P")) {
+	if (ParseArg("P")) {
 		MemFile_LoadFile_String(&param, argv[parArg]);
 	} else if (MemFile_LoadFile_String(&param, file)) {
 		printf_info("Generating settings [%s]", file);
@@ -351,7 +351,7 @@ void z64params(char* argv[]) {
 	
 	MemFile_Free(&param);
 	
-	if (ParseArg("--GenCfg")) {
+	if (ParseArg("GenCfg")) {
 		exit(65);
 	}
 }

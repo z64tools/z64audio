@@ -113,7 +113,7 @@ void AudioTools_VencodeBrute(u8* out, s16* inBuffer, s32* origState, s32*** coef
 	s32 max = 0;
 	
 	for (s32 i = 0; i < 16; i++) {
-		if (abs(ie[i]) > abs(max)) {
+		if (Abs(ie[i]) > Abs(max)) {
 			max = ie[i];
 		}
 	}
@@ -313,7 +313,7 @@ void AudioTools_VencodeFrame(MemFile* mem, s16* buffer, s32* state, s32*** coefT
 	s32 max = 0;
 	
 	for (s32 i = 0; i < 16; i++) {
-		if (ABS(ie[i]) > ABS(max)) {
+		if (Abs(ie[i]) > Abs(max)) {
 			max = ie[i];
 		}
 	}
@@ -347,7 +347,7 @@ void AudioTools_VencodeFrame(MemFile* mem, s16* buffer, s32* state, s32*** coefT
 		nIter++;
 		scale++;
 		maxClip = 0;
-		scale = CLAMP_MAX(scale, 12);
+		scale = ClampMax(scale, 12);
 		
 		// Copy over the last 'order' samples from the previous output.
 		for (s32 i = 0; i < order; i++) {
@@ -369,8 +369,8 @@ void AudioTools_VencodeFrame(MemFile* mem, s16* buffer, s32* state, s32*** coefT
 			// Clamp the error to a 4-bit signed integer, and record what delta
 			// was needed for that.
 			cV = (s16) clip(ix[i], llevel, ulevel) - ix[i];
-			if (maxClip < ABS(cV)) {
-				maxClip = ABS(cV);
+			if (maxClip < Abs(cV)) {
+				maxClip = Abs(cV);
 			}
 			ix[i] += cV;
 			
@@ -392,8 +392,8 @@ void AudioTools_VencodeFrame(MemFile* mem, s16* buffer, s32* state, s32*** coefT
 			se = (f32) buffer[8 + i] - (f32) prediction[8 + i];
 			ix[8 + i] = qsample(se, 1 << scale);
 			cV = (s16) clip(ix[8 + i], llevel, ulevel) - ix[8 + i];
-			if (maxClip < abs(cV)) {
-				maxClip = abs(cV);
+			if (maxClip < Abs(cV)) {
+				maxClip = Abs(cV);
 			}
 			ix[8 + i] += cV;
 			inVector[i + order] = ix[8 + i] * (1 << scale);
@@ -544,7 +544,7 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 					data[dataSize][0] = 1.0;
 					
 					for (s32 i = 1; i <= order; i++) {
-						spF4[i] = CLAMP(spF4[i], -0.9999999999, 0.9999999999);
+						spF4[i] = Clamp(spF4[i], -0.9999999999, 0.9999999999);
 					}
 					
 					afromk(spF4, data[dataSize], order);
@@ -577,7 +577,7 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	durbin(vec, order, spF4, tempS1[0], &dummy);
 	
 	for (s32 i = 1; i <= order; i++) {
-		spF4[i] = CLAMP(spF4[i], -0.9999999999, 0.9999999999);
+		spF4[i] = Clamp(spF4[i], -0.9999999999, 0.9999999999);
 	}
 	
 	afromk(spF4, tempS1[0], order);
@@ -864,7 +864,7 @@ void AudioTools_VadpcmDec(AudioSampleInfo* sampleInfo) {
 				for (int i = 0; i < 16; i++) {
 					if (!(-0x8000 <= guess32[i] && guess32[i] <= 0x7fff))
 						printf_warning("-0x8000 <= guess32[i] && guess32[i] <= 0x7fff");
-					guess[i] = CLAMP(guess32[i], -__INT16_MAX__, __INT16_MAX__);
+					guess[i] = Clamp(guess32[i], -__INT16_MAX__, __INT16_MAX__);
 				}
 				AudioTools_VencodeBrute(encoded, guess, lastState, coefTable, order, npredictors, framesize);
 				if (memcmp(input, encoded, framesize) != 0)

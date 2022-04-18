@@ -25,19 +25,23 @@ typedef double f64;
 typedef uintptr_t uPtr;
 typedef intptr_t sPtr;
 typedef u32 void32;
+typedef time_t Time;
 
 typedef struct {
-	u8 hue;
-	u8 saturation;
-	u8 luminance;
-} HLS8;
+	f32 h;
+	f32 s;
+	f32 l;
+} HSL8;
 
 typedef struct {
-	u8 hue;
-	u8 saturation;
-	u8 luminance;
-	u8 alpha;
-} HLSA8;
+	f32 h;
+	f32 s;
+	f32 l;
+	union {
+		u8 alpha;
+		u8 a;
+	};
+} HSLA8;
 
 typedef struct {
 	union {
@@ -124,14 +128,15 @@ typedef struct MemFile {
 	union {
 		void* data;
 		PointerCast cast;
+		char* str;
 	};
 	u32 memSize;
 	u32 dataSize;
 	u32 seekPoint;
 	struct {
-		f64   age;
-		char* name;
-		u32   crc32;
+		Time age;
+		char name[512];
+		u32  crc32;
 	} info;
 	struct {
 		u32 align   : 8;
@@ -159,13 +164,22 @@ void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
 
-void* Graph_Alloc(u32 size);
-void* Graph_Realloc(void* ptr, u32 size);
-u32 Graph_GetSize(void* ptr);
-char* Graph_GenStr(char* str);
+void* Tmp_Alloc(u32 size);
+char* Tmp_String(char* str);
+char* Tmp_Printf(char* fmt, ...);
 
 void Log(const char* fmt, ...);
 void LogPrint();
+
+void Time_Start(void);
+f32 Time_Get(void);
+
+typedef enum {
+	SORT_NO        = 0,
+	SORT_NUMERICAL = 1,
+	IS_FILE        = 0,
+	IS_DIR         = 1,
+} DirEnum;
 
 void Dir_SetParam(DirParam w);
 void Dir_UnsetParam(DirParam w);
@@ -176,17 +190,19 @@ void Dir_Make(char* dir, ...);
 void Dir_MakeCurrent(void);
 char* Dir_Current(void);
 char* Dir_File(char* fmt, ...);
-s32 Dir_Stat(char* dir);
+Time Dir_Stat(char* item);
 void Dir_ItemList(ItemList* itemList, bool isPath);
+void Dir_ItemList_Recursive(ItemList* target, char* keyword);
 void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not);
 void Dir_ItemList_Keyword(ItemList* itemList, char* ext);
+
 void MakeDir(const char* dir, ...);
-s32 Stat(char* x);
+Time Stat(char* item);
 char* CurWorkDir(void);
 
 void ItemList_NumericalSort(ItemList* list);
+char* Dir_GetWildcard(char* x);
 
-char* tprintf(char* fmt, ...);
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_SetPrefix(char* fmt);
 void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i);
@@ -203,17 +219,23 @@ void printf_progress(const char* info, u32 a, u32 b);
 s32 printf_get_answer(void);
 void printf_WinFix();
 
-void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
-void* Lib_MemMemCase(void* haystack, size_t haystackSize, void* needle, size_t needleSize);
-void* Lib_MemMem16(const void* haystack, size_t haySize, const void* needle, size_t needleSize);
-void* Lib_Malloc(void* data, s32 size);
-void* Lib_Calloc(void* data, s32 size);
-void* Lib_Realloc(void* data, s32 size);
-void* Lib_Free(void* data);
-s32 Lib_Touch(char* file);
-void Lib_ByteSwap(void* src, s32 size);
-s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg);
-u32 Lib_Crc32(u8* s, u32 n);
+void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
+void* MemMemCase(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
+void* MemMemAlign(u32 val, const void* haystack, size_t haySize, const void* needle, size_t needleSize);
+void* MemMemU16(void* haystack, size_t haySize, const void* needle, size_t needleSize);
+void* MemMemU32(void* haystack, size_t haySize, const void* needle, size_t needleSize);
+void* MemMemU64(void* haystack, size_t haySize, const void* needle, size_t needleSize);
+void* Malloc(void* data, s32 size);
+void* Calloc(void* data, s32 size);
+void* Realloc(void* data, s32 size);
+void* Free(void* data);
+s32 Touch(char* file);
+void ByteSwap(void* src, s32 size);
+s32 ParseArgs(char* argv[], char* arg, u32* parArg);
+u32 Crc32(u8* s, u32 n);
+
+void Color_ToHSL(HSL8* hsl, RGB8* rgb);
+void Color_ToRGB(RGB8* rgb, HSL8* hsl);
 
 void* File_Load(void* destSize, char* filepath);
 void File_Save(char* filepath, void* src, s32 size);
@@ -230,7 +252,7 @@ s32 MemFile_Append(MemFile* dest, MemFile* src);
 void MemFile_Align(MemFile* src, u32 align);
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...);
 s32 MemFile_Read(MemFile* src, void* dest, u32 size);
-void MemFile_Seek(MemFile* src, u32 seek);
+void* MemFile_Seek(MemFile* src, u32 seek);
 s32 MemFile_LoadFile(MemFile* memFile, char* filepath);
 s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath);
 s32 MemFile_SaveFile(MemFile* memFile, char* filepath);
@@ -238,10 +260,11 @@ s32 MemFile_SaveFile_String(MemFile* memFile, char* filepath);
 s32 MemFile_LoadFile_ReqExt(MemFile* memFile, char* filepath, const char* ext);
 s32 MemFile_SaveFile_ReqExt(MemFile* memFile, char* filepath, s32 size, const char* ext);
 void MemFile_Free(MemFile* memFile);
+void MemFile_Reset(MemFile* memFile);
 void MemFile_Clear(MemFile* memFile);
 
-#define String_MemMem(src, comp)     Lib_MemMem(src, strlen(src), comp, strlen(comp))
-#define String_MemMemCase(src, comp) Lib_MemMemCase(src, strlen(src), comp, strlen(comp))
+#define StrStr(src, comp)     MemMem(src, strlen(src), comp, strlen(comp))
+#define StrStrCase(src, comp) MemMemCase(src, strlen(src), comp, strlen(comp))
 u32 String_GetHexInt(char* string);
 s32 String_GetInt(char* string);
 f32 String_GetFloat(char* string);
@@ -259,6 +282,7 @@ char* String_GetFilename(const char* src);
 s32 String_GetPathNum(const char* src);
 char* String_GetFolder(const char* src, s32 num);
 void String_Insert(char* point, char* insert);
+void String_InsertExt(char* origin, char* insert, s32 pos, s32 size);
 void String_Remove(char* point, s32 amount);
 s32 String_Replace(char* src, char* word, char* replacement);
 void String_SwapExtension(char* dest, char* src, const char* ext);
@@ -272,16 +296,31 @@ s32 Config_GetInt(MemFile* memFile, char* intName);
 char* Config_GetString(MemFile* memFile, char* stringName);
 f32 Config_GetFloat(MemFile* memFile, char* floatName);
 
+extern PrintfSuppressLevel gPrintfSuppress;
+
+#define PRNT_DGRY "\e[90;2m"
+#define PRNT_DRED "\e[91;2m"
+#define PRNT_GRAY "\e[0;90m"
+#define PRNT_REDD "\e[0;91m"
+#define PRNT_GREN "\e[0;92m"
+#define PRNT_YELW "\e[0;93m"
+#define PRNT_BLUE "\e[0;94m"
+#define PRNT_PRPL "\e[0;95m"
+#define PRNT_CYAN "\e[0;96m"
+#define PRNT_RSET "\e[m"
+#define PRNT_NL   "\n"
+#define PRNT_RNL  PRNT_RSET PRNT_NL
+#define PRNT_TODO "\e[91;2m" "TODO"
+
+#define str2cmp(a, b) strncmp(a, b, strlen(b))
+
 #define Node_Add(head, node) { \
-		OsAssert(node != NULL) \
 		typeof(node) lastNode = head; \
-		s32 __nodePos = 0; \
 		if (lastNode == NULL) { \
 			head = node; \
 		} else { \
 			while (lastNode->next) { \
 				lastNode = lastNode->next; \
-				__nodePos++; \
 			} \
 			lastNode->next = node; \
 			node->prev = lastNode; \
@@ -289,7 +328,6 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName);
 }
 
 #define Node_Kill(head, node) { \
-		OsAssert(node != NULL) \
 		if (node->next) { \
 			node->next->prev = node->prev; \
 		} \
@@ -299,6 +337,18 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName);
 			head = node->next; \
 		} \
 		free(node); \
+		node = NULL; \
+}
+
+#define Node_Remove(head, node) { \
+		if (node->next) { \
+			node->next->prev = node->prev; \
+		} \
+		if (node->prev) { \
+			node->prev->next = node->next; \
+		} else { \
+			head = node->next; \
+		} \
 		node = NULL; \
 }
 
@@ -359,43 +409,27 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName);
 #define Decr(x) (x -= (x > 0) ? 1 : 0)
 #define Incr(x) (x += (x < 0) ? 1 : 0)
 
-extern PrintfSuppressLevel gPrintfSuppress;
-
-#define PRNT_DGRY "\e[90;2m"
-#define PRNT_GRAY "\e[0;90m"
-#define PRNT_DRED "\e[91;2m"
-#define PRNT_REDD "\e[0;91m"
-#define PRNT_GREN "\e[0;92m"
-#define PRNT_YELW "\e[0;93m"
-#define PRNT_BLUE "\e[0;94m"
-#define PRNT_PRPL "\e[0;95m"
-#define PRNT_CYAN "\e[0;96m"
-#define PRNT_RSET "\e[m"
-#define PRNT_NL   "\n"
-#define PRNT_RNL  PRNT_RSET PRNT_NL
-#define PRNT_TODO "\e[91;2m" "TODO"
-
-#define MAX(a, b)            ((a) > (b) ? (a) : (b))
-#define MIN(a, b)            ((a) < (b) ? (a) : (b))
-#define ABS_MAX(a, b)        (ABS(a) > ABS(b) ? (a) : (b))
-#define ABS_MIN(a, b)        (ABS(a) < ABS(b) ? (a) : (b))
-#define ARRAY_COUNT(arr)     (s32)(sizeof(arr) / sizeof(arr[0]))
-#define ABS(val)             ((val) < 0 ? -(val) : (val))
-#define CLAMP(val, min, max) ((val) < (min) ? (min) : (val) > (max) ? (max) : (val))
-#define CLAMP_MIN(val, min)  ((val) < (min) ? (min) : (val))
-#define CLAMP_MAX(val, max)  ((val) > (max) ? (max) : (val))
+#define Max(a, b)            ((a) > (b) ? (a) : (b))
+#define Min(a, b)            ((a) < (b) ? (a) : (b))
+#define MaxAbs(a, b)         (Abs(a) > Abs(b) ? (a) : (b))
+#define MinAbs(a, b)         (Abs(a) <= Abs(b) ? (a) : (b))
+#define Abs(val)             ((val) < 0 ? -(val) : (val))
+#define Clamp(val, min, max) ((val) < (min) ? (min) : (val) > (max) ? (max) : (val))
+#define ClampMin(val, min)   ((val) < (min) ? (min) : (val))
+#define ClampMax(val, max)   ((val) > (max) ? (max) : (val))
 #define ArrayCount(arr)      (u32)(sizeof(arr) / sizeof(arr[0]))
+#define Lerp(x, min, max)    ((min) + ((max) - (min)) * (x))
 
-#define BinToMb(x) ((f32)(x) / (f32)0x100000)
-#define BinToKb(x) ((f32)(x) / (f32)0x400)
-#define MbToBin(x) (u32)(0x100000 * (x))
-#define KbToBin(x) (u32)(0x400 * (x))
+#define BinToMb(x)        ((f32)(x) / (f32)0x100000)
+#define BinToKb(x)        ((f32)(x) / (f32)0x400)
+#define MbToBin(x)        (u32)(0x100000 * (x))
+#define KbToBin(x)        (u32)(0x400 * (x))
+#define Align(var, align) ((((var) % (align)) != 0) ? (var) + (align) - ((var) % (align)) : (var))
 
 // #define strcpy(dst, src)   strcpy(dst, src)
 // #define strcat(dst, src)  strcat(dst, src)
 #define String_SMerge(dst, ...) sprintf(dst + strlen(dst), __VA_ARGS__);
 #define String_Generate(string) strdup(string)
-#define String_IsDiff(a, b)     strcmp(a, b)
 
 #define Config_WriteTitle(title) MemFile_Printf( \
 		config, \
@@ -472,11 +506,11 @@ extern PrintfSuppressLevel gPrintfSuppress;
 	
     #ifndef __EXTLIB_C__
 		
-		#define Lib_Malloc(data, size) Lib_Malloc(data, size); \
-			printf_debugExt_align("Lib_Malloc", "0x%X", size);
+		#define Malloc(data, size) Malloc(data, size); \
+			printf_debugExt_align("Malloc", "0x%X", size);
 		
-		#define Lib_Calloc(data, size) Lib_Calloc(data, size); \
-			printf_debugExt_align("Lib_Calloc", "0x%X", size);
+		#define Calloc(data, size) Calloc(data, size); \
+			printf_debugExt_align("Calloc", "0x%X", size);
 		
     #endif
 #else
@@ -486,19 +520,17 @@ extern PrintfSuppressLevel gPrintfSuppress;
     #ifndef __EXTLIB_C__
 		#define printf_debug(...)       if (0) {}
 		#define printf_debug_align(...) if (0) {}
-		#define Log(...)                if (0) {}
-		#define LogPrint()              if (0) {}
     #endif
 #endif
 
 #define Main(y1, y2) main(y1, y2)
 
-#define ParArg(arg) Lib_ParseArguments(argv, arg, &parArg)
+#define XARG(arg) ParseArgs(argv, arg, &parArg)
 
 #define AttPacked __attribute__ ((packed))
 #define AttAligned(x) __attribute__((aligned(x)))
 
-#define ParseArg(xarg)         Lib_ParseArguments(argv, xarg, &parArg)
+#define ParseArg(xarg)         ParseArgs(argv, xarg, &parArg)
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>] " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
 
