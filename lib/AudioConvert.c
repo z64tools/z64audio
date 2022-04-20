@@ -976,7 +976,7 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	Config_WriteVar_Int("loop_start", sampleInfo->instrument.loop.start);
 	Config_WriteVar_Int("loop_end", sampleInfo->instrument.loop.end);
 	Config_WriteVar_Int("loop_count", sampleInfo->instrument.loop.count);
-	Config_WriteVar_Int("tail_end", sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0);
+	Config_WriteVar_Int("tail_end", sampleInfo->instrument.loop.oldEnd && sampleInfo->instrument.loop.oldEnd != sampleInfo->instrument.loop.end ? sampleInfo->instrument.loop.oldEnd : 0);
 	
 	Config_SPrintf("\n");
 	Config_WriteTitle_Str("Instrument Info");
@@ -998,7 +998,7 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	order = sampleInfo->vadBook.cast.u16[0];
 	numPred = sampleInfo->vadBook.cast.u16[1];
 	basename = String_GetBasename(sampleInfo->output);
-	basename[0] = toupper(basename[0]);
+	basename[0] = tolower(basename[0]);
 	
 	MemFile_Printf(
 		&output,
@@ -1007,33 +1007,23 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	
 	MemFile_Printf(
 		&output,
-		"AdpcmBook s%sBook = {\n"
-		"	%d, %d,\n"
-		"	{\n",
+		"AdpcmBook %sBook = {\n"
+		"	.order       = %d,\n"
+		"	.npredictors = %d,\n"
+		"	.book        = {\n",
 		basename,
 		order,
 		numPred
 	);
 	
 	for (s32 j = 0; j < numPred; j++) {
-		for (s32 i = 0; i < 0x10; i++) {
-			char* indent[] = {
-				"\t",
-				" ",
-				" ",
-				" "
-			};
-			char* nl[] = {
-				"",
-				"",
-				"",
-				"\n"
-			};
-			char buf[128];
-			
-			sprintf(buf, "%d,", sampleInfo->vadBook.cast.s16[2 + i + 0x10 * j]);
-			MemFile_Printf(&output, "%s%-6s%s", indent[i % 4], buf, nl[i % 4]);
+		MemFile_Printf(&output, "\t\t");
+		for (s32 i = 0; i < 8 * order; i++) {
+			if (i % 8 == 0 && i)
+				MemFile_Printf(&output, "\n\t\t");
+			MemFile_Printf(&output, "%6d,", sampleInfo->vadBook.cast.s16[2 + i + ((8 * order) * j)]);
 		}
+		MemFile_Printf(&output, "\n");
 	}
 	
 	MemFile_Printf(
@@ -1042,16 +1032,16 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 		"};\n\n"
 	);
 	
-	u32 loopStateLen = sampleInfo->samplesNum > sampleInfo->instrument.loop.end ? sampleInfo->samplesNum : 0;
+	u32 loopStateLen = sampleInfo->instrument.loop.oldEnd && sampleInfo->instrument.loop.oldEnd != sampleInfo->instrument.loop.end ? sampleInfo->instrument.loop.oldEnd : 0;
 	u8* loopStatePtr = (u8*)&loopStateLen;
 	
 	MemFile_Printf(
 		&output,
-		"AdpcmLoop s%sLoop = {\n"
-		/* start */ "	%d,"
-		/* end   */ " %d,\n"
-		/* count */ "	%d,\n"
-		/* state */ "	{ %d, %d, %d, %d, },\n",
+		"AdpcmLoop %sLoop = {\n"
+		"	.start  = %d,\n"
+		"	.end    = %d,\n"
+		"	.count  = %d,\n"
+		"	.unk_0C = {\n\t\t0x%X, 0x%X, 0x%X, 0x%X\n\t},\n",
 		basename,
 		sampleInfo->instrument.loop.start,
 		sampleInfo->instrument.loop.end,
@@ -1065,16 +1055,30 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->vadLoopBook.cast.p != NULL) {
 		MemFile_Printf(
 			&output,
-			"	{\n"
+			"	.state  = {\n"
 		);
 		
-		for (s32 i = 0; i < 0x10; i++) {
-			MemFile_Printf(
-				&output,
-				"		%d,\n",
-				sampleInfo->vadLoopBook.cast.s16[i]
-			);
-		}
+		MemFile_Printf(
+			&output,
+			"		%6d,%6d,%6d,%6d,%6d,%6d,%6d,%6d,\n"
+			"		%6d,%6d,%6d,%6d,%6d,%6d,%6d,%6d,\n",
+			sampleInfo->vadLoopBook.cast.s16[0],
+			sampleInfo->vadLoopBook.cast.s16[1],
+			sampleInfo->vadLoopBook.cast.s16[2],
+			sampleInfo->vadLoopBook.cast.s16[3],
+			sampleInfo->vadLoopBook.cast.s16[4],
+			sampleInfo->vadLoopBook.cast.s16[5],
+			sampleInfo->vadLoopBook.cast.s16[6],
+			sampleInfo->vadLoopBook.cast.s16[7],
+			sampleInfo->vadLoopBook.cast.s16[8],
+			sampleInfo->vadLoopBook.cast.s16[9],
+			sampleInfo->vadLoopBook.cast.s16[10],
+			sampleInfo->vadLoopBook.cast.s16[11],
+			sampleInfo->vadLoopBook.cast.s16[12],
+			sampleInfo->vadLoopBook.cast.s16[13],
+			sampleInfo->vadLoopBook.cast.s16[14],
+			sampleInfo->vadLoopBook.cast.s16[15]
+		);
 		MemFile_Printf(
 			&output,
 			"	},\n"
@@ -1087,14 +1091,14 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	
 	MemFile_Printf(
 		&output,
-		"SoundFontSample s%sSample = {\n"
-		/* codec  */ "	0,"
-		/* medium */ " 0,"
-		/* unk    */ " 0,"
-		/* unk    */ " 0,\n"
-		/* size   */ "	%d,\n"
-		/* loop   */ "	&s%sLoop,\n"
-		/* book   */ "	&s%sBook,\n"
+		"SoundFontSample %sSample = {\n"
+		"	.codec     = 0,\n"
+		"	.medium    = 0,\n"
+		"	.unk_bit26 = 0,\n"
+		"	.unk_bit25 = 0,\n"
+		"	.size      = %d,\n"
+		"	.loop      = &%sLoop,\n"
+		"	.book      = &%sBook,\n"
 		"};\n\n",
 		basename,
 		sampleInfo->size,
@@ -1104,9 +1108,9 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	
 	MemFile_Printf(
 		&output,
-		"SoundFontSound s%sSound = {\n"
-		"	&s%sSample,\n"
-		"	%ff\n"
+		"SoundFontSound %sSound = {\n"
+		"	.sample = &%sSample,\n"
+		"	.tuning = %ff\n"
 		"};\n",
 		basename,
 		basename,

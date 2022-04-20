@@ -1,17 +1,6 @@
 #include "lib/AudioConvert.h"
 #include "lib/AudioTools.h"
 
-/* TODO:
- * Fix AudioTools_TableDesign, seems to output last pred row with slight difference
- * Implement Bicubic Resampling
- * Support OGG file
- * Support MP3 (maybe)
- * Basic Envelope Settings for C output
- * ZZRTLMode
- * Call TableDesign, VadpcmEnc or VadpcmDec
- * Instrument Designer (GUI) for Env Editing with preview playback
- */
-
 typedef enum {
 	FORMPARAM_BIN,
 	FORMPARAM_WAV,
@@ -25,6 +14,7 @@ void z64params(char* argv[]);
 char* sToolName = {
 	"z64audio" PRNT_GRAY " 2.0.1"
 };
+
 char* sToolUsage = {
 	EXT_INFO_TITLE("File:")
 	EXT_INFO("--i [file]", 16, "Input:  .wav .aiff .aifc")
@@ -56,8 +46,8 @@ char* sToolUsage = {
 	EXT_INFO("--D",        16, "Debug Print")
 	EXT_INFO("--S",        16, "Silence")
 	EXT_INFO("--N",        16, "Print Info of input [file]")
-	// EXT_TDO("ZZRTLMode",     "DragNDrop [zzrpl] file on z64audio")
 };
+
 FormatParam sDefaultFormat;
 
 s32 Main(s32 argc, char* argv[]) {
@@ -69,23 +59,11 @@ s32 Main(s32 argc, char* argv[]) {
 	printf_WinFix();
 	printf_SetPrefix("");
 	
-	if (ParseArg("D")) {
-		printf_SetSuppressLevel(PSL_DEBUG);
-	}
-	
-	if (ParseArg("S")) {
-		printf_SetSuppressLevel(PSL_NO_WARNING);
-	}
-	
 	z64params(argv);
-	
-	if (ParseArg("i")) {
-		input = String_GetSpacedArg(argv, parArg);
-	}
-	
-	if (ParseArg("o")) {
-		output = String_GetSpacedArg(argv, parArg);
-	}
+	if (ParseArg("D")) printf_SetSuppressLevel(PSL_DEBUG);
+	if (ParseArg("S")) printf_SetSuppressLevel(PSL_NO_WARNING);
+	if (ParseArg("i")) input = String_GetSpacedArg(argv, parArg);
+	if (ParseArg("o")) output = String_GetSpacedArg(argv, parArg);
 	
 	if (ParseArg("c")) {
 		AudioSampleInfo sampleComp;
@@ -112,15 +90,6 @@ s32 Main(s32 argc, char* argv[]) {
 	if (argc == 2 /* DragNDrop */) {
 		static char outbuf[256 * 2];
 		
-		if (StrStr(argv[1], ".zzrpl")) {
-			printf_toolinfo(
-				sToolName,
-				"\n"
-			);
-			Audio_ZZRTLMode(&sample, argv[1]);
-			
-			return 0;
-		}
 		if (StrStr(argv[1], ".wav") || StrStr(argv[1], ".aiff")) {
 			char* format[] = {
 				".bin",
@@ -173,10 +142,10 @@ s32 Main(s32 argc, char* argv[]) {
 		}
 	}
 	
+	if (output == NULL) printf_error("No output specified!");
 	if (ParseArg("srate")) gSampleRate = String_GetInt(argv[parArg]);
 	if (ParseArg("tuning")) gTuning = String_GetFloat(argv[parArg]);
 	
-	printf_debugExt("Audio_LoadSample");
 	Audio_LoadSample(&sample);
 	
 	if (ParseArg("split-hi")) sample.instrument.highNote = String_GetInt(argv[parArg]);
@@ -197,10 +166,6 @@ s32 Main(s32 argc, char* argv[]) {
 			return 0;
 	}
 	
-	if (output == NULL) {
-		printf_error("No output specified!");
-	}
-	
 	if (ParseArg("b")) {
 		sample.targetBit = String_GetInt(argv[parArg]);
 		
@@ -213,29 +178,10 @@ s32 Main(s32 argc, char* argv[]) {
 		Audio_Resample(&sample);
 	}
 	
-	if (ParseArg("m")) {
-		Audio_ConvertToMono(&sample);
-	}
-	
-	if (ParseArg("n")) {
-		Audio_Normalize(&sample);
-	}
-	
-	if (ParseArg("v")) {
-		Audio_Resample(&sample);
-		Audio_ConvertToMono(&sample);
-	}
+	if (ParseArg("m")) Audio_ConvertToMono(&sample);
+	if (ParseArg("n")) Audio_Normalize(&sample);
 	
 	Audio_SaveSample(&sample);
-	
-	if (ParseArg("v")) {
-		if (!StrStr(sample.output, ".aiff")) {
-			printf_warning("Output isn't [.aiff] file. Skipping generating vadpcm files");
-		} else {
-			AudioTools_RunTableDesign(&sample);
-			AudioTools_RunVadpcmEnc(&sample);
-		}
-	}
 	
 	Audio_FreeSample(&sample);
 	

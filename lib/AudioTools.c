@@ -35,6 +35,7 @@ void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
 		printf_error("TableDesign has failed");
 	printf_debug_align("TableDesign", "%s", buffer);
 }
+
 void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
 	char buffer[256];
 	char sys[256 * 2];
@@ -217,6 +218,7 @@ void AudioTools_ReadCodeBook(AudioSampleInfo* sampleInfo, s32**** table, s32* de
 		}
 	}
 }
+
 void AudioTools_VencodeFrame(MemFile* mem, s16* buffer, s32* state, s32*** coefTable, s32 order, s32 npredictors, u32 framesize, u8 precision) {
 	s32 nPred = npredictors;
 	s16 ix[16] = { 0 };
@@ -417,6 +419,7 @@ void AudioTools_VencodeFrame(MemFile* mem, s16* buffer, s32* state, s32*** coefT
 		}
 	}
 }
+
 void AudioTools_VdecodeFrame(u8* frame, s32* decompressed, s32* state, s32 order, s32*** coefTable, u32 framesize) {
 	s32 ix[16];
 	
@@ -672,6 +675,7 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	FREE_P(frames);
 	FREE_P(splitDelta);
 }
+
 void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->channelNum != 16) {
 		sampleInfo->targetBit = 16;
@@ -714,6 +718,7 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 		loopStart = sampleInfo->instrument.loop.start;
 		loopEnd = sampleInfo->instrument.loop.end;
 		newEnd = sampleInfo->instrument.loop.end;
+		sampleInfo->instrument.loop.oldEnd = loopEnd;
 		
 		while (newEnd - loopStart < minLoopLength) {
 			nRepeats++;
@@ -810,6 +815,7 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 		}
 	}
 }
+
 void AudioTools_VadpcmDec(AudioSampleInfo* sampleInfo) {
 	MemFile memDec = MemFile_Initialize();
 	u32 pos = 0;
@@ -924,6 +930,7 @@ void AudioTools_VadpcmDec(AudioSampleInfo* sampleInfo) {
 	
 	printf_debugExt("New MemFile Size [0x%X]", sampleInfo->size);
 }
+
 void AudioTools_LoadCodeBook(AudioSampleInfo* sampleInfo, char* file) {
 	MemFile temp = MemFile_Initialize();
 	MemFile* vadBook = &sampleInfo->vadBook;

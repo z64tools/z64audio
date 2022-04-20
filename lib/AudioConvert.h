@@ -12,6 +12,7 @@ typedef void (* AudioFunc)(struct AudioSampleInfo*);
 typedef struct {
 	u32 start;
 	u32 end;
+	u32 oldEnd;
 	u32 count;
 } SampleLoop;
 
