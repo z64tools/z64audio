@@ -97,31 +97,6 @@ char* Tmp_Printf(char* fmt, ...) {
 	return Tmp_String(tempBuf);
 }
 
-// Log
-void Log(const char* fmt, ...) {
-	if (sLog.param.initKey == 0) {
-		sLog = MemFile_Initialize();
-		MemFile_Malloc(&sLog, BinToMb(1.0));
-		MemFile_Params(&sLog, MEM_REALLOC, true, MEM_END);
-		MemFile_Printf(&sLog, "\n", 1);
-		MemFile_Clear(&sLog);
-	}
-	va_list args;
-	char buffer[512];
-	
-	va_start(args, fmt);
-	vsnprintf(buffer, ArrayCount(buffer), fmt, args);
-	va_end(args);
-	
-	MemFile_Printf(&sLog, "%s\n", buffer);
-}
-
-void LogPrint() {
-	printf_info("Log");
-	printf("%s", (char*)sLog.data);
-	MemFile_Reset(&sLog);
-}
-
 struct timeval sTimeStart, sTimeStop;
 void gettimeofday(struct timeval*, void*);
 
@@ -2243,4 +2218,161 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName) {
 	else sConfigSuppression++;
 	
 	return 0;
+}
+
+#include <signal.h>
+
+#define FAULT_BUFFER_SIZE 256
+#define FAULT_LOG_NUM     18
+
+char* sLogMsg[FAULT_LOG_NUM];
+char* sLogFunc[FAULT_LOG_NUM];
+u32 sLogLine[FAULT_LOG_NUM];
+
+static void Log_Signal(int arg) {
+	const char* errorMsg[] = {
+		"\a0",
+		"\a1",
+		"\aForced Close", // SIGINT
+		"\a3",
+		"\aSIGILL",
+		"\a5",
+		"\aSIGABRT_COMPAT",
+		"\a7",
+		"\aSIGFPE",
+		"\a9",
+		"\a10",
+		"\aSegmentation Fault",
+		"\a12",
+		"\a13",
+		"\a14",
+		"\aSIGTERM",
+		"\a16",
+		"\a17",
+		"\a18",
+		"\a19",
+		"\a20",
+		"\aSIGBREAK",
+		"\aSIGABRT",
+		
+		"\aUNDEFINED",
+	};
+	u32 msgsNum = 0;
+	
+	printf("\n");
+	if (arg != 0xDEADBEEF)
+		printf("" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "%s " PRNT_DGRY "]\n", errorMsg[ClampMax(arg, 23)]);
+	else
+		printf("" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "LOG " PRNT_DGRY "]\n");
+	
+	for (s32 i = FAULT_LOG_NUM - 1; i >= 0; i--) {
+		if (strlen(sLogMsg[i]) > 0) {
+			if (msgsNum == 0 || strcmp(sLogFunc[i], sLogFunc[i + 1]))
+				printf("" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_GREN " %s"PRNT_RSET "();" PRNT_RSET "\n", sLogFunc[i]);
+			printf(
+				"" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ %4d ]" PRNT_RSET " %s" PRNT_RSET "\n",
+				sLogLine[i],
+				sLogMsg[i]
+			);
+			msgsNum++;
+		}
+	}
+	
+	if (arg != 0xDEADBEEF) {
+		printf(
+			"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " Provide this log to the developer." PRNT_RSET "\n"
+		);
+		exit(EXIT_FAILURE);
+	}
+}
+
+void Log_Init() {
+	for (s32 i = 1; i < 1234; i++)
+		signal(i, Log_Signal);
+	
+	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
+		sLogMsg[i] = Calloc(0, FAULT_BUFFER_SIZE);
+		sLogFunc[i] = Calloc(0, FAULT_BUFFER_SIZE * 0.25);
+	}
+}
+
+void Log_Free() {
+	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
+		Free(sLogMsg[i]);
+		Free(sLogFunc[i]);
+	}
+}
+
+void Log_Print() {
+	Log_Signal(0xDEADBEEF);
+}
+
+void Log(const char* func, u32 line, const char* txt, ...) {
+	va_list args;
+	
+	for (s32 i = FAULT_LOG_NUM - 1; i > 0; i--) {
+		strcpy(sLogMsg[i], sLogMsg[i - 1]);
+		strcpy(sLogFunc[i], sLogFunc[i - 1]);
+		sLogLine[i] = sLogLine[i - 1];
+	}
+	
+	va_start(args, txt);
+	vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
+	va_end(args);
+	
+	strcpy(sLogFunc[0], func);
+	sLogLine[0] = line;
+}
+
+f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep) {
+	if (*pValue != target) {
+		f32 stepSize = (target - *pValue) * fraction;
+		
+		if ((stepSize >= minStep) || (stepSize <= -minStep)) {
+			if (stepSize > step) {
+				stepSize = step;
+			}
+			
+			if (stepSize < -step) {
+				stepSize = -step;
+			}
+			
+			*pValue += stepSize;
+		} else {
+			if (stepSize < minStep) {
+				*pValue += minStep;
+				stepSize = minStep;
+				
+				if (target < *pValue) {
+					*pValue = target;
+				}
+			}
+			if (stepSize > -minStep) {
+				*pValue += -minStep;
+				
+				if (*pValue < target) {
+					*pValue = target;
+				}
+			}
+		}
+	}
+	
+	return fabsf(target - *pValue);
+}
+
+f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32* point3) {
+	f32 coeff[4];
+	
+	coeff[0] = (1.0f - u) * (1.0f - u) * (1.0f - u) / 6.0f;
+	coeff[1] = u * u * u / 2.0f - u * u + 2.0f / 3.0f;
+	coeff[2] = -u * u * u / 2.0f + u * u / 2.0f + u / 2.0f + 1.0f / 6.0f;
+	coeff[3] = u * u * u / 6.0f;
+	
+	if (res) {
+		*res = (coeff[0] * *point0) + (coeff[1] * *point1) + (coeff[2] * *point2) + (coeff[3] * *point3);
+		
+		return *res;
+	}
+	
+	return (coeff[0] * *point0) + (coeff[1] * *point1) + (coeff[2] * *point2) + (coeff[3] * *point3);
 }

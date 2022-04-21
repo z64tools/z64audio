@@ -367,6 +367,7 @@ s32 inner_product(s32 length, s32* v1, s32* v2) {
 		return dout;
 	}
 }
+
 void clamp(s32 fs, f32* e, s32* ie, s32 bits) {
 	s32 i;
 	f32 ulevel;
@@ -389,6 +390,7 @@ void clamp(s32 fs, f32* e, s32* ie, s32 bits) {
 		}
 	}
 }
+
 s16 qsample(f32 x, s32 scale) {
 	if (x > 0.0f) {
 		return (s16) ((x / scale) + 0.4999999);
@@ -396,6 +398,7 @@ s16 qsample(f32 x, s32 scale) {
 		return (s16) ((x / scale) - 0.4999999);
 	}
 }
+
 s32 clip(s32 ix, s32 llevel, s32 ulevel) {
 	if (ix < llevel || ix > ulevel) {
 		if (ix < llevel) {
@@ -408,6 +411,7 @@ s32 clip(s32 ix, s32 llevel, s32 ulevel) {
 	
 	return ix;
 }
+
 void acvect(short* in, int n, int m, double* out) {
 	int i, j;
 	
@@ -418,6 +422,7 @@ void acvect(short* in, int n, int m, double* out) {
 		}
 	}
 }
+
 void acmat(short* in, int n, int m, double** out) {
 	int i, j, k;
 	
@@ -430,6 +435,7 @@ void acmat(short* in, int n, int m, double** out) {
 		}
 	}
 }
+
 int lud(double** a, int n, int* indx, int* d) {
 	int i, imax, j, k;
 	double big, dum, sum, temp;
@@ -490,6 +496,7 @@ int lud(double** a, int n, int* indx, int* d) {
 	
 	return min / max < 1e-10 ? 1 : 0;
 }
+
 void lubksb(double** a, int n, int* indx, double* b) {
 	int i, ii = 0, ip, j;
 	double sum;
@@ -509,6 +516,7 @@ void lubksb(double** a, int n, int* indx, double* b) {
 		b[i] = sum / a[i][i];
 	}
 }
+
 int kfroma(double* in, double* out, int n) {
 	int i, j;
 	double div;
@@ -546,6 +554,7 @@ int kfroma(double* in, double* out, int n) {
 	
 	return ret;
 }
+
 void afromk(double* in, double* out, int n) {
 	int i, j;
 	
@@ -557,6 +566,7 @@ void afromk(double* in, double* out, int n) {
 		}
 	}
 }
+
 void rfroma(double* arg0, int n, double* arg2) {
 	int i, j;
 	double** mat;
@@ -591,6 +601,7 @@ void rfroma(double* arg0, int n, double* arg2) {
 	}
 	free(mat);
 }
+
 int durbin(double* arg0, int n, double* arg2, double* arg3, double* outSomething) {
 	int i, j;
 	double sum, div;
@@ -623,6 +634,7 @@ int durbin(double* arg0, int n, double* arg2, double* arg3, double* outSomething
 	
 	return ret;
 }
+
 void split(double** table, double* delta, int order, int npredictors, double scale) {
 	int i, j;
 	
@@ -632,6 +644,7 @@ void split(double** table, double* delta, int order, int npredictors, double sca
 		}
 	}
 }
+
 double model_dist(double* arg0, double* arg1, int n) {
 	double* sp3C;
 	double* sp38;
@@ -659,6 +672,7 @@ double model_dist(double* arg0, double* arg1, int n) {
 	
 	return ret;
 }
+
 void refine(double** table, int order, int npredictors, double** data, int dataSize, int refineIters, double unused) {
 	int iter; // spD8
 	double** rsums;

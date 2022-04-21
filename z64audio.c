@@ -4,7 +4,6 @@
 typedef enum {
 	FORMPARAM_BIN,
 	FORMPARAM_WAV,
-	FORMPARAM_AIF,
 	FORMPARAM_CCC,
 } FormatParam;
 
@@ -12,17 +11,16 @@ void z64param_Generate(MemFile* param, char* file);
 void z64params(char* argv[]);
 
 char* sToolName = {
-	"z64audio" PRNT_GRAY " 2.0.1"
+	"z64audio" PRNT_GRAY " 2.0.2"
 };
 
 char* sToolUsage = {
 	EXT_INFO_TITLE("File:")
-	EXT_INFO("--i [file]", 16, "Input:  .wav .aiff .aifc")
+	EXT_INFO("--i [file]", 16, "Input:  .wav .aiff")
 	EXT_INFO("--o [file]", 16, "Output: .wav .aiff .bin .c")
-	EXT_INFO("--c", 16, "Compare I [file] & O [file]")
 	PRNT_NL
 	EXT_INFO_TITLE("Audio Processing:")
-	EXT_INFO("--b [ 16 ]", 16, "Target Bit Depth")
+	EXT_INFO("--b",        16, "Target Bit Depth, '32f' for float target")
 	EXT_INFO("--m",        16, "Mono")
 	EXT_INFO("--n",        16, "Normalize")
 	PRNT_NL
@@ -43,7 +41,7 @@ char* sToolUsage = {
 	PRNT_NL
 	EXT_INFO_TITLE("Extra:")
 	EXT_INFO("--P",        16, "Load separate settings [.cfg]")
-	EXT_INFO("--D",        16, "Debug Print")
+	EXT_INFO("--log",      16, "Print Debug Log")
 	EXT_INFO("--S",        16, "Silence")
 	EXT_INFO("--N",        16, "Print Info of input [file]")
 };
@@ -55,37 +53,17 @@ s32 Main(s32 argc, char* argv[]) {
 	char* input = NULL;
 	char* output = NULL;
 	u32 parArg;
+	u32 callSignal = 0;
 	
+	Log_Init();
 	printf_WinFix();
 	printf_SetPrefix("");
 	
 	z64params(argv);
-	if (ParseArg("D")) printf_SetSuppressLevel(PSL_DEBUG);
+	if (ParseArg("log")) callSignal = true;
 	if (ParseArg("S")) printf_SetSuppressLevel(PSL_NO_WARNING);
 	if (ParseArg("i")) input = String_GetSpacedArg(argv, parArg);
 	if (ParseArg("o")) output = String_GetSpacedArg(argv, parArg);
-	
-	if (ParseArg("c")) {
-		AudioSampleInfo sampleComp;
-		
-		printf_toolinfo(
-			sToolName,
-			"\n"
-		);
-		
-		Audio_InitSampleInfo(&sample, input, "none");
-		Audio_InitSampleInfo(&sampleComp, output, "none");
-		
-		Audio_LoadSample(&sample);
-		Audio_LoadSample(&sampleComp);
-		
-		Audio_Compare(&sample, &sampleComp);
-		
-		Audio_FreeSample(&sample);
-		Audio_FreeSample(&sampleComp);
-		
-		return 0;
-	}
 	
 	if (argc == 2 /* DragNDrop */) {
 		static char outbuf[256 * 2];
@@ -115,7 +93,7 @@ s32 Main(s32 argc, char* argv[]) {
 	}
 	
 	printf_toolinfo(sToolName, "\n");
-	Audio_InitSampleInfo(&sample, input, output);
+	Audio_InitSample(&sample, input, output);
 	
 	if (gRomMode) {
 		Dir_Set(String_GetPath(sample.input));
@@ -148,10 +126,20 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	Audio_LoadSample(&sample);
 	
+	if (ParseArg("b")) {
+		if (StrStr(argv[parArg], "32"))
+			sample.targetBit = 32;
+		if (StrStr(argv[parArg], "16"))
+			sample.targetBit = 16;
+		
+		if (sample.targetBit) {
+			if (StrStr(argv[parArg], "f"))
+				sample.targetIsFloat = true;
+		}
+	}
 	if (ParseArg("split-hi")) sample.instrument.highNote = String_GetInt(argv[parArg]);
 	if (ParseArg("split-lo")) sample.instrument.lowNote = String_GetInt(argv[parArg]);
 	if (ParseArg("half-precision")) gPrecisionFlag = 3;
-	
 	if (ParseArg("N")) {
 		printf_info_align("BitDepth", "%10d", sample.bit);
 		printf_info_align("Sample Rate", "%10d", sample.sampleRate);
@@ -166,24 +154,16 @@ s32 Main(s32 argc, char* argv[]) {
 			return 0;
 	}
 	
-	if (ParseArg("b")) {
-		sample.targetBit = String_GetInt(argv[parArg]);
-		
-		if (sample.targetBit != 16 && sample.targetBit != 32) {
-			u32 temp = sample.targetBit;
-			Audio_FreeSample(&sample);
-			printf_error("Bit depth [%d] is not supported.", temp);
-		}
-		
-		Audio_Resample(&sample);
-	}
-	
-	if (ParseArg("m")) Audio_ConvertToMono(&sample);
+	Audio_BitDepth(&sample);
+	if (ParseArg("m")) Audio_Mono(&sample);
 	if (ParseArg("n")) Audio_Normalize(&sample);
 	
 	Audio_SaveSample(&sample);
 	
 	Audio_FreeSample(&sample);
+	
+	if (callSignal) Log_Print();
+	Log_Free();
 	
 	return 0;
 }

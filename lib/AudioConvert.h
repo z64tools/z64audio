@@ -37,6 +37,7 @@ typedef struct AudioSampleInfo {
 	u16 targetBit;
 	PointerCast audio;
 	u32 dataIsFloat;
+	u32 targetIsFloat;
 	SampleInstrument instrument;
 	MemFile vadBook;
 	MemFile vadLoopBook;
@@ -49,6 +50,11 @@ typedef struct AudioSampleInfo {
 		char name[4];
 		u32  size;
 	} WaveChunk;
+	
+	typedef struct {
+		WaveChunk chunk;
+		char format[4];
+	} WaveHeader;
 	
 	typedef enum {
 		PCM        = 1,
@@ -63,17 +69,18 @@ typedef struct AudioSampleInfo {
 		u32 byteRate; // == sampleRate * channelNum * bit
 		u16 blockAlign; // == numChannels * (bit / 8)
 		u16 bit;
-	} WaveInfo;
+	} WaveFmt;
 	
 	typedef struct {
 		WaveChunk chunk;
 		u8 data[];
-	} WaveDataInfo;
+	} WaveData;
 	
-	typedef struct {
-		WaveChunk chunk;
-		char format[4];
-	} WaveHeader;
+	typedef enum {
+		WAVELOOP_FORWARD,
+		WAVELOOP_PINGPONG,
+		WAVELOOP_REVERSE,
+	} WaveLoopType;
 	
 	typedef struct {
 		u32 cuePointID;
@@ -82,7 +89,7 @@ typedef struct AudioSampleInfo {
 		u32 end;
 		u32 fraction;
 		u32 count;
-	} WaveSampleLoop;
+	} WaveSmplLoop;
 	
 	typedef struct {
 		WaveChunk chunk; // Chunk Data Size == 36 + (Num Sample Loops * 24) + Sampler Data
@@ -96,8 +103,8 @@ typedef struct AudioSampleInfo {
 		u32 offset;
 		u32 numSampleLoops;
 		u32 samplerData;
-		WaveSampleLoop loopData[];
-	} WaveSampleInfo;
+		WaveSmplLoop loopData[];
+	} WaveSmpl;
 	
 	typedef struct {
 		WaveChunk chunk;
@@ -108,7 +115,7 @@ typedef struct AudioSampleInfo {
 		s8 hiNote;
 		s8 lowVel;
 		s8 hiVel;
-	} WaveInstrumentInfo;
+	} WaveInst;
 	
 #endif /* __WAVE_HEADER__ */
 
@@ -133,20 +140,20 @@ typedef struct AudioSampleInfo {
 		u16  bit;
 		u8   sampleRate[10]; // 80-bit float
 		char compressionType[4];
-	} AiffInfo;
+	} AiffComm;
 	
 	typedef struct {
 		u16 index;
 		u16 positionH;
 		u16 positionL;
 		u16 pad;
-	} AiffMarker;
+	} AiffMarkIndex;
 	
 	typedef struct {
-		AiffChunk  chunk; // MARK
+		AiffChunk chunk; // MARK
 		u16 markerNum;
-		AiffMarker marker[];
-	} AiffMarkerInfo;
+		AiffMarkIndex marker[];
+	} AiffMark;
 	
 	typedef struct {
 		u16 playMode;
@@ -165,14 +172,14 @@ typedef struct AudioSampleInfo {
 		s16 gain;
 		AiffLoop sustainLoop;
 		AiffLoop releaseLoop;
-	} AiffInstrumentInfo;
+	} AiffInst;
 	
 	typedef struct {
 		AiffChunk chunk; // SSND
 		u32 offset;
 		u32 blockSize;
 		u8  data[];
-	} AiffDataInfo;
+	} AiffSsnd;
 	
 	typedef struct {
 		AiffChunk chunk; // APPL
@@ -193,23 +200,14 @@ extern u32 gPrecisionFlag;
 extern f32 gTuning;
 extern bool gRomMode;
 
-void Audio_ByteSwap(AudioSampleInfo* sampleInfo);
+void Audio_Mono(AudioSampleInfo* sampleInfo);
 void Audio_Normalize(AudioSampleInfo* sampleInfo);
-void Audio_ConvertToMono(AudioSampleInfo* sampleInfo);
-void Audio_Resample(AudioSampleInfo* sampleInfo);
-void Audio_Compare(AudioSampleInfo* sampleA, AudioSampleInfo* sampleB);
+void Audio_BitDepth(AudioSampleInfo* sampleInfo);
 
-void Audio_InitSampleInfo(AudioSampleInfo* sampleInfo, char* input, char* output);
+void Audio_InitSample(AudioSampleInfo* sampleInfo, char* input, char* output);
 void Audio_FreeSample(AudioSampleInfo* sampleInfo);
 
-void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo);
-void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo);
 void Audio_LoadSample(AudioSampleInfo* sampleInfo);
-
-void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo);
-void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo);
 void Audio_SaveSample(AudioSampleInfo* sampleInfo);
-
-void Audio_ZZRTLMode(AudioSampleInfo* sampleInfo, char* input);
 
 #endif /* __Z64AUDIO_HEADER__ */

@@ -29,11 +29,11 @@ void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
 	strcat(sys, " > ");
 	strcat(sys, buffer);
 	
-	printf_debugExt("%s", sys);
+	Log("%s", sys);
 	
 	if (system(sys))
 		printf_error("TableDesign has failed");
-	printf_debug_align("TableDesign", "%s", buffer);
+	Log("TableDesign %s", buffer);
 }
 
 void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
@@ -53,14 +53,14 @@ void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
 	String_SwapExtension(buffer, sampleInfo->output, ".aifc");
 	strcat(sys, buffer);
 	
-	printf_debugExt("[%s]", sys);
+	Log("[%s]", sys);
 	
 	if (system(sys))
 		printf_error("VadpcmEnc has failed");
-	printf_debug_align("VadpcmEnc", "%s", buffer);
+	Log("VadpcmEnc %s", buffer);
 }
 
-void AudioTools_VencodeBrute(u8* out, s16* inBuffer, s32* origState, s32*** coefTable, s32 order, s32 npredictors, u32 framesize) {
+static void AudioTools_VencodeBrute(u8* out, s16* inBuffer, s32* origState, s32*** coefTable, s32 order, s32 npredictors, u32 framesize) {
 	s16 ix[16];
 	s32 prediction[16];
 	s32 inVector[16];
@@ -175,7 +175,7 @@ void AudioTools_VencodeBrute(u8* out, s16* inBuffer, s32* origState, s32*** coef
 	}
 }
 
-void AudioTools_ReadCodeBook(AudioSampleInfo* sampleInfo, s32**** table, s32* destOrder, s32* destNPred) {
+static void AudioTools_ReadCodeBook(AudioSampleInfo* sampleInfo, s32**** table, s32* destOrder, s32* destNPred) {
 	s32** tableEntry;
 	
 	s32 order = *destOrder = sampleInfo->vadBook.cast.u16[0];
@@ -219,7 +219,7 @@ void AudioTools_ReadCodeBook(AudioSampleInfo* sampleInfo, s32**** table, s32* de
 	}
 }
 
-void AudioTools_VencodeFrame(MemFile* mem, s16* buffer, s32* state, s32*** coefTable, s32 order, s32 npredictors, u32 framesize, u8 precision) {
+static void AudioTools_VencodeFrame(MemFile* mem, s16* buffer, s32* state, s32*** coefTable, s32 order, s32 npredictors, u32 framesize, u8 precision) {
 	s32 nPred = npredictors;
 	s16 ix[16] = { 0 };
 	s32 prediction[16];
@@ -420,7 +420,7 @@ void AudioTools_VencodeFrame(MemFile* mem, s16* buffer, s32* state, s32*** coefT
 	}
 }
 
-void AudioTools_VdecodeFrame(u8* frame, s32* decompressed, s32* state, s32 order, s32*** coefTable, u32 framesize) {
+static void AudioTools_VdecodeFrame(u8* frame, s32* decompressed, s32* state, s32 order, s32*** coefTable, u32 framesize) {
 	s32 ix[16];
 	
 	u8 header = frame[0];
@@ -492,7 +492,7 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	f64 threshold = String_GetFloat(gTableDesignThreshold);
 	u32 frameCount = sampleInfo->samplesNum;
 	
-	printf_debug(
+	Log(
 		"%s: params:\n"
 		"\tIter: %d\n"
 		"\tFrmS: %d\n"
@@ -679,10 +679,10 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->channelNum != 16) {
 		sampleInfo->targetBit = 16;
-		Audio_Resample(sampleInfo);
+		Audio_BitDepth(sampleInfo);
 	}
 	if (sampleInfo->channelNum != 1)
-		Audio_ConvertToMono(sampleInfo);
+		Audio_Mono(sampleInfo);
 	
 	Audio_Normalize(sampleInfo);
 	if (sampleInfo->vadBook.data == NULL) {
@@ -796,16 +796,16 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 		free(table);
 	}
 	
-	printf_debugExt("Old MemFile Size [0x%X]", sampleInfo->size);
+	Log("Old MemFile Size [0x%X]", sampleInfo->size);
 	
 	MemFile_Free(&sampleInfo->memFile);
 	sampleInfo->memFile = memEnc;
 	sampleInfo->audio.p = memEnc.data;
 	sampleInfo->size = nBytes;
 	
-	printf_debugExt("New MemFile Size [0x%X]", sampleInfo->size);
+	Log("New MemFile Size [0x%X]", sampleInfo->size);
 	
-	printf_debugExt("LoopBook:");
+	Log("LoopBook:");
 	
 	if (gPrintfSuppress <= PSL_DEBUG) {
 		for (s32 i = 0; i < (0x8 * sampleInfo->vadBook.cast.u16[0]) * sampleInfo->vadBook.cast.u16[1]; i++) {
@@ -829,7 +829,7 @@ void AudioTools_VadpcmDec(AudioSampleInfo* sampleInfo) {
 	s32 decompressed[16];
 	s32 state[16];
 	
-	printf_debugExt("MemFile_Malloc(memDec, 0x%X);", nSamples * sizeof(s32) + 0x100);
+	Log("MemFile_Malloc(memDec, 0x%X);", nSamples * sizeof(s32) + 0x100);
 	MemFile_Malloc(&memDec, nSamples * sizeof(s32) + 0x100);
 	MemFile_Malloc(&encode, sizeof(s16) * 16);
 	AudioTools_ReadCodeBook(sampleInfo, &coefTable, &order, &npredictors);
@@ -916,7 +916,7 @@ void AudioTools_VadpcmDec(AudioSampleInfo* sampleInfo) {
 		free(coefTable);
 	}
 	
-	printf_debugExt("Old MemFile Size [0x%X]", sampleInfo->size);
+	Log("Old MemFile Size [0x%X]", sampleInfo->size);
 	
 	MemFile_Free(&sampleInfo->memFile);
 	MemFile_Free(&encode);
@@ -928,7 +928,7 @@ void AudioTools_VadpcmDec(AudioSampleInfo* sampleInfo) {
 	sampleInfo->bit = 16;
 	sampleInfo->targetBit = 16;
 	
-	printf_debugExt("New MemFile Size [0x%X]", sampleInfo->size);
+	Log("New MemFile Size [0x%X]", sampleInfo->size);
 }
 
 void AudioTools_LoadCodeBook(AudioSampleInfo* sampleInfo, char* file) {
@@ -939,7 +939,7 @@ void AudioTools_LoadCodeBook(AudioSampleInfo* sampleInfo, char* file) {
 	u16 nPred;
 	
 	if (vadBook->data) {
-		printf_debugExt("VadBook already exists");
+		Log("VadBook already exists");
 	}
 	
 	MemFile_LoadFile(&temp, file);

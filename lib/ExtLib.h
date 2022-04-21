@@ -168,9 +168,6 @@ void* Tmp_Alloc(u32 size);
 char* Tmp_String(char* str);
 char* Tmp_Printf(char* fmt, ...);
 
-void Log(const char* fmt, ...);
-void LogPrint();
-
 void Time_Start(void);
 f32 Time_Get(void);
 
@@ -263,8 +260,9 @@ void MemFile_Free(MemFile* memFile);
 void MemFile_Reset(MemFile* memFile);
 void MemFile_Clear(MemFile* memFile);
 
-#define StrStr(src, comp)     MemMem(src, strlen(src), comp, strlen(comp))
-#define StrStrCase(src, comp) MemMemCase(src, strlen(src), comp, strlen(comp))
+#define StrStr(src, comp)       MemMem(src, strlen(src), comp, strlen(comp))
+#define StrStrNum(src, comp, n) MemMem(src, n, comp, n)
+#define StrStrCase(src, comp)   MemMemCase(src, strlen(src), comp, strlen(comp))
 u32 String_GetHexInt(char* string);
 s32 String_GetInt(char* string);
 f32 String_GetFloat(char* string);
@@ -295,6 +293,17 @@ s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]);
 s32 Config_GetInt(MemFile* memFile, char* intName);
 char* Config_GetString(MemFile* memFile, char* stringName);
 f32 Config_GetFloat(MemFile* memFile, char* floatName);
+
+void Log_Init();
+void Log_Free();
+void Log_Print();
+void Log(const char* func, u32 line, const char* txt, ...);
+#ifndef __EXTLIB_C__
+	#define Log(...) Log(__FUNCTION__, __LINE__, __VA_ARGS__)
+#endif
+
+f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep);
+f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32* point3);
 
 extern PrintfSuppressLevel gPrintfSuppress;
 
