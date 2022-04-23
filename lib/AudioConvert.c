@@ -914,12 +914,6 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 		Audio_SaveSample_Binary,
 		NULL
 	};
-	char* funcName[] = {
-		"Audio_SaveSample_Wav",
-		"Audio_SaveSample_Aiff",
-		"Audio_SaveSample_VadpcmC",
-		"Audio_SaveSample_Binary"
-	};
 	
 	if (!sampleInfo->output)
 		printf_error("Audio_LoadSample: No output file set");
@@ -941,4 +935,42 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 			break;
 		}
 	}
+}
+
+static void Audio_Playback(void* ctx, void* output, u32 frameCount) {
+	AudioSampleInfo* sampleInfo = ctx;
+	u32 playFrame = frameCount;
+	
+	if (sampleInfo->playFrame >= sampleInfo->samplesNum / sampleInfo->channelNum)
+		return;
+	
+	if (sampleInfo->samplesNum - sampleInfo->playFrame < playFrame) {
+		playFrame = sampleInfo->samplesNum - sampleInfo->playFrame;
+	}
+	
+	switch (sampleInfo->bit) {
+		case 16:
+			memcpy(output, &sampleInfo->audio.s16[sampleInfo->playFrame], sampleInfo->channelNum * playFrame * 2);
+			break;
+		case 32:
+			memcpy(output, &sampleInfo->audio.s32[sampleInfo->playFrame], sampleInfo->channelNum * playFrame * 4);
+	}
+	sampleInfo->playFrame += frameCount;
+}
+
+void Audio_PlaySample(AudioSampleInfo* sampleInfo) {
+	SoundFormat fmt;
+	
+	if (sampleInfo->bit == 16) fmt = SOUND_S16;
+	else if (sampleInfo->bit == 32 && sampleInfo->dataIsFloat == 0) fmt = SOUND_S32;
+	else if (sampleInfo->bit == 32 && sampleInfo->dataIsFloat) fmt = SOUND_F32;
+	else printf_error("Excuse Me?");
+	
+	Sound_Init(fmt, sampleInfo->sampleRate, sampleInfo->channelNum, Audio_Playback, sampleInfo);
+	
+	while (sampleInfo->playFrame < sampleInfo->samplesNum / sampleInfo->channelNum)
+		(void)0;
+	SleepF(0.1);
+	
+	Sound_Free();
 }

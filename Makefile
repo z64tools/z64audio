@@ -1,4 +1,4 @@
-CFLAGS         := -Os -s -flto -Wall -Wno-unused-result
+CFLAGS         := -Os -s -flto -Wall -Wno-unused-result -pthread -DEXTLIB_SOUND
 SOURCE_C       := $(shell find lib/* -maxdepth 0 -type f -name '*.c')
 SOURCE_O_WIN32 := $(foreach f,$(SOURCE_C:.c=.o),bin/win32/$f)
 SOURCE_O_LINUX := $(foreach f,$(SOURCE_C:.c=.o),bin/linux/$f)
@@ -62,16 +62,18 @@ clean:
 	@rm -f -R bin/*
 
 # LINUX
-bin/linux/%.o: %.c %.h lib/ExtLib.h
+bin/linux/%.o: %.c %.h
+bin/linux/%.o: %.c
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@gcc -c -o $@ $< $(CFLAGS)
 
 z64audio: z64audio.c $(SOURCE_O_LINUX)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
-	@gcc -o $@ $^ $(CFLAGS) -lm
+	@gcc -o $@ $^ $(CFLAGS) -lm -Wl,--no-as-needed -ldl
 
 # WINDOWS32
-bin/win32/%.o: %.c %.h lib/ExtLib.h
+bin/win32/%.o: %.c %.h
+bin/win32/%.o: %.c
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32
 

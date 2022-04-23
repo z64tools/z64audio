@@ -120,12 +120,18 @@ s32 Main(s32 argc, char* argv[]) {
 		}
 	}
 	
-	if (output == NULL) printf_error("No output specified!");
 	if (ParseArg("srate")) gSampleRate = String_GetInt(argv[parArg]);
 	if (ParseArg("tuning")) gTuning = String_GetFloat(argv[parArg]);
 	
 	Audio_LoadSample(&sample);
 	
+	if (ParseArg("play")) {
+		Audio_PlaySample(&sample);
+		if (output == NULL)
+			goto free;
+	}
+	
+	if (output == NULL) printf_error("No output specified!");
 	if (ParseArg("b")) {
 		if (StrStr(argv[parArg], "32"))
 			sample.targetBit = 32;
@@ -162,6 +168,7 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	Audio_FreeSample(&sample);
 	
+free:
 	if (callSignal) Log_Print();
 	Log_Free();
 	
