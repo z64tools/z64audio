@@ -1,6 +1,6 @@
 #ifndef __AUDIO_SDK_H__
 #define __AUDIO_SDK_H__
-#include "ExtLib.h"
+#include <ExtLib.h>
 
 s32 myrand();
 s16 qsample(f32 x, s32 scale);
