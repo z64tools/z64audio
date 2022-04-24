@@ -873,8 +873,8 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 		"	.loop      = &%sLoop,\n"
 		"	.book      = &%sBook,\n"
 		"};\n\n",
-		gPrecisionFlag,
 		basename,
+		gPrecisionFlag,
 		sampleInfo->size,
 		basename,
 		basename
