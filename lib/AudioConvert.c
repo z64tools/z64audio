@@ -206,7 +206,7 @@ void Audio_Normalize(AudioSampleInfo* sampleInfo) {
 	switch (sampleInfo->bit) {
 		case 16:
 			for (s32 i = 0; i < sampleNum * channelNum; i++) {
-				if (sampleInfo->audio.s16[i] > max) {
+				if (Abs(sampleInfo->audio.s16[i]) > max) {
 					max = Abs(sampleInfo->audio.s16[i]);
 				}
 				
@@ -223,7 +223,7 @@ void Audio_Normalize(AudioSampleInfo* sampleInfo) {
 		case 32:
 			if (sampleInfo->dataIsFloat) {
 				for (s32 i = 0; i < sampleNum * channelNum; i++) {
-					if (sampleInfo->audio.f32[i] > max) {
+					if (Abs(sampleInfo->audio.f32[i]) > max) {
 						max = fabsf(sampleInfo->audio.f32[i]);
 					}
 					
@@ -239,7 +239,7 @@ void Audio_Normalize(AudioSampleInfo* sampleInfo) {
 				}
 			} else {
 				for (s32 i = 0; i < sampleNum * channelNum; i++) {
-					if (sampleInfo->audio.s32[i] > max) {
+					if (Abs(sampleInfo->audio.s32[i]) > max) {
 						max = Abs(sampleInfo->audio.s32[i]);
 					}
 					
