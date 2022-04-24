@@ -64,7 +64,7 @@ clean:
 	@rm -f -R bin/*
 
 # LINUX
-bin/win32/lib/External.o: lib/External.c $(ExtLibDep) $(C_INCLUDE_PATH)/ExtLib.c
+bin/linux/lib/External.o: lib/External.c $(ExtLibDep) $(C_INCLUDE_PATH)/ExtLib.c
 bin/linux/%.o: %.c %.h $(ExtLibDep)
 bin/linux/%.o: %.c $(ExtLibDep)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
