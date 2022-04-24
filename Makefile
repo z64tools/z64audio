@@ -18,6 +18,8 @@ AUDIOFILE_CPP       := sdk/tabledesign/audiofile/audiofile.cpp
 AUDIOFILE_O_LINUX   := $(foreach f,$(AUDIOFILE_CPP:.cpp=.o), bin/linux/$f)
 AUDIOFILE_O_WIN32   := $(foreach f,$(AUDIOFILE_CPP:.cpp=.o), bin/win32/$f)
 
+ExtLibDep := $(C_INCLUDE_PATH)/ExtLib.h
+
 PRNT_DGRY := \e[90;2m
 PRNT_GRAY := \e[0;90m
 PRNT_DRED := \e[91;2m
@@ -62,8 +64,9 @@ clean:
 	@rm -f -R bin/*
 
 # LINUX
-bin/linux/%.o: %.c %.h
-bin/linux/%.o: %.c
+bin/win32/lib/External.o: lib/External.c $(ExtLibDep) $(C_INCLUDE_PATH)/ExtLib.c
+bin/linux/%.o: %.c %.h $(ExtLibDep)
+bin/linux/%.o: %.c $(ExtLibDep)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@gcc -c -o $@ $< $(CFLAGS)
 
@@ -72,8 +75,9 @@ z64audio: z64audio.c $(SOURCE_O_LINUX)
 	@gcc -o $@ $^ $(CFLAGS) -lm -Wl,--no-as-needed -ldl
 
 # WINDOWS32
-bin/win32/%.o: %.c %.h
-bin/win32/%.o: %.c
+bin/win32/lib/External.o: lib/External.c $(ExtLibDep) $(C_INCLUDE_PATH)/ExtLib.c
+bin/win32/%.o: %.c %.h $(ExtLibDep)
+bin/win32/%.o: %.c $(ExtLibDep)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32
 
