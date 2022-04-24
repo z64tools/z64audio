@@ -18,6 +18,7 @@ char* sToolUsage = {
 	EXT_INFO_TITLE("File:")
 	EXT_INFO("--i [file]", 16, "Input:  .wav .aiff")
 	EXT_INFO("--o [file]", 16, "Output: .wav .aiff .bin .c")
+	EXT_INFO("--play",     16, "'--play vadpcm' is also an option")
 	PRNT_NL
 	EXT_INFO_TITLE("Audio Processing:")
 	EXT_INFO("--b",        16, "Target Bit Depth, '32f' for float target")
@@ -47,6 +48,8 @@ char* sToolUsage = {
 };
 
 DirCtx gDir;
+
+bool gVadPrev;
 
 FormatParam sDefaultFormat;
 
@@ -127,7 +130,15 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	Audio_LoadSample(&sample);
 	
+	if (ParseArg("split-hi")) sample.instrument.highNote = String_GetInt(argv[parArg]);
+	if (ParseArg("split-lo")) sample.instrument.lowNote = String_GetInt(argv[parArg]);
+	if (ParseArg("half-precision")) gPrecisionFlag = 3;
+	
 	if (ParseArg("play")) {
+		if (argv[parArg] && !strcmp(argv[parArg], "vadpcm")) {
+			printf_info_align("Play:", "vadpcm preview");
+			gVadPrev = true;
+		}
 		Audio_PlaySample(&sample);
 		if (output == NULL)
 			goto free;
@@ -145,9 +156,6 @@ s32 Main(s32 argc, char* argv[]) {
 				sample.targetIsFloat = true;
 		}
 	}
-	if (ParseArg("split-hi")) sample.instrument.highNote = String_GetInt(argv[parArg]);
-	if (ParseArg("split-lo")) sample.instrument.lowNote = String_GetInt(argv[parArg]);
-	if (ParseArg("half-precision")) gPrecisionFlag = 3;
 	if (ParseArg("N")) {
 		printf_info_align("BitDepth", "%10d", sample.bit);
 		printf_info_align("Sample Rate", "%10d", sample.sampleRate);

@@ -423,6 +423,7 @@ void Audio_LoadSample_Bin(AudioSampleInfo* sampleInfo) {
 	MemFile_LoadFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".bin");
 	
 	Dir_Set(&gDir, String_GetPath(sampleInfo->input));
+	Log("Wildcard *.book.bin");
 	MemFile_LoadFile(&sampleInfo->vadBook, Dir_File(&gDir, "*.book.bin"));
 	MemFile_LoadFile_String(&config, Dir_File(&gDir, "config.cfg"));
 	
@@ -960,8 +961,15 @@ static void Audio_Playback(void* ctx, void* output, u32 frameCount) {
 	sampleInfo->playFrame += frameCount;
 }
 
+extern bool gVadPrev;
+
 void Audio_PlaySample(AudioSampleInfo* sampleInfo) {
 	SoundFormat fmt;
+	
+	if (gVadPrev) {
+		AudioTools_VadpcmEnc(sampleInfo);
+		AudioTools_VadpcmDec(sampleInfo);
+	}
 	
 	if (sampleInfo->bit == 16) fmt = SOUND_S16;
 	else if (sampleInfo->bit == 32 && sampleInfo->dataIsFloat == 0) fmt = SOUND_S32;
