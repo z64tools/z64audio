@@ -46,6 +46,8 @@ char* sToolUsage = {
 	EXT_INFO("--N",        16, "Print Info of input [file]")
 };
 
+DirCtx gDir;
+
 FormatParam sDefaultFormat;
 
 s32 Main(s32 argc, char* argv[]) {
@@ -96,14 +98,14 @@ s32 Main(s32 argc, char* argv[]) {
 	Audio_InitSample(&sample, input, output);
 	
 	if (gRomMode) {
-		Dir_Set(String_GetPath(sample.input));
-		if (Stat(Dir_File("*.book.bin"))) {
+		Dir_Set(&gDir, String_GetPath(sample.input));
+		if (Sys_Stat(Dir_File(&gDir, "*.book.bin"))) {
 			MemFile config = MemFile_Initialize();
 			
-			MemFile_LoadFile_String(&config, Dir_File("config.cfg"));
+			MemFile_LoadFile_String(&config, Dir_File(&gDir, "config.cfg"));
 			gPrecisionFlag = Config_GetInt(&config, "codec") ? 3 : 0;
 			
-			AudioTools_LoadCodeBook(&sample, Dir_File("sample.book.bin"));
+			AudioTools_LoadCodeBook(&sample, Dir_File(&gDir, "sample.book.bin"));
 			sample.useExistingPred = true;
 			MemFile_Free(&config);
 		}

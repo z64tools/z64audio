@@ -1,6 +1,7 @@
 #include "AudioConvert.h"
 #include "AudioTools.h"
 
+extern DirCtx gDir;
 NameParam gBinNameIndex;
 u32 gSampleRate = 32000;
 u32 gPrecisionFlag;
@@ -421,9 +422,9 @@ void Audio_LoadSample_Bin(AudioSampleInfo* sampleInfo) {
 	
 	MemFile_LoadFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".bin");
 	
-	Dir_Set(String_GetPath(sampleInfo->input));
-	MemFile_LoadFile(&sampleInfo->vadBook, Dir_File("*.book.bin"));
-	MemFile_LoadFile_String(&config, Dir_File("config.cfg"));
+	Dir_Set(&gDir, String_GetPath(sampleInfo->input));
+	MemFile_LoadFile(&sampleInfo->vadBook, Dir_File(&gDir, "*.book.bin"));
+	MemFile_LoadFile_String(&config, Dir_File(&gDir, "config.cfg"));
 	
 	loopEnd = Config_GetInt(&config, "loop_end");
 	tailEnd = Config_GetInt(&config, "tail_end");
@@ -677,19 +678,20 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	u16 emp = 0;
 	char buffer[265 * 4];
 	
-	AudioTools_VadpcmEnc(sampleInfo);
+	if (!sampleInfo->vadBook.data)
+		AudioTools_VadpcmEnc(sampleInfo);
 	
 	if (gRomMode) {
-		Dir_Set(String_GetPath(sampleInfo->input));
-		if (Dir_File("*.vadpcm.bin"))
-			remove(Dir_File("*.vadpcm.bin"));
+		Dir_Set(&gDir, String_GetPath(sampleInfo->input));
+		if (Dir_File(&gDir, "*.vadpcm.bin"))
+			remove(Dir_File(&gDir, "*.vadpcm.bin"));
 		if (sampleInfo->useExistingPred == false)
-			if (Dir_File("*.book.bin"))
-				remove(Dir_File("*.book.bin"));
-		if (Dir_File("*.loopbook.bin"))
-			remove(Dir_File("*.loopbook.bin"));
-		if (Dir_File("config.cfg"))
-			remove(Dir_File("config.cfg"));
+			if (Dir_File(&gDir, "*.book.bin"))
+				remove(Dir_File(&gDir, "*.book.bin"));
+		if (Dir_File(&gDir, "*.loopbook.bin"))
+			remove(Dir_File(&gDir, "*.loopbook.bin"));
+		if (Dir_File(&gDir, "config.cfg"))
+			remove(Dir_File(&gDir, "config.cfg"));
 	}
 	
 	MemFile_Malloc(&output, sampleInfo->size * 2);
@@ -873,8 +875,8 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 		"	.loop      = &%sLoop,\n"
 		"	.book      = &%sBook,\n"
 		"};\n\n",
-		gPrecisionFlag,
 		basename,
+		gPrecisionFlag,
 		sampleInfo->size,
 		basename,
 		basename
