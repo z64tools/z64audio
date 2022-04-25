@@ -491,7 +491,7 @@ void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 	}
 }
 
-static void Aiff_WriteChunk_Riff(AudioSampleInfo* sampleInfo, MemFile* output) {
+static void Wave_WriteChunk_Riff(AudioSampleInfo* sampleInfo, MemFile* output) {
 	MemFile_Printf(output, "RIFF____WAVE");
 }
 
@@ -567,7 +567,7 @@ void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo) {
 	Log("Malloc %fMB", BinToMb(sampleInfo->size * 2));
 	MemFile_Malloc(&output, sampleInfo->size * 2);
 	
-	Log("WriteChunk " PRNT_BLUE "RIFF"); Aiff_WriteChunk_Riff(sampleInfo, &output);
+	Log("WriteChunk " PRNT_BLUE "RIFF"); Wave_WriteChunk_Riff(sampleInfo, &output);
 	Log("WriteChunk " PRNT_BLUE "FMT "); Wave_WriteChunk_Fmt(sampleInfo, &output);
 	Log("WriteChunk " PRNT_BLUE "DATA"); Wave_WriteChunk_Data(sampleInfo, &output);
 	Log("WriteChunk " PRNT_BLUE "INST"); Wave_WriteChunk_Inst(sampleInfo, &output);
