@@ -53,7 +53,7 @@ win-tools: $(ADPCM_O_WIN32) $(TABLEDESIGN_O_WIN32) $(AUDIOFILE_O_WIN32) tabledes
 linux: lin-tools $(SOURCE_O_LINUX) z64audio
 win32: win-tools $(SOURCE_O_WIN32) bin/icon.o z64audio.exe
 
-clean: extlib_clean
+clean:
 	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find bin/* -type f)$(PRNT_RSET)]"
 	@rm -f $(shell find bin/* -type f)
 	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find z64audi* -type f -not -name '*.c*')$(PRNT_RSET)]"
