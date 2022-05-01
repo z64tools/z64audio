@@ -1,4 +1,4 @@
-CFLAGS         := -Os -s -flto -Wall -Wno-unused-result -pthread -DEXTLIB_SOUND -DEXTLIB=103
+CFLAGS         := -Os -s -flto -Wall -Wno-unused-result -pthread -DEXTLIB=111
 SOURCE_C       := $(shell find lib/* -maxdepth 0 -type f -name '*.c')
 SOURCE_O_WIN32 := $(foreach f,$(SOURCE_C:.c=.o),bin/win32/$f)
 SOURCE_O_LINUX := $(foreach f,$(SOURCE_C:.c=.o),bin/linux/$f)
@@ -31,6 +31,8 @@ PRNT_PRPL := \e[0;95m
 PRNT_CYAN := \e[0;96m
 PRNT_RSET := \e[m
 
+include $(C_INCLUDE_PATH)/ExtLib.mk
+
 # Make build directories
 $(shell mkdir -p bin/ $(foreach dir, \
 	$(dir $(TABLEDESIGN_O_LINUX)) \
@@ -51,7 +53,7 @@ win-tools: $(ADPCM_O_WIN32) $(TABLEDESIGN_O_WIN32) $(AUDIOFILE_O_WIN32) tabledes
 linux: lin-tools $(SOURCE_O_LINUX) z64audio
 win32: win-tools $(SOURCE_O_WIN32) bin/icon.o z64audio.exe
 
-clean:
+clean: extlib_clean
 	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find bin/* -type f)$(PRNT_RSET)]"
 	@rm -f $(shell find bin/* -type f)
 	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find z64audi* -type f -not -name '*.c*')$(PRNT_RSET)]"
@@ -70,7 +72,7 @@ bin/linux/%.o: %.c $(ExtLibDep)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@gcc -c -o $@ $< $(CFLAGS)
 
-z64audio: z64audio.c $(SOURCE_O_LINUX)
+z64audio: z64audio.c $(SOURCE_O_LINUX) $(ExtLib_Linux_O)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
 	@gcc -o $@ $^ $(CFLAGS) -lm -Wl,--no-as-needed -ldl
 
@@ -84,7 +86,7 @@ bin/win32/%.o: %.c $(ExtLibDep)
 bin/icon.o: lib/icon.rc lib/icon.ico
 	@i686-w64-mingw32.static-windres -o $@ $<
 
-z64audio.exe: z64audio.c bin/icon.o $(SOURCE_O_WIN32)
+z64audio.exe: z64audio.c bin/icon.o $(SOURCE_O_WIN32) $(ExtLib_Win32_O)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-gcc -o $@ $^ $(CFLAGS) -lm -D_WIN32
 
