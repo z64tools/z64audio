@@ -73,7 +73,7 @@ s32 Main(s32 argc, char* argv[]) {
 	if (argc == 2 /* DragNDrop */) {
 		static char outbuf[256 * 2];
 		
-		if (StrStr(argv[1], ".wav") || StrStr(argv[1], ".aiff")) {
+		if (StrStrCase(argv[1], ".wav") || StrStrCase(argv[1], ".aiff")) {
 			char* format[] = {
 				".bin",
 				".wav",
