@@ -269,7 +269,7 @@ void z64params(char* argv[]) {
 		"bin", "wav", "aiff", "c", NULL
 	};
 	
-	strcpy(file, String_GetPath(argv[0]));
+	strcpy(file, Sys_AppDir());
 	strcat(file, "z64audio.cfg");
 	
 	if (ParseArg("P")) {
