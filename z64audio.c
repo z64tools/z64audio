@@ -73,6 +73,8 @@ s32 Main(s32 argc, char* argv[]) {
 	if (argc == 2 /* DragNDrop */) {
 		static char outbuf[256 * 2];
 		
+		printf_SetSuppressLevel(PSL_NO_WARNING);
+		
 		if (StrStrCase(argv[1], ".wav") || StrStrCase(argv[1], ".aiff")) {
 			char* format[] = {
 				".bin",
