@@ -677,17 +677,6 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 }
 
 void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
-	if (sampleInfo->bit != 16) {
-		sampleInfo->targetBit = 16;
-		Audio_BitDepth(sampleInfo);
-	}
-	if (sampleInfo->channelNum != 1)
-		Audio_Mono(sampleInfo);
-	
-	if (sampleInfo->vadBook.data == NULL) {
-		AudioTools_TableDesign(sampleInfo);
-	}
-	
 	MemFile memEnc = MemFile_Initialize();
 	s32 minLoopLength = 30;
 	u32 loopStart = 0;
@@ -701,9 +690,22 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	s32 state[16] = { 0 };
 	s16 buffer[16] = { 0 };
 	s32*** table = NULL;
-	u32 nFrames = sampleInfo->samplesNum;
+	u32 nFrames;
 	s32 prec = 9; // 5 half VADPCM Precision
 	s32 nRepeats = 0;
+	
+	if (sampleInfo->bit != 16) {
+		sampleInfo->targetBit = 16;
+		Audio_BitDepth(sampleInfo);
+	}
+	
+	if (sampleInfo->channelNum != 1)
+		Audio_Mono(sampleInfo);
+	
+	if (sampleInfo->vadBook.data == NULL)
+		AudioTools_TableDesign(sampleInfo);
+	
+	nFrames = sampleInfo->samplesNum;
 	
 	if (gPrecisionFlag == 3)
 		prec = 5;

@@ -72,7 +72,7 @@ bin/linux/%.o: %.c $(ExtLibDep)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@gcc -c -o $@ $< $(CFLAGS)
 
-z64audio: z64audio.c $(SOURCE_O_LINUX) $(ExtLib_Linux_O)
+z64audio: z64audio.c $(SOURCE_O_LINUX) $(ExtLib_Linux_O) $(Mp3_Linux_O) $(Audio_Linux_O)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
 	@gcc -o $@ $^ $(CFLAGS) -lm -Wl,--no-as-needed -ldl
 
@@ -86,7 +86,7 @@ bin/win32/%.o: %.c $(ExtLibDep)
 bin/icon.o: lib/icon.rc lib/icon.ico
 	@i686-w64-mingw32.static-windres -o $@ $<
 
-z64audio.exe: z64audio.c bin/icon.o $(SOURCE_O_WIN32) $(ExtLib_Win32_O)
+z64audio.exe: z64audio.c bin/icon.o $(SOURCE_O_WIN32) $(ExtLib_Win32_O) $(Mp3_Win32_O) $(Audio_Win32_O)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-gcc -o $@ $^ $(CFLAGS) -lm -D_WIN32
 

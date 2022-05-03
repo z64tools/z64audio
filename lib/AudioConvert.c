@@ -1,5 +1,6 @@
 #include "AudioConvert.h"
 #include "AudioTools.h"
+#include <minimp3/minimp3_ex.h>
 
 extern DirCtx gDir;
 NameParam gBinNameIndex;
@@ -183,13 +184,13 @@ void Audio_Mono(AudioSampleInfo* sampleInfo) {
 	
 	if (sampleInfo->bit == 16) {
 		for (s32 i = 0, j = 0; i < sampleInfo->samplesNum; i++, j += 2) {
-			sampleInfo->audio.s16[i] = ((f32)sampleInfo->audio.s16[j] + (f32)sampleInfo->audio.s16[j + 1]) * 0.5f;
+			sampleInfo->audio.s16[i] = MaxAbs((f32)sampleInfo->audio.s16[j], (f32)sampleInfo->audio.s16[j + 1]);
 		}
 	}
 	
 	if (sampleInfo->bit == 32) {
 		for (s32 i = 0, j = 0; i < sampleInfo->samplesNum; i++, j += 2) {
-			sampleInfo->audio.f32[i] = (sampleInfo->audio.f32[j] + sampleInfo->audio.f32[j + 1]) * 0.5f;
+			sampleInfo->audio.f32[i] = MaxAbs(sampleInfo->audio.f32[j], sampleInfo->audio.f32[j + 1]);
 		}
 	}
 	
@@ -206,13 +207,10 @@ void Audio_Normalize(AudioSampleInfo* sampleInfo) {
 	switch (sampleInfo->bit) {
 		case 16:
 			for (s32 i = 0; i < sampleNum * channelNum; i++) {
-				if (Abs(sampleInfo->audio.s16[i]) > max) {
-					max = Abs(sampleInfo->audio.s16[i]);
-				}
+				max = Abs(MaxAbs(sampleInfo->audio.s16[i], max));
 				
-				if (max >= __INT16_MAX__) {
+				if (max >= __INT16_MAX__)
 					return;
-				}
 			}
 			mult = (f32)__INT16_MAX__ / max;
 			
@@ -223,13 +221,10 @@ void Audio_Normalize(AudioSampleInfo* sampleInfo) {
 		case 32:
 			if (sampleInfo->dataIsFloat) {
 				for (s32 i = 0; i < sampleNum * channelNum; i++) {
-					if (Abs(sampleInfo->audio.f32[i]) > max) {
-						max = fabsf(sampleInfo->audio.f32[i]);
-					}
+					max = Abs(MaxAbs(sampleInfo->audio.f32[i], max));
 					
-					if (max == 1.0f) {
+					if (max >= 1.0f)
 						return;
-					}
 				}
 				
 				mult = 1.0f / max;
@@ -239,13 +234,10 @@ void Audio_Normalize(AudioSampleInfo* sampleInfo) {
 				}
 			} else {
 				for (s32 i = 0; i < sampleNum * channelNum; i++) {
-					if (Abs(sampleInfo->audio.s32[i]) > max) {
-						max = Abs(sampleInfo->audio.s32[i]);
-					}
+					max = Abs(MaxAbs(sampleInfo->audio.s32[i], max));
 					
-					if (max >= (f32)__INT32_MAX__) {
+					if (max >= (f32)__INT32_MAX__)
 						return;
-					}
 				}
 				
 				mult = (f32)__INT32_MAX__ / max;
@@ -465,17 +457,53 @@ void Audio_LoadSample_Bin(AudioSampleInfo* sampleInfo) {
 	AudioTools_VadpcmDec(sampleInfo);
 }
 
+void Audio_LoadSample_Mp3(AudioSampleInfo* sampleInfo) {
+	mp3dec_t mp3d;
+	mp3dec_file_info_t info;
+	
+	if (mp3dec_load(&mp3d, sampleInfo->input, &info, NULL, NULL))
+		printf_error("Failed to load/convert [%s]", sampleInfo->input);
+	
+	sampleInfo->bit = 16;
+	sampleInfo->samplesNum = info.samples / info.channels;
+	sampleInfo->channelNum = info.channels;
+	sampleInfo->sampleRate = info.hz;
+	
+	MemFile_Malloc(&sampleInfo->memFile, sizeof(s16) * info.samples * 2);
+	MemFile_Write(&sampleInfo->memFile, info.buffer, sizeof(s16) * info.samples);
+	
+	sampleInfo->audio.p = sampleInfo->memFile.data;
+	sampleInfo->size = sampleInfo->memFile.dataSize;
+	
+	Free(info.buffer);
+	
+	// Get rid of start padding
+	if (true) {
+		s32 i = 0;
+		for (; i < sampleInfo->samplesNum; i++)
+			if (sampleInfo->audio.s16[i] != 0)
+				break;
+		i -= i % sampleInfo->channelNum;
+		
+		memmove(sampleInfo->audio.s16, &sampleInfo->audio.s16[i], sampleInfo->size - sizeof(s16) * i);
+		sampleInfo->samplesNum -= i;
+		sampleInfo->size -= sizeof(s16) * i;
+		sampleInfo->memFile.dataSize = sampleInfo->size;
+	}
+}
+
 void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 	char* keyword[] = {
 		".wav",
 		".aiff",
-		".bin"
+		".bin",
+		".mp3"
 	};
 	AudioFunc loadSample[] = {
 		Audio_LoadSample_Wav,
 		Audio_LoadSample_Aiff,
 		Audio_LoadSample_Bin,
-		NULL
+		Audio_LoadSample_Mp3
 	};
 	
 	if (!sampleInfo->input)
@@ -490,7 +518,7 @@ void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 			printf("\n");
 			printf_error("Closing.");
 		}
-		if (StrStr(sampleInfo->input, keyword[i])) {
+		if (StrEndCase(sampleInfo->input, keyword[i])) {
 			Log("Load Sample", "%s", sampleInfo->input);
 			printf_info_align("Load Sample", "%s", sampleInfo->input);
 			loadSample[i](sampleInfo);
@@ -686,6 +714,9 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	MemFile output = MemFile_Initialize();
 	u16 emp = 0;
 	char buffer[265 * 4];
+	
+	if (Sys_Stat(Tmp_Printf("%s.normalize", String_GetPath(sampleInfo->input))))
+		Audio_Normalize(sampleInfo);
 	
 	Log("AudioTools_VadpcmEnc(sampleInfo);");
 	AudioTools_VadpcmEnc(sampleInfo);
@@ -943,7 +974,7 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 			printf_error("Closing.");
 		}
 		
-		if (StrStr(sampleInfo->output, keyword[i])) {
+		if (StrEndCase(sampleInfo->output, keyword[i])) {
 			if (i != 3) {
 				Log("Save Sample", "%s", sampleInfo->output);
 				printf_info_align("Save Sample", "%s", sampleInfo->output);
