@@ -84,6 +84,8 @@ s32 Main(s32 argc, char* argv[]) {
 			};
 			
 			String_SwapExtension(outbuf, argv[1], format[sDefaultFormat]);
+			Log("Input: %s", argv[1]);
+			Log("Output: %s", argv[1]);
 			
 			input = argv[1];
 			output = outbuf;
@@ -104,13 +106,20 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	if (gRomMode) {
 		Dir_Set(&gDir, String_GetPath(sample.input));
-		if (Sys_Stat(Dir_File(&gDir, "*.book.bin"))) {
+		char* f = Dir_File(&gDir, "sample.book.bin");
+		
+		if (!Sys_Stat(f))
+			f = Dir_File(&gDir, "*.book.bin");
+		
+		if (Sys_Stat(f)) {
 			MemFile config = MemFile_Initialize();
 			
+			Log("z64rom_mode: cfg: %s", Dir_File(&gDir, "config.cfg"));
 			MemFile_LoadFile_String(&config, Dir_File(&gDir, "config.cfg"));
 			gPrecisionFlag = Config_GetInt(&config, "codec") ? 3 : 0;
 			
-			AudioTools_LoadCodeBook(&sample, Dir_File(&gDir, "sample.book.bin"));
+			Log("z64rom_mode: book: %s", f);
+			AudioTools_LoadCodeBook(&sample, f);
 			sample.useExistingPred = true;
 			MemFile_Free(&config);
 		}
@@ -274,6 +283,7 @@ void z64params(char* argv[]) {
 	strcpy(file, Sys_AppDir());
 	strcat(file, "z64audio.cfg");
 	
+	Log("Get: %s", file);
 	if (ParseArg("P")) {
 		MemFile_LoadFile_String(&param, argv[parArg]);
 	} else if (MemFile_LoadFile_String(&param, file)) {

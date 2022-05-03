@@ -684,7 +684,6 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->channelNum != 1)
 		Audio_Mono(sampleInfo);
 	
-	Audio_Normalize(sampleInfo);
 	if (sampleInfo->vadBook.data == NULL) {
 		AudioTools_TableDesign(sampleInfo);
 	}

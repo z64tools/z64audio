@@ -302,6 +302,13 @@ static void* Audio_GetChunk(AudioSampleInfo* sampleInfo, const char* type) {
 		
 		data += 0x8 + chunkHead.size;
 		
+		// In case of padding between chunks
+		while (data[0] == 0) {
+			data++;
+			if ((uPtr)data - (uPtr)sampleInfo->memFile.data >= fileSize)
+				return NULL;
+		}
+		
 		if ((uPtr)data - (uPtr)sampleInfo->memFile.data >= fileSize)
 			return NULL;
 	}
@@ -484,6 +491,7 @@ void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 			printf_error("Closing.");
 		}
 		if (StrStr(sampleInfo->input, keyword[i])) {
+			Log("Load Sample", "%s", sampleInfo->input);
 			printf_info_align("Load Sample", "%s", sampleInfo->input);
 			loadSample[i](sampleInfo);
 			break;
@@ -679,8 +687,10 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	u16 emp = 0;
 	char buffer[265 * 4];
 	
-	if (!sampleInfo->vadBook.data)
+	if (!sampleInfo->vadBook.data) {
+		Log("AudioTools_VadpcmEnc(sampleInfo);");
 		AudioTools_VadpcmEnc(sampleInfo);
+	}
 	
 	if (gRomMode) {
 		Dir_Set(&gDir, String_GetPath(sampleInfo->input));
@@ -701,6 +711,7 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	MemFile_Clear(&output);
 	MemFile_Write(&output, sampleInfo->audio.p, sampleInfo->size);
 	MemFile_SaveFile(&output, buffer);
+	Log("Save Sample", "%s", buffer);
 	printf_info_align("Save Sample", "%s", buffer);
 	
 	if (sampleInfo->useExistingPred == false) {
@@ -715,6 +726,7 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 		MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[1], sizeof(u16));
 		MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[2], sampleInfo->vadBook.dataSize - sizeof(u16) * 2);
 		MemFile_SaveFile(&output, buffer);
+		Log("Save Book", "%s", buffer);
 		printf_info_align("Save Book", "%s", buffer);
 	}
 	
@@ -728,6 +740,7 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 		
 		MemFile_Write(&output, sampleInfo->vadLoopBook.cast.p, 16 * 2);
 		MemFile_SaveFile(&output, buffer);
+		Log("Save Loop Book", "%s", buffer);
 		printf_info_align("Save Loop Book", "%s", buffer);
 	}
 	
@@ -758,6 +771,7 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	Config_WriteTitle_Str("Instrument Info");
 	Config_WriteVar_Flo("tuning", tuning);
 	
+	Log("Save Config");
 	MemFile_SaveFile_String(config, Tmp_Printf("%sconfig.cfg", String_GetPath(sampleInfo->output)));
 	MemFile_Free(&output);
 }
@@ -932,8 +946,10 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 		}
 		
 		if (StrStr(sampleInfo->output, keyword[i])) {
-			if (i != 3)
+			if (i != 3) {
+				Log("Save Sample", "%s", sampleInfo->output);
 				printf_info_align("Save Sample", "%s", sampleInfo->output);
+			}
 			saveSample[i](sampleInfo);
 			break;
 		}
