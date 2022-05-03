@@ -687,10 +687,8 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	u16 emp = 0;
 	char buffer[265 * 4];
 	
-	if (!sampleInfo->vadBook.data) {
-		Log("AudioTools_VadpcmEnc(sampleInfo);");
-		AudioTools_VadpcmEnc(sampleInfo);
-	}
+	Log("AudioTools_VadpcmEnc(sampleInfo);");
+	AudioTools_VadpcmEnc(sampleInfo);
 	
 	if (gRomMode) {
 		Dir_Set(&gDir, String_GetPath(sampleInfo->input));

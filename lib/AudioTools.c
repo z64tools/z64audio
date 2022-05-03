@@ -677,7 +677,7 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 }
 
 void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
-	if (sampleInfo->channelNum != 16) {
+	if (sampleInfo->bit != 16) {
 		sampleInfo->targetBit = 16;
 		Audio_BitDepth(sampleInfo);
 	}
@@ -687,6 +687,7 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->vadBook.data == NULL) {
 		AudioTools_TableDesign(sampleInfo);
 	}
+	
 	MemFile memEnc = MemFile_Initialize();
 	s32 minLoopLength = 30;
 	u32 loopStart = 0;
