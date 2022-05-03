@@ -75,7 +75,7 @@ s32 Main(s32 argc, char* argv[]) {
 		
 		printf_SetSuppressLevel(PSL_NO_WARNING);
 		
-		if (StrStrCase(argv[1], ".wav") || StrStrCase(argv[1], ".aiff")) {
+		if (StrEndCase(argv[1], ".wav") || StrEndCase(argv[1], ".aiff") || StrEndCase(argv[1], ".mp3")) {
 			char* format[] = {
 				".bin",
 				".wav",
