@@ -486,7 +486,7 @@ void Audio_LoadSample_Mp3(AudioSampleInfo* sampleInfo) {
 		i -= i % sampleInfo->channelNum;
 		
 		memmove(sampleInfo->audio.s16, &sampleInfo->audio.s16[i], sampleInfo->size - sizeof(s16) * i);
-		sampleInfo->samplesNum -= i;
+		sampleInfo->samplesNum -= i / sampleInfo->channelNum;
 		sampleInfo->size -= sizeof(s16) * i;
 		sampleInfo->memFile.dataSize = sampleInfo->size;
 	}
