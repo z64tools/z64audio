@@ -490,6 +490,8 @@ void Audio_LoadSample_Mp3(AudioSampleInfo* sampleInfo) {
 		sampleInfo->size -= sizeof(s16) * i;
 		sampleInfo->memFile.dataSize = sampleInfo->size;
 	}
+	
+	sampleInfo->instrument.loop.end = sampleInfo->samplesNum;
 }
 
 void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
