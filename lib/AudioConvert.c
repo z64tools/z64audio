@@ -184,7 +184,7 @@ void Audio_Mono(AudioSampleInfo* sampleInfo) {
 	
 	if (sampleInfo->bit == 16) {
 		for (s32 i = 0, j = 0; i < sampleInfo->samplesNum; i++, j += 2) {
-			sampleInfo->audio.s16[i] = MaxAbs((f32)sampleInfo->audio.s16[j], (f32)sampleInfo->audio.s16[j + 1]);
+			sampleInfo->audio.s16[i] = MaxAbs(sampleInfo->audio.s16[j], sampleInfo->audio.s16[j + 1]);
 		}
 	}
 	
