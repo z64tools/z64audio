@@ -183,14 +183,67 @@ void Audio_Mono(AudioSampleInfo* sampleInfo) {
 	}
 	
 	if (sampleInfo->bit == 16) {
+		s16 high = 0;
+		s16 newHigh = 0;
+		f32 mult;
+		
+		Log("To Mono 16-bit");
+		
 		for (s32 i = 0, j = 0; i < sampleInfo->samplesNum; i++, j += 2) {
-			sampleInfo->audio.s16[i] = MaxAbs(sampleInfo->audio.s16[j], sampleInfo->audio.s16[j + 1]);
+			high = Abs(MaxAbs(MaxAbs(sampleInfo->audio.s16[j], sampleInfo->audio.s16[j + 1]), high));
+			sampleInfo->audio.s16[i] = Lerp(0.5, sampleInfo->audio.s16[j], sampleInfo->audio.s16[j + 1]);
+			newHigh = Abs(MaxAbs(sampleInfo->audio.s16[i], newHigh));
+		}
+		
+		if (newHigh < high) {
+			mult = (f32)high / (f32)newHigh;
+			Log("Mult %f, high %d, newHigh %d", mult, high, newHigh);
+			
+			for (s32 i = 0; i < sampleInfo->samplesNum; i++) {
+				sampleInfo->audio.s16[i] = ClampS16(sampleInfo->audio.s16[i] * mult);
+			}
 		}
 	}
 	
 	if (sampleInfo->bit == 32) {
-		for (s32 i = 0, j = 0; i < sampleInfo->samplesNum; i++, j += 2) {
-			sampleInfo->audio.f32[i] = MaxAbs(sampleInfo->audio.f32[j], sampleInfo->audio.f32[j + 1]);
+		if (sampleInfo->dataIsFloat == true) {
+			f32 high = 0;
+			f32 newHigh = 0;
+			f32 mult;
+			
+			Log("To Mono 32-bit float");
+			for (s32 i = 0, j = 0; i < sampleInfo->samplesNum; i++, j += 2) {
+				high = Abs(MaxAbs(MaxAbs(sampleInfo->audio.f32[j], sampleInfo->audio.f32[j + 1]), high));
+				sampleInfo->audio.f32[i] = Lerp(0.5, sampleInfo->audio.f32[j], sampleInfo->audio.f32[j + 1]);
+				newHigh = Abs(MaxAbs(sampleInfo->audio.f32[i], newHigh));
+			}
+			
+			if (newHigh < high) {
+				mult = (f32)high / (f32)newHigh;
+				
+				for (s32 i = 0; i < sampleInfo->samplesNum; i++) {
+					sampleInfo->audio.f32[i] *= mult;
+				}
+			}
+		} else {
+			s32 high = 0;
+			s32 newHigh = 0;
+			f32 mult;
+			
+			Log("To Mono 32-bit int");
+			for (s32 i = 0, j = 0; i < sampleInfo->samplesNum; i++, j += 2) {
+				high = Abs(MaxAbs(MaxAbs(sampleInfo->audio.s32[j], sampleInfo->audio.s32[j + 1]), high));
+				sampleInfo->audio.s32[i] = Lerp(0.5, sampleInfo->audio.s32[j], sampleInfo->audio.s32[j + 1]);
+				newHigh = Abs(MaxAbs(sampleInfo->audio.s32[i], newHigh));
+			}
+			
+			if (newHigh < high) {
+				mult = (f32)high / (f32)newHigh;
+				
+				for (s32 i = 0; i < sampleInfo->samplesNum; i++) {
+					sampleInfo->audio.s32[i] = ClampS32(sampleInfo->audio.s32[i] * mult);
+				}
+			}
 		}
 	}
 	
