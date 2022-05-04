@@ -48,9 +48,8 @@ char* sToolUsage = {
 };
 
 DirCtx gDir;
-
 bool gVadPrev;
-
+bool gRomForceLoop;
 FormatParam sDefaultFormat;
 
 s32 Main(s32 argc, char* argv[]) {
@@ -120,12 +119,14 @@ s32 Main(s32 argc, char* argv[]) {
 		
 		if (Sys_Stat(f)) {
 			MemFile config = MemFile_Initialize();
+			u32 vanilConf = true;
 			u32 hasConf = true;
 			
 			String_Replace(path, "rom/sound/sample/", "rom/sound/sample/.vanilla/");
 			strcat(path, "config.cfg");
 			
 			if (!Sys_Stat(path)) {
+				vanilConf = false;
 				path = Dir_File(&gDir, "config.cfg");
 				
 				if (!Sys_Stat(path))
@@ -138,6 +139,8 @@ s32 Main(s32 argc, char* argv[]) {
 				
 				sample.instrument.note = Config_GetInt(&config, "basenote");
 				sample.instrument.fineTune = Config_GetInt(&config, "finetune");
+				if (vanilConf)
+					gRomForceLoop = Config_GetInt(&config, "loop_count") != 0;
 				
 				Log("Load Book: %s", f);
 				AudioTools_LoadCodeBook(&sample, f);

@@ -7,6 +7,8 @@ char* gTableDesignBits = "2";
 char* gTableDesignOrder = "2";
 char* gTableDesignThreshold = "10.0";
 
+extern bool gRomForceLoop;
+
 void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
 	char buffer[256];
 	char sys[526];
@@ -702,13 +704,16 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->channelNum != 1)
 		Audio_Mono(sampleInfo);
 	
-	if (Sys_Stat(Tmp_Printf("%s.normalize", String_GetPath(sampleInfo->input)))) {
+	if (Sys_Stat(Tmp_Printf("%s.normalize", String_GetPath(sampleInfo->input))))
 		Audio_Normalize(sampleInfo);
-		printf("NORMALIZED\n");
-	}
 	
 	if (sampleInfo->vadBook.data == NULL)
 		AudioTools_TableDesign(sampleInfo);
+	
+	if (gRomForceLoop && sampleInfo->instrument.loop.count == 0) {
+		sampleInfo->instrument.loop.count = -1;
+		sampleInfo->instrument.loop.start = sampleInfo->samplesNum;
+	}
 	
 	nFrames = sampleInfo->samplesNum;
 	
