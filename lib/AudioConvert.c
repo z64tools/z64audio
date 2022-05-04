@@ -255,54 +255,66 @@ void Audio_Normalize(AudioSampleInfo* sampleInfo) {
 	u32 sampleNum = sampleInfo->samplesNum;
 	u32 channelNum = sampleInfo->channelNum;
 	f32 max = 0;
-	f32 mult;
+	f32 mult = 0;
 	
 	switch (sampleInfo->bit) {
 		case 16:
+			Log("Bitdepth: 16-bit");
 			for (s32 i = 0; i < sampleNum * channelNum; i++) {
 				max = Abs(MaxAbs(sampleInfo->audio.s16[i], max));
 				
-				if (max >= __INT16_MAX__)
+				if (max >= __INT16_MAX__) {
+					Log("Max Reached");
+					
 					return;
+				}
 			}
 			mult = (f32)__INT16_MAX__ / max;
 			
 			for (s32 i = 0; i < sampleNum * channelNum; i++) {
-				sampleInfo->audio.s16[i] = (f32)sampleInfo->audio.s16[i] * mult;
+				sampleInfo->audio.s16[i] *= mult;
 			}
 			break;
 		case 32:
 			if (sampleInfo->dataIsFloat) {
+				Log("Bitdepth: 32-bit float");
 				for (s32 i = 0; i < sampleNum * channelNum; i++) {
 					max = Abs(MaxAbs(sampleInfo->audio.f32[i], max));
 					
-					if (max >= 1.0f)
+					if (max >= 1.0f) {
+						Log("Max Reached");
+						
 						return;
+					}
 				}
 				
 				mult = 1.0f / max;
 				
 				for (s32 i = 0; i < sampleNum * channelNum; i++) {
-					sampleInfo->audio.s32[i] = (f32)sampleInfo->audio.s32[i] * mult;
+					sampleInfo->audio.f32[i] *= mult;
 				}
 			} else {
+				Log("Bitdepth: 32-bit int");
 				for (s32 i = 0; i < sampleNum * channelNum; i++) {
 					max = Abs(MaxAbs(sampleInfo->audio.s32[i], max));
 					
-					if (max >= (f32)__INT32_MAX__)
+					if (max >= (f32)__INT32_MAX__) {
+						Log("Max Reached");
+						
 						return;
+					}
 				}
 				
 				mult = (f32)__INT32_MAX__ / max;
 				
 				for (s32 i = 0; i < sampleNum * channelNum; i++) {
-					sampleInfo->audio.f32[i] *= mult;
+					sampleInfo->audio.s32[i] *= mult;
 				}
 			}
 			break;
 	}
 	
-	Log("normalizer: %f", max);
+	Log("Multiplier: %f", mult);
 }
 
 void Audio_BitDepth(AudioSampleInfo* sampleInfo) {
@@ -770,9 +782,6 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	u16 emp = 0;
 	char buffer[265 * 4];
 	
-	if (Sys_Stat(Tmp_Printf("%s.normalize", String_GetPath(sampleInfo->input))))
-		Audio_Normalize(sampleInfo);
-	
 	Log("AudioTools_VadpcmEnc(sampleInfo);");
 	AudioTools_VadpcmEnc(sampleInfo);
 	
@@ -853,6 +862,8 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	
 	Config_SPrintf("\n");
 	Config_WriteTitle_Str("Instrument Info");
+	Config_WriteVar_Int("basenote", sampleInfo->instrument.note);
+	Config_WriteVar_Int("finetune", sampleInfo->instrument.fineTune);
 	Config_WriteVar_Flo("tuning", tuning);
 	
 	Log("Save Config");

@@ -105,23 +105,45 @@ s32 Main(s32 argc, char* argv[]) {
 	Audio_InitSample(&sample, input, output);
 	
 	if (gRomMode) {
-		Dir_Set(&gDir, String_GetPath(sample.input));
-		char* f = Dir_File(&gDir, "sample.book.bin");
+		char* path = Tmp_Alloc(0x400);
+		char* f;
+		
+		strcpy(path, String_GetPath(sample.input));
+		Log("Dir Set: %s", path);
+		Dir_Set(&gDir, path);
+		f = Dir_File(&gDir, "sample.book.bin");
 		
 		if (!Sys_Stat(f))
 			f = Dir_File(&gDir, "*.book.bin");
 		
+		Log("File: %s", f);
+		
 		if (Sys_Stat(f)) {
 			MemFile config = MemFile_Initialize();
+			u32 hasConf = true;
 			
-			Log("z64rom_mode: cfg: %s", Dir_File(&gDir, "config.cfg"));
-			MemFile_LoadFile_String(&config, Dir_File(&gDir, "config.cfg"));
-			gPrecisionFlag = Config_GetInt(&config, "codec") ? 3 : 0;
+			String_Replace(path, "rom/sound/sample/", "rom/sound/sample/.vanilla/");
+			strcat(path, "config.cfg");
 			
-			Log("z64rom_mode: book: %s", f);
-			AudioTools_LoadCodeBook(&sample, f);
-			sample.useExistingPred = true;
-			MemFile_Free(&config);
+			if (!Sys_Stat(path)) {
+				path = Dir_File(&gDir, "config.cfg");
+				
+				if (!Sys_Stat(path))
+					hasConf = false;
+			}
+			
+			if (hasConf) {
+				if (MemFile_LoadFile_String(&config, path)) printf_error("Could not load [%s]", path);
+				gPrecisionFlag = Config_GetInt(&config, "codec") ? 3 : 0;
+				
+				sample.instrument.note = Config_GetInt(&config, "basenote");
+				sample.instrument.fineTune = Config_GetInt(&config, "finetune");
+				
+				Log("Load Book: %s", f);
+				AudioTools_LoadCodeBook(&sample, f);
+				sample.useExistingPred = true;
+				MemFile_Free(&config);
+			}
 		}
 	} else {
 		if (ParseArg("p") && sample.useExistingPred == 0) {

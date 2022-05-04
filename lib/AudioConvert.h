@@ -3,6 +3,20 @@
 
 #include <ExtLib.h>
 
+// #define Audio_dB(x) (20 * log10((f64)(x) / __INT16_MAX__))
+// #define Audio_dB(x) (20 * log10((f64)(x) / __INT32_MAX__))
+// #define Audio_dB(x) (20 * log10((x) / 1.0f))
+
+#define Audio_dB(x) (20 * log10( \
+		(Abs(x)) / (f32)(_Generic( \
+			(Abs(x)), \
+			s16: __INT16_MAX__, \
+			s32: __INT32_MAX__, \
+			f32: 1.0f, \
+				default: __INT32_MAX__ \
+		)) \
+	))
+
 typedef long double f80;
 
 struct AudioSampleInfo;

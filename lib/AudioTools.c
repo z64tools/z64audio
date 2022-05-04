@@ -702,6 +702,11 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	if (sampleInfo->channelNum != 1)
 		Audio_Mono(sampleInfo);
 	
+	if (Sys_Stat(Tmp_Printf("%s.normalize", String_GetPath(sampleInfo->input)))) {
+		Audio_Normalize(sampleInfo);
+		printf("NORMALIZED\n");
+	}
+	
 	if (sampleInfo->vadBook.data == NULL)
 		AudioTools_TableDesign(sampleInfo);
 	
