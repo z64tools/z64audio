@@ -7,9 +7,6 @@ typedef enum {
 	FORMPARAM_CCC,
 } FormatParam;
 
-void z64param_Generate(MemFile* param, char* file);
-void z64params(char* argv[]);
-
 char* sToolName = {
 	"z64audio" PRNT_GRAY " 2.0.2"
 };
@@ -52,6 +49,101 @@ bool gVadPrev;
 bool gRomForceLoop;
 FormatParam sDefaultFormat;
 
+#define GenerParam(com1, name, defval, com2) MemFile_Printf( \
+		param, \
+		com1 \
+		"\n%-15s = %-8s # %s\n\n", \
+		# name, \
+		# defval, \
+		com2 \
+)
+
+void Main_Config_Generate(MemFile* param, char* file) {
+	MemFile_Malloc(param, 0x1000);
+	
+	MemFile_Printf(
+		param,
+		"### z64audio settings ###\n\n"
+	);
+	GenerParam(
+		"# Specialized for z64rom tool usage, do not set unless this is paired\n# with z64rom!",
+		zaudio_z64rom_mode,
+		false,
+		"[true/false]"
+	);
+	GenerParam(
+		"# nameBook.bin vs name_predictors.bin, more suitable for Jared's\n# zzrtl script.",
+		zaudio_zz_naming,
+		false,
+		"[true/false]"
+	);
+	GenerParam(
+		"# Default format to export when drag'n'dropping files on to z64audio.",
+		zaudio_def_dnd_fmt,
+		"bin",
+		"[bin/wav/aiff/c]"
+	);
+	
+	if (MemFile_SaveFile_String(param, file)) {
+		printf_error("Could not create param file [%s]", file);
+	}
+}
+
+void Main_Config(char* argv[]) {
+	MemFile param = MemFile_Initialize();
+	char file[256 * 4];
+	u32 parArg;
+	s32 integer;
+	char* list[] = {
+		"bin", "wav", "aiff", "c", NULL
+	};
+	
+	strcpy(file, Sys_AppDir());
+	strcat(file, "z64audio.cfg");
+	
+	Log("Get: %s", file);
+	if (ParseArg("P")) {
+		MemFile_LoadFile_String(&param, argv[parArg]);
+	} else if (MemFile_LoadFile_String(&param, file)) {
+		printf_info("Generating settings [%s]", file);
+		Main_Config_Generate(&param, file);
+	}
+	
+	gBinNameIndex = Config_GetBool(&param, "zaudio_zz_naming");
+	integer = Config_GetOption(&param, "zaudio_def_dnd_fmt", list);
+	
+	if (integer != 404040404) {
+		sDefaultFormat = integer;
+	}
+	
+	MemFile_Free(&param);
+	
+	if (ParseArg("GenCfg")) {
+		exit(65);
+	}
+}
+
+void Main_LoadSampleConf(char* conf) {
+	MemFile mem = MemFile_Initialize();
+	char* param;
+	
+	if (conf == NULL || !Sys_Stat(conf))
+		return;
+	
+	MemFile_LoadFile_String(&mem, conf);
+	
+	if ((param = Config_GetVariable(mem.str, "book_iteration"))) gTableDesignIteration = param;
+	if ((param = Config_GetVariable(mem.str, "book_frame_size"))) gTableDesignFrameSize = param;
+	if ((param = Config_GetVariable(mem.str, "book_bits"))) gTableDesignBits = param;
+	if ((param = Config_GetVariable(mem.str, "book_order"))) gTableDesignOrder = param;
+	if ((param = Config_GetVariable(mem.str, "book_threshold"))) gTableDesignThreshold = param;
+	
+	if ((param = Config_GetVariable(mem.str, "sample_rate"))) gSampleRate = String_GetInt(param);
+	if ((param = Config_GetVariable(mem.str, "sample_tuning"))) gTuning = String_GetFloat(param);
+	
+	MemFile_Free(&mem);
+}
+
 s32 Main(s32 argc, char* argv[]) {
 	AudioSampleInfo sample;
 	char* input = NULL;
@@ -63,7 +155,7 @@ s32 Main(s32 argc, char* argv[]) {
 	printf_WinFix();
 	printf_SetPrefix("");
 	
-	z64params(argv);
+	Main_Config(argv);
 	if (ParseArg("log")) callSignal = true;
 	if (ParseArg("S")) printf_SetSuppressLevel(PSL_NO_WARNING);
 	if (ParseArg("i")) input = String_GetSpacedArg(argv, parArg);
@@ -103,62 +195,17 @@ s32 Main(s32 argc, char* argv[]) {
 	printf_toolinfo(sToolName, "\n");
 	Audio_InitSample(&sample, input, output);
 	
-	if (gRomMode) {
-		char* path = Tmp_Alloc(0x400);
-		char* f;
-		
-		strcpy(path, String_GetPath(sample.input));
-		Log("Dir Set: %s", path);
-		Dir_Set(&gDir, path);
-		f = Dir_File(&gDir, "sample.book.bin");
-		
-		if (!Sys_Stat(f))
-			f = Dir_File(&gDir, "*.book.bin");
-		
-		Log("File: %s", f);
-		
-		if (Sys_Stat(f)) {
-			MemFile config = MemFile_Initialize();
-			u32 vanilConf = true;
-			u32 hasConf = true;
-			
-			String_Replace(path, "rom/sound/sample/", "rom/sound/sample/.vanilla/");
-			strcat(path, "config.cfg");
-			
-			if (!Sys_Stat(path)) {
-				vanilConf = false;
-				path = Dir_File(&gDir, "config.cfg");
-				
-				if (!Sys_Stat(path))
-					hasConf = false;
-			}
-			
-			if (hasConf) {
-				if (MemFile_LoadFile_String(&config, path)) printf_error("Could not load [%s]", path);
-				gPrecisionFlag = Config_GetInt(&config, "codec") ? 3 : 0;
-				
-				sample.instrument.note = Config_GetInt(&config, "basenote");
-				sample.instrument.fineTune = Config_GetInt(&config, "finetune");
-				if (vanilConf)
-					gRomForceLoop = Config_GetInt(&config, "loop_count") != 0;
-				
-				Log("Load Book: %s", f);
-				AudioTools_LoadCodeBook(&sample, f);
-				sample.useExistingPred = true;
-				MemFile_Free(&config);
-			}
-		}
+	if (ParseArg("design")) {
+		Main_LoadSampleConf(argv[parArg]);
+	} else if (ParseArg("book") && sample.useExistingPred == 0) {
+		AudioTools_LoadCodeBook(&sample, argv[parArg]);
+		sample.useExistingPred = true;
 	} else {
-		if (ParseArg("p") && sample.useExistingPred == 0) {
-			AudioTools_LoadCodeBook(&sample, argv[parArg]);
-			sample.useExistingPred = true;
-		} else {
-			if (ParseArg("I")) gTableDesignIteration = argv[parArg];
-			if (ParseArg("F")) gTableDesignFrameSize = argv[parArg];
-			if (ParseArg("B")) gTableDesignBits = argv[parArg];
-			if (ParseArg("O")) gTableDesignOrder = argv[parArg];
-			if (ParseArg("T")) gTableDesignThreshold = argv[parArg];
-		}
+		if (ParseArg("table-iter")) gTableDesignIteration = argv[parArg];
+		if (ParseArg("table-frame")) gTableDesignFrameSize = argv[parArg];
+		if (ParseArg("table-bits")) gTableDesignBits = argv[parArg];
+		if (ParseArg("table-order")) gTableDesignOrder = argv[parArg];
+		if (ParseArg("table-threshold")) gTableDesignThreshold = argv[parArg];
 	}
 	
 	if (ParseArg("srate")) gSampleRate = String_GetInt(argv[parArg]);
@@ -219,119 +266,4 @@ free:
 	Log_Free();
 	
 	return 0;
-}
-
-#define GenerParam(com1, name, defval, com2) MemFile_Printf( \
-		param, \
-		com1 \
-		"\n%-15s = %-8s # %s\n\n", \
-		# name, \
-		# defval, \
-		com2 \
-)
-
-void z64param_Generate(MemFile* param, char* file) {
-	MemFile_Malloc(param, 0x1000);
-	
-	MemFile_Printf(
-		param,
-		"### z64audio settings ###\n\n"
-	);
-	GenerParam(
-		"# Specialized for z64rom tool usage, do not set unless this is paired\n# with z64rom!",
-		zaudio_z64rom_mode,
-		false,
-		"[true/false]"
-	);
-	GenerParam(
-		"# nameBook.bin vs name_predictors.bin, more suitable for Jared's\n# zzrtl script.",
-		zaudio_zz_naming,
-		false,
-		"[true/false]"
-	);
-	GenerParam(
-		"# Default format to export when drag'n'dropping files on to z64audio.",
-		zaudio_def_dnd_fmt,
-		"bin",
-		"[bin/wav/aiff/c]"
-	);
-	
-	MemFile_Printf(
-		param,
-		"### TableDesign settings ###\n\n"
-	);
-	GenerParam(
-		"# Refine Iteration",
-		tbl_ref_iter,
-		30,
-		"[integer]"
-	);
-	GenerParam(
-		"# Frame Size",
-		tbl_frm_sz,
-		16,
-		"[integer]"
-	);
-	GenerParam(
-		"# Bits",
-		tbl_bits,
-		2,
-		"[integer]"
-	);
-	GenerParam(
-		"# Order",
-		tbl_order,
-		2,
-		"[integer]"
-	);
-	GenerParam(
-		"# Threshold",
-		tbl_thresh,
-		10,
-		"[integer]"
-	);
-	
-	if (MemFile_SaveFile_String(param, file)) {
-		printf_error("Could not create param file [%s]", file);
-	}
-}
-
-void z64params(char* argv[]) {
-	MemFile param = MemFile_Initialize();
-	char file[256 * 4];
-	u32 parArg;
-	s32 integer;
-	char* list[] = {
-		"bin", "wav", "aiff", "c", NULL
-	};
-	
-	strcpy(file, Sys_AppDir());
-	strcat(file, "z64audio.cfg");
-	
-	Log("Get: %s", file);
-	if (ParseArg("P")) {
-		MemFile_LoadFile_String(&param, argv[parArg]);
-	} else if (MemFile_LoadFile_String(&param, file)) {
-		printf_info("Generating settings [%s]", file);
-		z64param_Generate(&param, file);
-	}
-	
-	gRomMode = Config_GetBool(&param, "zaudio_z64rom_mode");
-	gBinNameIndex = Config_GetBool(&param, "zaudio_zz_naming");
-	integer = Config_GetOption(&param, "zaudio_def_dnd_fmt", list);
-	gTableDesignIteration = Config_GetString(&param, "tbl_ref_iter");
-	gTableDesignFrameSize = Config_GetString(&param, "tbl_frm_sz");
-	gTableDesignBits = Config_GetString(&param, "tbl_bits");
-	gTableDesignOrder = Config_GetString(&param, "tbl_order");
-	gTableDesignThreshold = Config_GetString(&param, "tbl_thresh");
-	
-	if (integer != 404040404) {
-		sDefaultFormat = integer;
-	}
-	
-	MemFile_Free(&param);
-	
-	if (ParseArg("GenCfg")) {
-		exit(65);
-	}
 }

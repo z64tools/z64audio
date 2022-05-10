@@ -7,7 +7,6 @@ NameParam gBinNameIndex;
 u32 gSampleRate = 32000;
 u32 gPrecisionFlag;
 f32 gTuning = 1.0f;
-bool gRomMode;
 
 char* sBinName[][3] = {
 	{
@@ -784,19 +783,6 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	
 	Log("AudioTools_VadpcmEnc(sampleInfo);");
 	AudioTools_VadpcmEnc(sampleInfo);
-	
-	if (gRomMode) {
-		Dir_Set(&gDir, String_GetPath(sampleInfo->input));
-		if (Dir_File(&gDir, "*.vadpcm.bin"))
-			remove(Dir_File(&gDir, "*.vadpcm.bin"));
-		if (sampleInfo->useExistingPred == false)
-			if (Dir_File(&gDir, "*.book.bin"))
-				remove(Dir_File(&gDir, "*.book.bin"));
-		if (Dir_File(&gDir, "*.loopbook.bin"))
-			remove(Dir_File(&gDir, "*.loopbook.bin"));
-		if (Dir_File(&gDir, "config.cfg"))
-			remove(Dir_File(&gDir, "config.cfg"));
-	}
 	
 	MemFile_Malloc(&output, sampleInfo->size * 2);
 	
