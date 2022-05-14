@@ -2,9 +2,6 @@
 #include "lib/AudioTools.h"
 #include "lib/AudioGui.h"
 
-#define NANOVG_GL3_IMPLEMENTATION
-#include <nanovg/src/nanovg_gl.h>
-
 #define INCBIN_PREFIX
 #include <incbin.h>
 
@@ -186,12 +183,11 @@ s32 Main(s32 argc, char* argv[]) {
 		WindowContext* winCtx = Calloc(0, sizeof(WindowContext));
 		
 		printf_SetSuppressLevel(PSL_DEBUG);
-		UI_Init("z64audio", &winCtx->app, &winCtx->input, winCtx, (void*)Window_Update, (void*)Window_Draw, Window_DropCallback, 560, 480, 0);
+		winCtx->vg = UI_Init("z64audio", &winCtx->app, &winCtx->input, winCtx, (void*)Window_Update, (void*)Window_Draw, Window_DropCallback, 560, 480, 0);
 		
 		winCtx->geoGrid.passArg = winCtx;
 		winCtx->geoGrid.taskTable = gTaskTable;
 		winCtx->geoGrid.taskTableNum = ArrayCount(gTaskTable);
-		winCtx->vg = nvgCreateGL3(NVG_ANTIALIAS | NVG_STENCIL_STROKES);
 		
 		nvgCreateFontMem(winCtx->vg, "font-basic", (void*)gFont_CascadiaCodeData, gFont_CascadiaCodeSize, 0);
 		nvgCreateFontMem(winCtx->vg, "font-bold", (void*)gFont_NotoSandData, gFont_NotoSandSize, 0);
