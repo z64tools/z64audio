@@ -9,7 +9,7 @@ char* gTableDesignThreshold = "10.0";
 
 extern bool gRomForceLoop;
 
-void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
+void AudioTools_RunTableDesign(AudioSample* sampleInfo) {
 	char buffer[256];
 	char sys[526];
 	
@@ -38,7 +38,7 @@ void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo) {
 	Log("TableDesign %s", buffer);
 }
 
-void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo) {
+void AudioTools_RunVadpcmEnc(AudioSample* sampleInfo) {
 	char buffer[256];
 	char sys[256 * 2];
 	
@@ -177,7 +177,7 @@ static void AudioTools_VencodeBrute(u8* out, s16* inBuffer, s32* origState, s32*
 	}
 }
 
-static void AudioTools_ReadCodeBook(AudioSampleInfo* sampleInfo, s32**** table, s32* destOrder, s32* destNPred) {
+static void AudioTools_ReadCodeBook(AudioSample* sampleInfo, s32**** table, s32* destOrder, s32* destNPred) {
 	s32** tableEntry;
 	
 	s32 order = *destOrder = sampleInfo->vadBook.cast.u16[0];
@@ -475,7 +475,7 @@ static void AudioTools_VdecodeFrame(u8* frame, s32* decompressed, s32* state, s3
 	}
 }
 
-void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
+void AudioTools_TableDesign(AudioSample* sampleInfo) {
 	#define FREE_PP(PP, NUM) \
 		if (PP) { \
 			for (s32 i = 0; i < (NUM); ++i) { \
@@ -678,7 +678,7 @@ void AudioTools_TableDesign(AudioSampleInfo* sampleInfo) {
 	FREE_P(splitDelta);
 }
 
-void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
+void AudioTools_VadpcmEnc(AudioSample* sampleInfo) {
 	MemFile memEnc = MemFile_Initialize();
 	s32 minLoopLength = 30;
 	u32 loopStart = 0;
@@ -828,7 +828,7 @@ void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo) {
 	}
 }
 
-void AudioTools_VadpcmDec(AudioSampleInfo* sampleInfo) {
+void AudioTools_VadpcmDec(AudioSample* sampleInfo) {
 	MemFile memDec = MemFile_Initialize();
 	u32 pos = 0;
 	s32 order;
@@ -943,7 +943,7 @@ void AudioTools_VadpcmDec(AudioSampleInfo* sampleInfo) {
 	Log("New MemFile Size [0x%X]", sampleInfo->size);
 }
 
-void AudioTools_LoadCodeBook(AudioSampleInfo* sampleInfo, char* file) {
+void AudioTools_LoadCodeBook(AudioSample* sampleInfo, char* file) {
 	MemFile temp = MemFile_Initialize();
 	MemFile* vadBook = &sampleInfo->vadBook;
 	u32 size;

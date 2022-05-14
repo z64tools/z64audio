@@ -172,7 +172,7 @@ void Main_LoadSampleConf(char* conf) {
 // # # # # # # # # # # # # # # # # # # # #
 
 s32 Main(s32 argc, char* argv[]) {
-	AudioSampleInfo sample;
+	AudioSample sample;
 	char* input = NULL;
 	char* output = NULL;
 	u32 parArg;
@@ -186,7 +186,7 @@ s32 Main(s32 argc, char* argv[]) {
 		WindowContext* winCtx = Calloc(0, sizeof(WindowContext));
 		
 		printf_SetSuppressLevel(PSL_DEBUG);
-		UI_Init("z64audio", &winCtx->app, &winCtx->input, winCtx, (void*)Window_Update, (void*)Window_Draw, Window_DropCallback, 560, 240, 4);
+		UI_Init("z64audio", &winCtx->app, &winCtx->input, winCtx, (void*)Window_Update, (void*)Window_Draw, Window_DropCallback, 560, 480, 0);
 		
 		winCtx->geoGrid.passArg = winCtx;
 		winCtx->geoGrid.taskTable = gTaskTable;
@@ -222,6 +222,8 @@ s32 Main(s32 argc, char* argv[]) {
 		
 		Thread_Free();
 		glfwTerminate();
+		
+		return 0;
 	}
 	
 	Main_Config(argv);
@@ -320,7 +322,6 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	Audio_FreeSample(&sample);
 	
-free:
 	if (callSignal) Log_Print();
 	Log_Free();
 	

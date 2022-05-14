@@ -10,13 +10,13 @@ extern char* gTableDesignBits;
 extern char* gTableDesignOrder;
 extern char* gTableDesignThreshold;
 
-void AudioTools_RunTableDesign(AudioSampleInfo* sampleInfo);
-void AudioTools_RunVadpcmEnc(AudioSampleInfo* sampleInfo);
+void AudioTools_RunTableDesign(AudioSample* sampleInfo);
+void AudioTools_RunVadpcmEnc(AudioSample* sampleInfo);
 
-void AudioTools_TableDesign(AudioSampleInfo* sampleInfo);
-void AudioTools_VadpcmEnc(AudioSampleInfo* sampleInfo);
-void AudioTools_VadpcmDec(AudioSampleInfo* sampleInfo);
+void AudioTools_TableDesign(AudioSample* sampleInfo);
+void AudioTools_VadpcmEnc(AudioSample* sampleInfo);
+void AudioTools_VadpcmDec(AudioSample* sampleInfo);
 
-void AudioTools_LoadCodeBook(AudioSampleInfo* sampleInfo, char* file);
+void AudioTools_LoadCodeBook(AudioSample* sampleInfo, char* file);
 
 #endif

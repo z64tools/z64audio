@@ -19,9 +19,9 @@
 
 typedef long double f80;
 
-struct AudioSampleInfo;
+struct AudioSample;
 
-typedef void (* AudioFunc)(struct AudioSampleInfo*);
+typedef void (* AudioFunc)(struct AudioSample*);
 
 typedef struct {
 	u32 start;
@@ -38,7 +38,7 @@ typedef struct {
 	SampleLoop loop;
 } SampleInstrument;
 
-typedef struct AudioSampleInfo {
+typedef struct AudioSample {
 	char*   input;
 	char*   output;
 	bool    useExistingPred;
@@ -58,7 +58,7 @@ typedef struct AudioSampleInfo {
 	volatile s32 doPlay;
 	volatile s32 doLoop;
 	volatile u32 playFrame;
-} AudioSampleInfo;
+} AudioSample;
 
 #ifndef __WAVE_HEADER__
 #define __WAVE_HEADER__
@@ -216,15 +216,15 @@ extern u32 gSampleRate;
 extern u32 gPrecisionFlag;
 extern f32 gTuning;
 
-void Audio_Mono(AudioSampleInfo* sampleInfo);
-void Audio_Normalize(AudioSampleInfo* sampleInfo);
-void Audio_BitDepth(AudioSampleInfo* sampleInfo);
+void Audio_Mono(AudioSample* sampleInfo);
+void Audio_Normalize(AudioSample* sampleInfo);
+void Audio_BitDepth(AudioSample* sampleInfo);
 
-void Audio_InitSample(AudioSampleInfo* sampleInfo, char* input, char* output);
-void Audio_FreeSample(AudioSampleInfo* sampleInfo);
+void Audio_InitSample(AudioSample* sampleInfo, char* input, char* output);
+void Audio_FreeSample(AudioSample* sampleInfo);
 
-void Audio_LoadSample(AudioSampleInfo* sampleInfo);
-void Audio_SaveSample(AudioSampleInfo* sampleInfo);
+void Audio_LoadSample(AudioSample* sampleInfo);
+void Audio_SaveSample(AudioSample* sampleInfo);
 
 void Audio_Playback(void* ctx, void* output, u32 frameCount);
 

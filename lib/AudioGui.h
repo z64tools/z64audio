@@ -10,13 +10,29 @@ typedef struct {
 } WindowContext;
 
 typedef struct {
-	ElButton  playButton;
-	ElTextbox sampleName;
-	ElText    text;
-	AudioSampleInfo sample;
+	ElButton    playButton;
+	ElTextbox   sampleName;
+	ElText      text;
+	AudioSample sample;
 	void* player;
 	f32   y;
 	s32   butTog;
+	struct {
+		f64 start;
+		f64 end;
+		s32 modifying;
+		f32 rel;
+		
+		f64 vStart;
+		f64 vEnd;
+	} zoom;
+	struct {
+		f32 playPos;
+		f32 loopA;
+		f32 loopB;
+		NVGcolor findCol;
+	} visual;
+	f32 mousePrevX;
 } Sampler;
 
 void Window_DropCallback();

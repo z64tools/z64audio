@@ -21,7 +21,7 @@ char* sBinName[][3] = {
 	},
 };
 
-void Audio_InitSample(AudioSampleInfo* sampleInfo, char* input, char* output) {
+void Audio_InitSample(AudioSample* sampleInfo, char* input, char* output) {
 	memset(sampleInfo, 0, sizeof(*sampleInfo));
 	sampleInfo->instrument.note = 60;
 	sampleInfo->instrument.highNote = __INT8_MAX__;
@@ -30,12 +30,12 @@ void Audio_InitSample(AudioSampleInfo* sampleInfo, char* input, char* output) {
 	sampleInfo->output = output;
 }
 
-void Audio_FreeSample(AudioSampleInfo* sampleInfo) {
+void Audio_FreeSample(AudioSample* sampleInfo) {
 	MemFile_Free(&sampleInfo->vadBook);
 	MemFile_Free(&sampleInfo->vadLoopBook);
 	MemFile_Free(&sampleInfo->memFile);
 	
-	*sampleInfo = (AudioSampleInfo) { 0 };
+	*sampleInfo = (AudioSample) { 0 };
 }
 
 static u32 Audio_ConvertBigEndianFloat80(AiffComm* aiffInfo) {
@@ -64,7 +64,7 @@ static void Audio_ByteSwap_ToHighLow(u32* source, u16* h) {
 	ByteSwap(&h[1], SWAP_U16);
 }
 
-static void Audio_ByteSwap(AudioSampleInfo* sampleInfo) {
+static void Audio_ByteSwap(AudioSample* sampleInfo) {
 	if (sampleInfo->bit == 16) {
 		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
 			ByteSwap(&sampleInfo->audio.u16[i], sampleInfo->bit / 8);
@@ -90,7 +90,7 @@ static void Audio_ByteSwap(AudioSampleInfo* sampleInfo) {
 	}
 }
 
-static void Audio_BitDepth_Lower(AudioSampleInfo* sampleInfo) {
+static void Audio_BitDepth_Lower(AudioSample* sampleInfo) {
 	printf_info_align("Downsampling", "%d-bit -> %d-bit", sampleInfo->bit, sampleInfo->targetBit);
 	
 	if (sampleInfo->targetBit == 16) {
@@ -136,7 +136,7 @@ static void Audio_BitDepth_Lower(AudioSampleInfo* sampleInfo) {
 	}
 }
 
-static void Audio_BitDepth_Raise(AudioSampleInfo* sampleInfo) {
+static void Audio_BitDepth_Raise(AudioSample* sampleInfo) {
 	MemFile newMem = MemFile_Initialize();
 	u32 samplesNum = sampleInfo->samplesNum;
 	u32 channelNum = sampleInfo->channelNum;
@@ -171,7 +171,7 @@ static void Audio_BitDepth_Raise(AudioSampleInfo* sampleInfo) {
 	sampleInfo->audio.p = newMem.data;
 }
 
-void Audio_Mono(AudioSampleInfo* sampleInfo) {
+void Audio_Mono(AudioSample* sampleInfo) {
 	if (sampleInfo->channelNum != 2)
 		return;
 	
@@ -250,7 +250,7 @@ void Audio_Mono(AudioSampleInfo* sampleInfo) {
 	sampleInfo->channelNum = 1;
 }
 
-void Audio_Normalize(AudioSampleInfo* sampleInfo) {
+void Audio_Normalize(AudioSample* sampleInfo) {
 	u32 sampleNum = sampleInfo->samplesNum;
 	u32 channelNum = sampleInfo->channelNum;
 	f32 max = 0;
@@ -316,7 +316,7 @@ void Audio_Normalize(AudioSampleInfo* sampleInfo) {
 	Log("Multiplier: %f", mult);
 }
 
-void Audio_BitDepth(AudioSampleInfo* sampleInfo) {
+void Audio_BitDepth(AudioSample* sampleInfo) {
 	if (sampleInfo->targetBit) {
 		if (sampleInfo->targetBit > sampleInfo->bit)
 			Audio_BitDepth_Raise(sampleInfo);
@@ -335,7 +335,7 @@ void Audio_BitDepth(AudioSampleInfo* sampleInfo) {
 	}
 }
 
-static void* Audio_GetChunk(AudioSampleInfo* sampleInfo, const char* type) {
+static void* Audio_GetChunk(AudioSample* sampleInfo, const char* type) {
 	s8* data = &sampleInfo->memFile.cast.s8[0xC];
 	u32 fileSize = sampleInfo->memFile.cast.u32[1];
 	u32 isAiff = (StrStrCase(sampleInfo->input, ".aiff") != 0);
@@ -370,7 +370,7 @@ static void* Audio_GetChunk(AudioSampleInfo* sampleInfo, const char* type) {
 	}
 }
 
-void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
+void Audio_LoadSample_Wav(AudioSample* sampleInfo) {
 	MemFile_LoadFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".wav");
 	WaveHeader* waveHeader = sampleInfo->memFile.data;
 	WaveData* waveData;
@@ -412,7 +412,7 @@ void Audio_LoadSample_Wav(AudioSampleInfo* sampleInfo) {
 	}
 }
 
-void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
+void Audio_LoadSample_Aiff(AudioSample* sampleInfo) {
 	MemFile_LoadFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".aiff");
 	AiffHeader* aiffHeader = sampleInfo->memFile.data;
 	AiffSsnd* aiffData;
@@ -478,7 +478,7 @@ void Audio_LoadSample_Aiff(AudioSampleInfo* sampleInfo) {
 	Audio_ByteSwap(sampleInfo);
 }
 
-void Audio_LoadSample_Bin(AudioSampleInfo* sampleInfo) {
+void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	MemFile config = MemFile_Initialize();
 	u32 loopEnd;
 	u32 tailEnd;
@@ -521,7 +521,7 @@ void Audio_LoadSample_Bin(AudioSampleInfo* sampleInfo) {
 	AudioTools_VadpcmDec(sampleInfo);
 }
 
-void Audio_LoadSample_Mp3(AudioSampleInfo* sampleInfo) {
+void Audio_LoadSample_Mp3(AudioSample* sampleInfo) {
 	mp3dec_t mp3d;
 	mp3dec_file_info_t info;
 	
@@ -558,7 +558,7 @@ void Audio_LoadSample_Mp3(AudioSampleInfo* sampleInfo) {
 	sampleInfo->instrument.loop.end = sampleInfo->samplesNum;
 }
 
-void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
+void Audio_LoadSample(AudioSample* sampleInfo) {
 	char* keyword[] = {
 		".wav",
 		".aiff",
@@ -593,11 +593,11 @@ void Audio_LoadSample(AudioSampleInfo* sampleInfo) {
 	}
 }
 
-static void Wave_WriteChunk_Riff(AudioSampleInfo* sampleInfo, MemFile* output) {
+static void Wave_WriteChunk_Riff(AudioSample* sampleInfo, MemFile* output) {
 	MemFile_Printf(output, "RIFF____WAVE");
 }
 
-static void Wave_WriteChunk_Fmt(AudioSampleInfo* sampleInfo, MemFile* output) {
+static void Wave_WriteChunk_Fmt(AudioSample* sampleInfo, MemFile* output) {
 	WaveFmt fmt = { 0 };
 	
 	fmt.chunk.size = sizeof(WaveFmt) - sizeof(WaveChunk);
@@ -612,7 +612,7 @@ static void Wave_WriteChunk_Fmt(AudioSampleInfo* sampleInfo, MemFile* output) {
 	MemFile_Write(output, &fmt, sizeof(fmt));
 }
 
-static void Wave_WriteChunk_Data(AudioSampleInfo* sampleInfo, MemFile* output) {
+static void Wave_WriteChunk_Data(AudioSample* sampleInfo, MemFile* output) {
 	WaveData data = { 0 };
 	
 	data.chunk.size = sampleInfo->size;
@@ -622,7 +622,7 @@ static void Wave_WriteChunk_Data(AudioSampleInfo* sampleInfo, MemFile* output) {
 	MemFile_Write(output, sampleInfo->audio.p, sampleInfo->size);
 }
 
-static void Wave_WriteChunk_Inst(AudioSampleInfo* sampleInfo, MemFile* output) {
+static void Wave_WriteChunk_Inst(AudioSample* sampleInfo, MemFile* output) {
 	WaveInst inst = { 0 };
 	
 	inst.chunk.size = sizeof(WaveInst) - sizeof(WaveChunk) - 1;
@@ -638,7 +638,7 @@ static void Wave_WriteChunk_Inst(AudioSampleInfo* sampleInfo, MemFile* output) {
 	MemFile_Write(output, &inst, sizeof(inst));
 }
 
-static void Wave_WriteChunk_Smpl(AudioSampleInfo* sampleInfo, MemFile* output) {
+static void Wave_WriteChunk_Smpl(AudioSample* sampleInfo, MemFile* output) {
 	WaveSmpl sample = { 0 };
 	WaveSmplLoop loop = { 0 };
 	
@@ -663,7 +663,7 @@ static void Wave_WriteChunk_Smpl(AudioSampleInfo* sampleInfo, MemFile* output) {
 		MemFile_Write(output, &loop, sizeof(loop));
 }
 
-void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo) {
+void Audio_SaveSample_Wav(AudioSample* sampleInfo) {
 	MemFile output = MemFile_Initialize();
 	
 	Log("Malloc %fMB", BinToMb(sampleInfo->size * 2));
@@ -680,11 +680,11 @@ void Audio_SaveSample_Wav(AudioSampleInfo* sampleInfo) {
 	MemFile_Free(&output);
 }
 
-static void Aiff_WriteChunk_Form(AudioSampleInfo* sampleInfo, MemFile* output) {
+static void Aiff_WriteChunk_Form(AudioSample* sampleInfo, MemFile* output) {
 	MemFile_Printf(output, "FORM____AIFF");
 }
 
-static void Aiff_WriteChunk_Comm(AudioSampleInfo* sampleInfo, MemFile* output) {
+static void Aiff_WriteChunk_Comm(AudioSample* sampleInfo, MemFile* output) {
 	AiffComm comm = { 0 };
 	f80 sampleRate = sampleInfo->sampleRate;
 	u8* p = (u8*)&sampleRate;
@@ -705,7 +705,7 @@ static void Aiff_WriteChunk_Comm(AudioSampleInfo* sampleInfo, MemFile* output) {
 	MemFile_Write(output, &comm, sizeof(comm) - 2);
 }
 
-static void Aiff_WriteChunk_Mark(AudioSampleInfo* sampleInfo, MemFile* output) {
+static void Aiff_WriteChunk_Mark(AudioSample* sampleInfo, MemFile* output) {
 	AiffMark markerInfo = { 0 };
 	AiffMarkIndex marker[2] = { 0 };
 	
@@ -721,7 +721,7 @@ static void Aiff_WriteChunk_Mark(AudioSampleInfo* sampleInfo, MemFile* output) {
 	MemFile_Write(output, &marker, sizeof(marker));
 }
 
-static void Aiff_WriteChunk_Inst(AudioSampleInfo* sampleInfo, MemFile* output) {
+static void Aiff_WriteChunk_Inst(AudioSample* sampleInfo, MemFile* output) {
 	AiffInst instrument = { 0 };
 	
 	instrument.chunk.size = sizeof(AiffInst) - sizeof(AiffChunk);
@@ -746,7 +746,7 @@ static void Aiff_WriteChunk_Inst(AudioSampleInfo* sampleInfo, MemFile* output) {
 	MemFile_Write(output, &instrument, sizeof(instrument));
 }
 
-static void Aiff_WriteChunk_Ssnd(AudioSampleInfo* sampleInfo, MemFile* output) {
+static void Aiff_WriteChunk_Ssnd(AudioSample* sampleInfo, MemFile* output) {
 	AiffChunk ssnd = { 0 };
 	u32 pad[2] = { 0 };
 	
@@ -759,7 +759,7 @@ static void Aiff_WriteChunk_Ssnd(AudioSampleInfo* sampleInfo, MemFile* output) {
 	MemFile_Write(output, sampleInfo->audio.p, sampleInfo->size);
 }
 
-void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
+void Audio_SaveSample_Aiff(AudioSample* sampleInfo) {
 	MemFile output = MemFile_Initialize();
 	
 	Log("Malloc %fMB", BinToMb(sampleInfo->size * 2));
@@ -776,7 +776,7 @@ void Audio_SaveSample_Aiff(AudioSampleInfo* sampleInfo) {
 	MemFile_Free(&output);
 }
 
-void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
+void Audio_SaveSample_Binary(AudioSample* sampleInfo) {
 	MemFile output = MemFile_Initialize();
 	u16 emp = 0;
 	char buffer[265 * 4];
@@ -857,7 +857,7 @@ void Audio_SaveSample_Binary(AudioSampleInfo* sampleInfo) {
 	MemFile_Free(&output);
 }
 
-void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
+void Audio_SaveSample_VadpcmC(AudioSample* sampleInfo) {
 	char* basename;
 	MemFile output;
 	u32 order;
@@ -998,7 +998,7 @@ void Audio_SaveSample_VadpcmC(AudioSampleInfo* sampleInfo) {
 	Audio_SaveSample_Binary(sampleInfo);
 }
 
-void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
+void Audio_SaveSample(AudioSample* sampleInfo) {
 	char* keyword[] = {
 		".wav",
 		".aiff",
@@ -1038,7 +1038,7 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 }
 
 void Audio_Playback(void* ctx, void* output, u32 frameCount) {
-	AudioSampleInfo* sampleInfo = ctx;
+	AudioSample* sampleInfo = ctx;
 	u32 playFrame = frameCount * sampleInfo->channelNum;
 	u32 loopFrame = playFrame;
 	u32 startFrame = sampleInfo->instrument.loop.start * sampleInfo->channelNum;
