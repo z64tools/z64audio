@@ -55,6 +55,8 @@ typedef struct AudioSampleInfo {
 	SampleInstrument instrument;
 	MemFile vadBook;
 	MemFile vadLoopBook;
+	volatile s32 doPlay;
+	volatile s32 doLoop;
 	volatile u32 playFrame;
 } AudioSampleInfo;
 
@@ -224,6 +226,6 @@ void Audio_FreeSample(AudioSampleInfo* sampleInfo);
 void Audio_LoadSample(AudioSampleInfo* sampleInfo);
 void Audio_SaveSample(AudioSampleInfo* sampleInfo);
 
-void Audio_PlaySample(AudioSampleInfo* sampleInfo);
+void Audio_Playback(void* ctx, void* output, u32 frameCount);
 
 #endif /* __Z64AUDIO_HEADER__ */

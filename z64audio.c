@@ -1,5 +1,24 @@
 #include "lib/AudioConvert.h"
 #include "lib/AudioTools.h"
+#include "lib/AudioGui.h"
+
+#define NANOVG_GL3_IMPLEMENTATION
+#include <nanovg/src/nanovg_gl.h>
+
+#define INCBIN_PREFIX
+#include <incbin.h>
+
+INCBIN(gFont_CascadiaCode, "assets/CascadiaCode-SemiBold.ttf");
+INCBIN(gFont_NotoSand, "assets/NotoSans-Bold.ttf");
+
+INCBIN(gCursor_ArrowU, "assets/arrow_up.ia16");
+INCBIN(gCursor_ArrowL, "assets/arrow_left.ia16");
+INCBIN(gCursor_ArrowD, "assets/arrow_down.ia16");
+INCBIN(gCursor_ArrowR, "assets/arrow_right.ia16");
+INCBIN(gCursor_ArrowH, "assets/arrow_horizontal.ia16");
+INCBIN(gCursor_ArrowV, "assets/arrow_vertical.ia16");
+INCBIN(gCursor_Crosshair, "assets/crosshair.ia16");
+INCBIN(gCursor_Empty, "assets/empty.ia16");
 
 typedef enum {
 	FORMPARAM_BIN,
@@ -48,6 +67,10 @@ DirCtx gDir;
 bool gVadPrev;
 bool gRomForceLoop;
 FormatParam sDefaultFormat;
+
+// # # # # # # # # # # # # # # # # # # # #
+// # Setup                               #
+// # # # # # # # # # # # # # # # # # # # #
 
 #define GenerParam(com1, name, defval, com2) MemFile_Printf( \
 		param, \
@@ -144,6 +167,10 @@ void Main_LoadSampleConf(char* conf) {
 	MemFile_Free(&mem);
 }
 
+// # # # # # # # # # # # # # # # # # # # #
+// # MAIN                                #
+// # # # # # # # # # # # # # # # # # # # #
+
 s32 Main(s32 argc, char* argv[]) {
 	AudioSampleInfo sample;
 	char* input = NULL;
@@ -154,6 +181,48 @@ s32 Main(s32 argc, char* argv[]) {
 	Log_Init();
 	printf_WinFix();
 	printf_SetPrefix("");
+	
+	if (ParseArg("gui")) {
+		WindowContext* winCtx = Calloc(0, sizeof(WindowContext));
+		
+		printf_SetSuppressLevel(PSL_DEBUG);
+		UI_Init("z64audio", &winCtx->app, &winCtx->input, winCtx, (void*)Window_Update, (void*)Window_Draw, Window_DropCallback, 560, 240, 4);
+		
+		winCtx->geoGrid.passArg = winCtx;
+		winCtx->geoGrid.taskTable = gTaskTable;
+		winCtx->geoGrid.taskTableNum = ArrayCount(gTaskTable);
+		winCtx->vg = nvgCreateGL3(NVG_ANTIALIAS | NVG_STENCIL_STROKES);
+		
+		nvgCreateFontMem(winCtx->vg, "font-basic", (void*)gFont_CascadiaCodeData, gFont_CascadiaCodeSize, 0);
+		nvgCreateFontMem(winCtx->vg, "font-bold", (void*)gFont_NotoSandData, gFont_NotoSandSize, 0);
+		
+		Theme_Init(0);
+		GeoGrid_Init(&winCtx->geoGrid, &winCtx->app.winDim, &winCtx->input, winCtx->vg);
+		Cursor_Init(&winCtx->cursor);
+		Cursor_CreateCursor(&winCtx->cursor, CURSOR_ARROW_U, gCursor_ArrowUData, 24, 12, 12);
+		Cursor_CreateCursor(&winCtx->cursor, CURSOR_ARROW_D, gCursor_ArrowDData, 24, 12, 12);
+		Cursor_CreateCursor(&winCtx->cursor, CURSOR_ARROW_L, gCursor_ArrowLData, 24, 12, 12);
+		Cursor_CreateCursor(&winCtx->cursor, CURSOR_ARROW_R, gCursor_ArrowRData, 24, 12, 12);
+		Cursor_CreateCursor(&winCtx->cursor, CURSOR_ARROW_H, gCursor_ArrowHData, 32, 16, 16);
+		Cursor_CreateCursor(&winCtx->cursor, CURSOR_ARROW_V, gCursor_ArrowVData, 32, 16, 16);
+		Cursor_CreateCursor(&winCtx->cursor, CURSOR_CROSSHAIR, gCursor_CrosshairData, 40, 19, 20);
+		Cursor_CreateCursor(&winCtx->cursor, CURSOR_EMPTY, gCursor_EmptyData, 16, 0, 0);
+		
+		Rectf32 size = {
+			winCtx->geoGrid.workRect.x,
+			winCtx->geoGrid.workRect.y,
+			winCtx->geoGrid.workRect.w,
+			winCtx->geoGrid.workRect.h
+		};
+		
+		GeoGrid_AddSplit(&winCtx->geoGrid, &size)->id = 1;
+		
+		Thread_Init();
+		UI_Main();
+		
+		Thread_Free();
+		glfwTerminate();
+	}
 	
 	Main_Config(argv);
 	if (ParseArg("log")) callSignal = true;
@@ -216,16 +285,6 @@ s32 Main(s32 argc, char* argv[]) {
 	if (ParseArg("split-hi")) sample.instrument.highNote = String_GetInt(argv[parArg]);
 	if (ParseArg("split-lo")) sample.instrument.lowNote = String_GetInt(argv[parArg]);
 	if (ParseArg("half-precision")) gPrecisionFlag = 3;
-	
-	if (ParseArg("play")) {
-		if (argv[parArg] && !strcmp(argv[parArg], "vadpcm")) {
-			printf_info_align("Play:", "vadpcm preview");
-			gVadPrev = true;
-		}
-		Audio_PlaySample(&sample);
-		if (output == NULL)
-			goto free;
-	}
 	
 	if (output == NULL) printf_error("No output specified!");
 	if (ParseArg("b")) {

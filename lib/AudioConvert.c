@@ -1037,47 +1037,46 @@ void Audio_SaveSample(AudioSampleInfo* sampleInfo) {
 	}
 }
 
-static void Audio_Playback(void* ctx, void* output, u32 frameCount) {
+void Audio_Playback(void* ctx, void* output, u32 frameCount) {
 	AudioSampleInfo* sampleInfo = ctx;
-	u32 playFrame = frameCount;
+	u32 playFrame = frameCount * sampleInfo->channelNum;
+	u32 loopFrame = playFrame;
+	u32 startFrame = sampleInfo->instrument.loop.start * sampleInfo->channelNum;
+	u32 endFrame = sampleInfo->samplesNum * sampleInfo->channelNum;
 	
-	if (sampleInfo->playFrame >= sampleInfo->samplesNum / sampleInfo->channelNum)
+	if (sampleInfo->doPlay < 1)
 		return;
 	
-	if (sampleInfo->samplesNum - sampleInfo->playFrame < playFrame) {
-		playFrame = sampleInfo->samplesNum - sampleInfo->playFrame;
+	if (sampleInfo->doLoop)
+		endFrame = sampleInfo->instrument.loop.end * sampleInfo->channelNum;
+	
+	playFrame = Clamp(frameCount * sampleInfo->channelNum, 0, endFrame - sampleInfo->playFrame);
+	loopFrame -= playFrame;
+	
+	if (loopFrame && sampleInfo->doLoop == false) {
+		if (sampleInfo->doPlay == true)
+			sampleInfo->doPlay = -1;
+		
+		if (sampleInfo->doPlay == -1)
+			return;
 	}
 	
 	switch (sampleInfo->bit) {
 		case 16:
-			memcpy(output, &sampleInfo->audio.s16[sampleInfo->playFrame], sampleInfo->channelNum * playFrame * 2);
+			memcpy(output, &sampleInfo->audio.s16[sampleInfo->playFrame], playFrame * sizeof(s16));
+			if (loopFrame && sampleInfo->doLoop) {
+				memcpy(((s16*)output) + playFrame, &sampleInfo->audio.s16[startFrame], loopFrame * sizeof(s16));
+			}
 			break;
 		case 32:
-			memcpy(output, &sampleInfo->audio.s32[sampleInfo->playFrame], sampleInfo->channelNum * playFrame * 4);
-	}
-	sampleInfo->playFrame += frameCount;
-}
-
-extern bool gVadPrev;
-
-void Audio_PlaySample(AudioSampleInfo* sampleInfo) {
-	SoundFormat fmt;
-	
-	if (gVadPrev) {
-		AudioTools_VadpcmEnc(sampleInfo);
-		AudioTools_VadpcmDec(sampleInfo);
+			memcpy(output, &sampleInfo->audio.s32[sampleInfo->playFrame], playFrame * sizeof(s32));
+			if (loopFrame && sampleInfo->doLoop) {
+				memcpy(((s32*)output) + playFrame, &sampleInfo->audio.s32[startFrame], loopFrame * sizeof(s32));
+			}
 	}
 	
-	if (sampleInfo->bit == 16) fmt = SOUND_S16;
-	else if (sampleInfo->bit == 32 && sampleInfo->dataIsFloat == 0) fmt = SOUND_S32;
-	else if (sampleInfo->bit == 32 && sampleInfo->dataIsFloat) fmt = SOUND_F32;
-	else printf_error("Excuse Me?");
+	sampleInfo->playFrame += frameCount * sampleInfo->channelNum;
 	
-	Sound_Init(fmt, sampleInfo->sampleRate, sampleInfo->channelNum, Audio_Playback, sampleInfo);
-	
-	while (sampleInfo->playFrame < sampleInfo->samplesNum / sampleInfo->channelNum)
-		(void)0;
-	SleepF(0.1);
-	
-	Sound_Free();
+	if (loopFrame && sampleInfo->doLoop)
+		sampleInfo->playFrame = WrapS(sampleInfo->playFrame, startFrame, endFrame);
 }
