@@ -110,7 +110,6 @@ void Sampler_Destroy(WindowContext* winCtx, Sampler* this, Split* split) {
 }
 
 void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
-	Thread thread;
 	AudioSample* sample = &this->sample;
 	s32 y = SPLIT_ELEM_X_PADDING;
 	f32 sliderA;
@@ -241,7 +240,6 @@ static f32 GetPos(f32 i, Rect* waverect, AudioSample* sample, Sampler* this) {
 
 static void Sampler_Draw_Waveform_Line(void* vg, Rect* waverect, AudioSample* sample, Sampler* this) {
 	f32 endSample = sample->samplesNum * this->zoom.vEnd;
-	f32 zoomRatio = this->zoom.vEnd - this->zoom.vStart;
 	f32 smplPixelRatio = (endSample - sample->samplesNum * this->zoom.vStart) / waverect->w;
 	f32 y;
 	f32 x;
@@ -292,7 +290,6 @@ static void Sampler_Draw_Waveform_Line(void* vg, Rect* waverect, AudioSample* sa
 
 static void Sampler_Draw_Waveform_Block(void* vg, Rect* waverect, AudioSample* sample, Sampler* this) {
 	s32 endSample = sample->samplesNum * this->zoom.vEnd;
-	f32 smplPixelRatio = this->zoom.vEnd - this->zoom.vStart;
 	f32 smplStart = sample->samplesNum * this->zoom.vStart;
 	f32 smplCount = (f32)(endSample - smplStart) / waverect->w;
 	
@@ -350,9 +347,9 @@ static void Sampler_Draw_LoopMarker(void* vg, Rect* waverect, AudioSample* sampl
 			f32 mul = j == 0 ? 1.0f : -1.0f;
 			f32 y = waverect->y;
 			Vec2f shape[] = {
-				8.0f, 0.0f,
-				0.0f, 8.0f,
-				0.0f, 0.0f,
+				{ 8.0f, 0.0f },
+				{ 0.0f, 8.0f },
+				{ 0.0f, 0.0f },
 			};
 			
 			nvgBeginPath(vg);
@@ -412,7 +409,6 @@ static void Sampler_Draw_Position(void* vg, Rect* waverect, Rect* finder, AudioS
 
 static void Sampler_Draw_Grid(void* vg, Rect* waverect, AudioSample* sample, Sampler* this) {
 	f32 endSample = sample->samplesNum * this->zoom.vEnd;
-	f32 zoomRatio = this->zoom.vEnd - this->zoom.vStart;
 	f32 smplPixelRatio = (endSample - sample->samplesNum * this->zoom.vStart) / waverect->w;
 	s32 o = 0;
 	

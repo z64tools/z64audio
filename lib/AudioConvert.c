@@ -1052,7 +1052,6 @@ void Audio_Playback(void* ctx, void* output, u32 frameCount) {
 		.p = output
 	};
 	SampleLoop* loopInfo = &sample->instrument.loop;
-	u32 lastFrame = sample->samplesNum;
 	u32 noEscape = 0;
 	
 	if (sample->doPlay < 1)
