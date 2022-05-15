@@ -646,7 +646,8 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 	Sampler_Draw_LoopMarker(vg, &waverect, sample, this);
 	
 	// Adjust play position line by clicking
-	if (GeoGrid_Cursor_InRect(split, &waverect) && block == false) {
+	
+	if (Split_Cursor(split, 1) && GeoGrid_Cursor_InRect(split, &waverect) && block == false) {
 		MouseInput* mouse = &winCtx->input.mouse;
 		static s32 noPlayPosSet;
 		f32 curPosX = split->mousePos.x - waverect.x;
