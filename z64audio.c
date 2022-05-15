@@ -24,7 +24,7 @@ typedef enum {
 } FormatParam;
 
 char* sToolName = {
-	"z64audio" PRNT_GRAY " 2.0.2"
+	"z64audio" PRNT_GRAY " 2.1.0"
 };
 
 char* sToolUsage = {
@@ -179,7 +179,7 @@ s32 Main(s32 argc, char* argv[]) {
 	printf_WinFix();
 	printf_SetPrefix("");
 	
-	if (ParseArg("gui")) {
+	if (argc == 1) {
 		WindowContext* winCtx = Calloc(0, sizeof(WindowContext));
 		
 		printf_SetSuppressLevel(PSL_DEBUG);

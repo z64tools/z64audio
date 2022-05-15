@@ -57,6 +57,12 @@ typedef struct AudioSample {
 	MemFile vadLoopBook;
 	volatile s32 doPlay;
 	volatile u32 playFrame;
+	volatile u32 selectStart;
+	volatile u32 selectEnd;
+	struct {
+		u32 repA;
+		u32 repB;
+	} playbackState;
 } AudioSample;
 
 #ifndef __WAVE_HEADER__

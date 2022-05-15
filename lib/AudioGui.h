@@ -10,14 +10,21 @@ typedef struct {
 } WindowContext;
 
 typedef struct {
+	struct {
+		s32 selecting : 1;
+		s32 selModify : 1;
+		f32 lockPos;
+	} state;
 	ElButton    playButton;
+	ElButton    setLoopButton;
+	ElButton    clearLoopButton;
 	ElTextbox   sampleName;
 	ElSlider    loopA;
 	ElSlider    loopB;
-	ElText      text[2];
+	ElText      textLoop;
 	AudioSample sample;
 	void* player;
-	f32   y;
+	f32   waveFormPos;
 	s32   butTog;
 	struct {
 		f32 start;
@@ -30,6 +37,8 @@ typedef struct {
 	} zoom;
 	struct {
 		f32 playPos;
+		f32 selectStart;
+		f32 selectEnd;
 		f32 loopA;
 		f32 loopB;
 		NVGcolor findCol;

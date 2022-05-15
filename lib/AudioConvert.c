@@ -1047,49 +1047,58 @@ void Audio_SaveSample(AudioSample* sampleInfo) {
 }
 
 void Audio_Playback(void* ctx, void* output, u32 frameCount) {
-	AudioSample* sampleInfo = ctx;
-	s32 playFrame = frameCount;
-	s32 loopFrame = playFrame;
-	s32 startFrame = sampleInfo->instrument.loop.start;
-	s32 endFrame = sampleInfo->samplesNum;
-	s32 lastFrame = endFrame;
+	AudioSample* sample = ctx;
+	PointerCast data = {
+		.p = output
+	};
+	SampleLoop* loopInfo = &sample->instrument.loop;
+	u32 lastFrame = sample->samplesNum;
+	u32 noEscape = 0;
 	
-	if (sampleInfo->doPlay < 1)
+	if (sample->doPlay < 1)
 		return;
 	
-	if (sampleInfo->instrument.loop.count)
-		endFrame = sampleInfo->instrument.loop.end;
-	
-	playFrame = Clamp(playFrame, 0, endFrame - sampleInfo->playFrame);
-	loopFrame -= playFrame;
-	
-	if (loopFrame && sampleInfo->instrument.loop.count == false) {
-		if (sampleInfo->doPlay == true)
-			sampleInfo->doPlay = -1;
-		
-		if (sampleInfo->doPlay == -1)
-			return;
-	}
-	
-	switch (sampleInfo->bit) {
-		case 16:
-			memcpy(output, &sampleInfo->audio.s16[sampleInfo->playFrame * sampleInfo->channelNum], playFrame * sizeof(s16) * sampleInfo->channelNum);
-			if (loopFrame && sampleInfo->instrument.loop.count) {
-				memcpy(((s16*)output) + playFrame, &sampleInfo->audio.s16[startFrame * sampleInfo->channelNum], loopFrame * sizeof(s16) * sampleInfo->channelNum);
-			}
+	for (s32 i = 0; i < frameCount; i++) {
+		if (sample->playFrame >= sample->samplesNum) {
+			sample->doPlay = -1;
 			break;
-		case 32:
-			memcpy(output, &sampleInfo->audio.s32[sampleInfo->playFrame * sampleInfo->channelNum], playFrame * sizeof(s32) * sampleInfo->channelNum);
-			if (loopFrame && sampleInfo->instrument.loop.count) {
-				memcpy(((s32*)output) + playFrame, &sampleInfo->audio.s32[startFrame * sampleInfo->channelNum], loopFrame * sizeof(s32) * sampleInfo->channelNum);
-			}
-	}
-	
-	sampleInfo->playFrame += frameCount;
-	
-	if (sampleInfo->playFrame > startFrame && sampleInfo->instrument.loop.count) {
-		sampleInfo->playFrame = WrapS(sampleInfo->playFrame, startFrame, endFrame);
+		}
 		
-		return;
+		for (s32 j = 0; j < sample->channelNum; j++) {
+			if (sample->bit == 16)
+				data.s16[i * sample->channelNum + j] = sample->audio.s16[sample->playFrame * sample->channelNum + j];
+			
+			if (sample->bit == 32 && sample->dataIsFloat == false)
+				data.s32[i * sample->channelNum + j] = sample->audio.s32[sample->playFrame * sample->channelNum + j];
+			
+			if (sample->bit == 32 && sample->dataIsFloat == true)
+				data.f32[i * sample->channelNum + j] = sample->audio.f32[sample->playFrame * sample->channelNum + j];
+		}
+		
+		sample->playFrame++;
+		
+		if (sample->selectEnd != sample->selectStart) {
+			if (sample->playbackState.repA != sample->selectStart || sample->playbackState.repB != sample->selectEnd)
+				noEscape = 1024;
+			
+			if (IsBetween(sample->playFrame, sample->selectStart, sample->selectEnd + noEscape)) {
+				sample->playFrame = WrapS(sample->playFrame, sample->selectStart, sample->selectEnd);
+				sample->playbackState.repA = sample->selectStart;
+				sample->playbackState.repB = sample->selectEnd;
+				continue;
+			}
+		}
+		
+		if (loopInfo->count) {
+			if (sample->playbackState.repA != loopInfo->start || sample->playbackState.repB != loopInfo->end)
+				noEscape = 1024;
+			
+			if (IsBetween(sample->playFrame, loopInfo->start, loopInfo->end + noEscape)) {
+				sample->playFrame = WrapS(sample->playFrame, loopInfo->start, loopInfo->end);
+				sample->playbackState.repA = loopInfo->start;
+				sample->playbackState.repB = loopInfo->end;
+				continue;
+			}
+		}
 	}
 }
