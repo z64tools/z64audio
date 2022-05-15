@@ -29,11 +29,11 @@ void Window_DropCallback(GLFWwindow* window, s32 count, char* item[]) {
 			}
 			
 			Audio_InitSample(&__sampler->sample, item[0], 0);
+			Log("Input File [%s]", item[0]);
 			Audio_LoadSample(&__sampler->sample);
 			
 			fmt = __sampler->sample.bit == 16 ? SOUND_S16 : (__sampler->sample.bit == 32 && __sampler->sample.dataIsFloat) ? SOUND_F32 : SOUND_S32;
 			
-			__sampler->sample.doLoop = __sampler->sample.instrument.loop.count != 0;
 			__sampler->player = Sound_Init(fmt, __sampler->sample.sampleRate, __sampler->sample.channelNum, Audio_Playback, &__sampler->sample);
 			
 			if (StrStr(item[0], "Sample.wav")) {
@@ -52,6 +52,17 @@ void Window_DropCallback(GLFWwindow* window, s32 count, char* item[]) {
 				}
 			} else
 				strncpy(__sampler->sampleName.txt, String_GetBasename(item[0]), 64);
+			
+			__sampler->loopA.max = (f32)__sampler->sample.samplesNum - 0.95;
+			__sampler->loopB.max = (f32)__sampler->sample.samplesNum;
+			
+			if (__sampler->sample.instrument.loop.count) {
+				Element_Slider_SetValue(&__sampler->loopA, __sampler->sample.instrument.loop.start);
+				Element_Slider_SetValue(&__sampler->loopB, __sampler->sample.instrument.loop.end);
+			} else {
+				Element_Slider_SetValue(&__sampler->loopA, 0);
+				Element_Slider_SetValue(&__sampler->loopB, 0);
+			}
 		}
 	}
 }
@@ -76,7 +87,10 @@ void Sampler_Init(WindowContext* winCtx, Sampler* this, Split* split) {
 	this->sampleName.txt = Calloc(0, 66);
 	this->sampleName.size = 64;
 	
-	this->text.txt = Calloc(0, 64);
+	this->text[0].txt = "Loop Start";
+	this->text[1].txt = "Loop End";
+	
+	this->loopA.isInt = this->loopB.isInt = true;
 	
 	this->zoom.end = 1.0f;
 	this->zoom.vEnd = 1.0f;
@@ -97,12 +111,22 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	Thread thread;
 	AudioSample* sample = &this->sample;
 	s32 y = SPLIT_ELEM_X_PADDING;
+	f32 sliderA;
+	f32 sliderB;
 	
 	// For drag n dropping
 	if (split->mouseInSplit)
 		__sampler = this;
 	
-	Element_SetRect_Multiple(split, y, 2, &this->playButton.rect, &this->sampleName.rect);
+	Element_SetRect_Multiple(split, y, 2, &this->playButton.rect, 0.5, &this->sampleName.rect, 0.5);
+	
+	if (winCtx->input.key[KEY_SPACE].press) {
+		if (sample->doPlay == 1) {
+			sample->doPlay = 0;
+			this->playButton.toggle = 1;
+		} else if (sample->doPlay == 0)
+			this->playButton.toggle = 2;
+	}
 	
 	if (Element_Button(&winCtx->geoGrid, split, &this->playButton)) {
 		if (sample->doPlay == 0) {
@@ -119,33 +143,62 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	} else {
 		if (this->butTog) {
 			sample->doPlay = false;
-			sample->playFrame = 0;
 			this->butTog = false;
 		}
 	}
 	
 	Element_Textbox(&winCtx->geoGrid, split, &this->sampleName);
+	
 	y += SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING;
 	
-	sprintf(this->text.txt, "%d", sample->channelNum == 0 ? 0 : sample->playFrame / sample->channelNum);
-	Element_SetRect_Multiple(split, y, 1, &this->text.rect);
-	Element_Text(&winCtx->geoGrid, split, &this->text);
+	Element_SetRect_Multiple(
+		split,
+		y,
+		4,
+		&this->text[0].rect,
+		0.10,
+		&this->loopA.rect,
+		0.40,
+		&this->text[1].rect,
+		0.10,
+		&this->loopB.rect,
+		0.40
+	);
+	
+	sliderA = Element_Slider(&winCtx->geoGrid, split, &this->loopA);
+	if (this->loopA.holdState) {
+		this->loopB.min = sliderA + 1.0f;
+		Element_Slider_SetValue(&this->loopB, this->prevLoopB);
+	}
+	sliderB = Element_Slider(&winCtx->geoGrid, split, &this->loopB);
+	this->prevLoopB = sliderB;
+	
+	Element_Text(&winCtx->geoGrid, split, &this->text[0]);
+	Element_Text(&winCtx->geoGrid, split, &this->text[1]);
+	
+	if (this->loopA.value != 0 || this->loopB.value != 0) {
+		sample->instrument.loop.start = sliderA;
+		sample->instrument.loop.end = sliderB;
+		sample->instrument.loop.count = -1;
+	} else {
+		sample->instrument.loop.count = 0;
+	}
 	
 	this->y = y + SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING;
 }
 
 static f32 GetPos(f32 i, Rect* waverect, AudioSample* sample, Sampler* this) {
-	s32 endSample = sample->samplesNum * this->zoom.vEnd;
+	f32 endSample = sample->samplesNum * this->zoom.vEnd;
 	
-	return waverect->x + waverect->w * ((f32)(i - sample->samplesNum * this->zoom.vStart) / (f32)(endSample - sample->samplesNum * this->zoom.vStart));
+	return waverect->x + waverect->w * ((i - sample->samplesNum * this->zoom.vStart) / (f32)(endSample - sample->samplesNum * this->zoom.vStart));
 }
 
 static void Sampler_Draw_Waveform_Line(void* vg, Rect* waverect, AudioSample* sample, Sampler* this) {
-	s32 endSample = sample->samplesNum * this->zoom.vEnd;
+	f32 endSample = sample->samplesNum * this->zoom.vEnd;
 	f32 zoomRatio = this->zoom.vEnd - this->zoom.vStart;
+	f32 sampleRatio = (endSample - sample->samplesNum * this->zoom.vStart) / waverect->w;
 	f32 y;
 	f32 x;
-	s32 ii = 0;
 	
 	nvgBeginPath(vg);
 	nvgLineCap(vg, NVG_ROUND);
@@ -153,15 +206,17 @@ static void Sampler_Draw_Waveform_Line(void* vg, Rect* waverect, AudioSample* sa
 	
 	nvgMoveTo(vg, waverect->x, waverect->y + waverect->h * 0.5);
 	
-	for (s32 i = sample->samplesNum * this->zoom.vStart; i < endSample; i++) {
+	printf_info("%f", sampleRatio);
+	
+	for (f32 i = sample->samplesNum * this->zoom.vStart; i < endSample; i += sampleRatio * 0.5) {
 		x = GetPos(i, waverect, sample, this);
 		
 		if (sample->bit == 16) {
-			y = (f32)sample->audio.s16[(s32)floorf(i) * sample->channelNum] / __INT16_MAX__;
+			y = (f32)sample->audio.s16[(s32)i * sample->channelNum] / __INT16_MAX__;
 		} else if (sample->dataIsFloat) {
-			y = ((f32)sample->audio.f32[(s32)floorf(i) * sample->channelNum]);
+			y = ((f32)sample->audio.f32[(s32)i * sample->channelNum]);
 		} else {
-			y = (f32)sample->audio.s32[(s32)floorf(i) * sample->channelNum] / (f32)__INT32_MAX__;
+			y = (f32)sample->audio.s32[(s32)i * sample->channelNum] / (f32)__INT32_MAX__;
 		}
 		
 		nvgLineTo(
@@ -186,15 +241,15 @@ static void Sampler_Draw_Waveform_Block(void* vg, Rect* waverect, AudioSample* s
 		f64 yMin = 0;
 		f64 yMax = 0;
 		f64 y = 0;
-		s32 e = smplStart + smplCount * i * sample->channelNum;
+		s32 e = smplStart + smplCount * i;
 		
 		for (s32 j = 0; j < smplCount; j++) {
 			if (sample->bit == 16) {
-				y = (f32)sample->audio.s16[e + j];
+				y = (f32)sample->audio.s16[(e + j) * sample->channelNum];
 			} else if (sample->dataIsFloat) {
-				y = ((f32)sample->audio.f32[e + j]);
+				y = ((f32)sample->audio.f32[(e + j) * sample->channelNum]);
 			} else {
-				y = (f32)sample->audio.s32[e + j];
+				y = (f32)sample->audio.s32[(e + j) * sample->channelNum];
 			}
 			
 			yMax = Max(yMax, y);
@@ -210,8 +265,9 @@ static void Sampler_Draw_Waveform_Block(void* vg, Rect* waverect, AudioSample* s
 		}
 		
 		nvgBeginPath(vg);
-		nvgLineCap(vg, NVG_ROUND);
-		nvgStrokeWidth(vg, 1.25f);
+		nvgLineCap(vg, NVG_SQUARE);
+		nvgStrokeWidth(vg, 1.75);
+		
 		nvgMoveTo(
 			vg,
 			waverect->x + i,
@@ -222,6 +278,7 @@ static void Sampler_Draw_Waveform_Block(void* vg, Rect* waverect, AudioSample* s
 			waverect->x + i,
 			waverect->y + waverect->h * 0.5 + (waverect->h * 0.5) * yMax + 1
 		);
+		
 		nvgStrokeColor(vg, Theme_GetColor(THEME_HIGHLIGHT, 255, 0.95));
 		nvgStroke(vg);
 	}
@@ -230,7 +287,7 @@ static void Sampler_Draw_Waveform_Block(void* vg, Rect* waverect, AudioSample* s
 static void Sampler_Draw_Waveform(void* vg, Rect* waverect, AudioSample* sample, Sampler* this) {
 	f32 zoomRatio = this->zoom.vEnd - this->zoom.vStart;
 	
-	this->visual.playPos = GetPos((f32)sample->playFrame / sample->channelNum, waverect, sample, this);
+	this->visual.playPos = GetPos((f32)sample->playFrame, waverect, sample, this);
 	
 	if (sample->instrument.loop.count) {
 		this->visual.loopA = GetPos((f32)sample->instrument.loop.start, waverect, sample, this);
@@ -244,7 +301,7 @@ static void Sampler_Draw_Waveform(void* vg, Rect* waverect, AudioSample* sample,
 }
 
 static void Sampler_Draw_LoopMarker(void* vg, Rect* waverect, AudioSample* sample, Sampler* this) {
-	if (sample->doLoop) {
+	if (sample->instrument.loop.count) {
 		for (s32 j = 0; j < 2; j++) {
 			f32 point = j == 0 ? this->visual.loopA : this->visual.loopB;
 			f32 mul = j == 0 ? 1.0f : -1.0f;
@@ -292,33 +349,16 @@ static void Sampler_Draw_PlayPosLine(void* vg, Rect* waverect, Rect* finder, Aud
 	nvgFill(vg);
 }
 
-void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
-	void* vg = winCtx->vg;
-	AudioSample* sample = &this->sample;
-	Rect waverect = {
-		SPLIT_ELEM_X_PADDING * 2,
-		this->y,
-		split->rect.w - SPLIT_ELEM_X_PADDING * 4,
-		split->rect.h - (this->y + SPLIT_TEXT_H * 0.5 + SPLIT_BAR_HEIGHT)
-	};
-	Rect finder = {
-		waverect.x + 2 + waverect.w * this->zoom.start,
-		waverect.y + waverect.h - 16 - 2,
-		waverect.w * this->zoom.end - (waverect.w * this->zoom.start) - 4,
-		16,
-	};
-	u32 block = 0;
-	f32 mouseX = Clamp((f32)(split->mousePos.x - waverect.x) / waverect.w, 0.0, 1.0);
-	
+static void Sampler_Draw_Grid(void* vg, Rect* waverect, AudioSample* sample, Sampler* this) {
 	nvgBeginPath(vg);
 	nvgFillPaint(
 		vg,
 		nvgBoxGradient(
 			vg,
-			waverect.x,
-			waverect.y,
-			waverect.w,
-			waverect.h,
+			waverect->x,
+			waverect->y,
+			waverect->w,
+			waverect->h,
 			0,
 			8,
 			Theme_GetColor(THEME_BASE_L1, 255, 1.05),
@@ -327,13 +367,46 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 	);
 	nvgRoundedRect(
 		vg,
-		waverect.x,
-		waverect.y,
-		waverect.w,
-		waverect.h,
+		waverect->x,
+		waverect->y,
+		waverect->w,
+		waverect->h,
 		SPLIT_ROUND_R * 2
 	);
 	nvgFill(vg);
+	
+	for (f32 i = 0; i < 1.0; i += 0.1) {
+		f32 y = waverect->y + waverect->h * i;
+		f32 a = powf(Abs(0.5 - i) * 2, 8);
+		nvgBeginPath(vg);
+		nvgLineCap(vg, NVG_ROUND);
+		nvgStrokeWidth(vg, 1.25f);
+		nvgStrokeColor(vg, Theme_GetColor(THEME_HIGHLIGHT, 50 - a * 35, 1.0));
+		nvgMoveTo(vg, waverect->x + 2, y);
+		nvgLineTo(vg, waverect->x + waverect->w - 4, y);
+		nvgStroke(vg);
+	}
+}
+
+void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
+	void* vg = winCtx->vg;
+	AudioSample* sample = &this->sample;
+	Rect waverect = {
+		SPLIT_ELEM_X_PADDING * 2,
+		this->y,
+		split->rect.w - SPLIT_ELEM_X_PADDING * 4,
+		split->rect.h - (this->y + SPLIT_TEXT_H * 0.5 + SPLIT_BAR_HEIGHT) - 20
+	};
+	Rect finder = {
+		waverect.x + ((waverect.w + 2) * this->zoom.start),
+		waverect.y + waverect.h + 4,
+		waverect.w * this->zoom.end - ((waverect.w - 4) * this->zoom.start),
+		16,
+	};
+	u32 block = 0;
+	f32 mouseX = Clamp((f32)(split->mousePos.x - waverect.x) / waverect.w, 0.0, 1.0);
+	
+	Sampler_Draw_Grid(vg, &waverect, sample, this);
 	
 	if (this->sample.audio.p == NULL)
 		return;
@@ -363,10 +436,10 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 			
 			switch (this->zoom.modifying) {
 				case -1:
-					this->zoom.start = ClampMax(mouseX, this->zoom.end - 0.00001);
+					this->zoom.start = ClampMax(mouseX, this->zoom.end - 0.0001);
 					break;
 				case 1:
-					this->zoom.end = ClampMin(mouseX, this->zoom.start + 0.00001);
+					this->zoom.end = ClampMin(mouseX, this->zoom.start + 0.0001);
 					break;
 				case 8:
 					if (this->zoom.start + xmod >= 0 && this->zoom.end + xmod <= 1.0) {
@@ -398,9 +471,9 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 		
 		if (scrollY) {
 			if (scrollY > 0) {
-				if (zoomRatio > 0.00001) {
-					Math_DelSmoothStepToD(&this->zoom.start, relPosX, 0.15, zoomRatio, 0.0);
-					Math_DelSmoothStepToD(&this->zoom.end, relPosX, 0.15, zoomRatio, 0.0);
+				if (zoomRatio > 0.0001 * 0.5) {
+					Math_SmoothStepToF(&this->zoom.start, relPosX, 0.15, zoomRatio, 0.0);
+					Math_SmoothStepToF(&this->zoom.end, relPosX, 0.15, zoomRatio, 0.0);
 				}
 			} else {
 				this->zoom.start += (0.0 - this->zoom.start) * zoomRatio;
@@ -408,22 +481,33 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 			}
 		}
 		
-		if (this->zoom.start >= this->zoom.end) {
-			f32 median = this->zoom.start + this->zoom.end;
-			
-			median *= 0.5;
-			this->zoom.start = median - 0.00001;
-			this->zoom.end = median + 0.00001;
+		zoomRatio = this->zoom.end - this->zoom.start;
+		
+		if (zoomRatio < 0.0001) {
+			this->zoom.start -= (0.0001 - zoomRatio) * 0.5;
+			this->zoom.end += (0.0001 - zoomRatio) * 0.5;
 		}
 	}
 	
-	this->zoom.start = Clamp(this->zoom.start, 0.0, 0.99999);
-	this->zoom.end = Clamp(this->zoom.end, 0.00001, 1.0);
+	this->zoom.start = Clamp(this->zoom.start, 0.0, 1.0 - 0.0001);
+	this->zoom.end = Clamp(this->zoom.end, 0.0001, 1.0);
 	
-	Math_DelSmoothStepToD(&this->zoom.vStart, this->zoom.start, 0.25, 0.25, 0.0);
-	Math_DelSmoothStepToD(&this->zoom.vEnd, this->zoom.end, 0.25, 0.25, 0.0);
+	Math_SmoothStepToF(&this->zoom.vStart, this->zoom.start, 0.25, 1.0, 0.0);
+	Math_SmoothStepToF(&this->zoom.vEnd, this->zoom.end, 0.25, 1.0, 0.0);
 	
 	Sampler_Draw_Waveform(vg, &waverect, sample, this);
+	
+	nvgBeginPath(vg);
+	nvgFillColor(vg, Theme_GetColor(THEME_BASE_L1, 255, 0.75));
+	nvgRoundedRect(
+		vg,
+		waverect.x - 1,
+		finder.y - 1,
+		waverect.w + 2,
+		finder.h + 2,
+		SPLIT_ROUND_R * 2
+	);
+	nvgFill(vg);
 	
 	nvgBeginPath(vg);
 	nvgFillColor(vg, this->visual.findCol);
@@ -444,8 +528,7 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 	if (GeoGrid_Cursor_InRect(split, &waverect) && block == false) {
 		if (winCtx->input.mouse.clickL.press) {
 			f32 clickPosX = split->mousePos.x - waverect.x;
-			sample->playFrame = sample->samplesNum * sample->channelNum * this->zoom.start + (f32)sample->samplesNum * sample->channelNum * (this->zoom.end - this->zoom.start) * (clickPosX / waverect.w);
-			sample->playFrame = Align(sample->playFrame, sample->channelNum);
+			sample->playFrame = sample->samplesNum * this->zoom.start + (f32)sample->samplesNum * (this->zoom.end - this->zoom.start) * (clickPosX / waverect.w);
 			printf_info("Cursor %f", clickPosX / waverect.w);
 		}
 	}

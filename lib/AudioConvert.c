@@ -371,12 +371,15 @@ static void* Audio_GetChunk(AudioSample* sampleInfo, const char* type) {
 }
 
 void Audio_LoadSample_Wav(AudioSample* sampleInfo) {
-	MemFile_LoadFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".wav");
+	MemFile_LoadFile(&sampleInfo->memFile, sampleInfo->input);
 	WaveHeader* waveHeader = sampleInfo->memFile.data;
 	WaveData* waveData;
 	WaveFmt* waveInfo;
 	WaveInst* waveInstInfo;
 	WaveSmpl* waveSampleInfo;
+	
+	if (sampleInfo->memFile.data == NULL)
+		printf_error("Could not load file. Closing!");
 	
 	if (!StrStrNum(waveHeader->chunk.name, "RIFF", 4) || !StrStrNum(waveHeader->format, "WAVE", 4))
 		printf_error("Expected RIFF WAVE Header: [%.4s] [%.4s]", waveHeader->chunk.name, waveHeader->format);
@@ -413,12 +416,15 @@ void Audio_LoadSample_Wav(AudioSample* sampleInfo) {
 }
 
 void Audio_LoadSample_Aiff(AudioSample* sampleInfo) {
-	MemFile_LoadFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".aiff");
+	MemFile_LoadFile(&sampleInfo->memFile, sampleInfo->input);
 	AiffHeader* aiffHeader = sampleInfo->memFile.data;
 	AiffSsnd* aiffData;
 	AiffComm* aiffInfo;
 	AiffInst* aiffInstInfo;
 	AiffMark* aiffMarkerInfo;
+	
+	if (sampleInfo->memFile.data == NULL)
+		printf_error("Could not load file. Closing!");
 	
 	if (!StrStrNum(aiffHeader->chunk.name, "FORM", 4) || !StrStrNum(aiffHeader->formType, "AIFF", 4))
 		printf_error("Expected FORM AIFF Header: [%.4s] [%.4s]", aiffHeader->chunk.name, aiffHeader->formType);
@@ -483,7 +489,10 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	u32 loopEnd;
 	u32 tailEnd;
 	
-	MemFile_LoadFile_ReqExt(&sampleInfo->memFile, sampleInfo->input, ".bin");
+	MemFile_LoadFile(&sampleInfo->memFile, sampleInfo->input);
+	
+	if (sampleInfo->memFile.data == NULL)
+		printf_error("Could not load file. Closing!");
 	
 	Dir_Set(&gDir, String_GetPath(sampleInfo->input));
 	Log("Wildcard *.book.bin");
@@ -1039,21 +1048,22 @@ void Audio_SaveSample(AudioSample* sampleInfo) {
 
 void Audio_Playback(void* ctx, void* output, u32 frameCount) {
 	AudioSample* sampleInfo = ctx;
-	u32 playFrame = frameCount * sampleInfo->channelNum;
-	u32 loopFrame = playFrame;
-	u32 startFrame = sampleInfo->instrument.loop.start * sampleInfo->channelNum;
-	u32 endFrame = sampleInfo->samplesNum * sampleInfo->channelNum;
+	s32 playFrame = frameCount;
+	s32 loopFrame = playFrame;
+	s32 startFrame = sampleInfo->instrument.loop.start;
+	s32 endFrame = sampleInfo->samplesNum;
+	s32 lastFrame = endFrame;
 	
 	if (sampleInfo->doPlay < 1)
 		return;
 	
-	if (sampleInfo->doLoop)
-		endFrame = sampleInfo->instrument.loop.end * sampleInfo->channelNum;
+	if (sampleInfo->instrument.loop.count)
+		endFrame = sampleInfo->instrument.loop.end;
 	
-	playFrame = Clamp(frameCount * sampleInfo->channelNum, 0, endFrame - sampleInfo->playFrame);
+	playFrame = Clamp(playFrame, 0, endFrame - sampleInfo->playFrame);
 	loopFrame -= playFrame;
 	
-	if (loopFrame && sampleInfo->doLoop == false) {
+	if (loopFrame && sampleInfo->instrument.loop.count == false) {
 		if (sampleInfo->doPlay == true)
 			sampleInfo->doPlay = -1;
 		
@@ -1063,20 +1073,23 @@ void Audio_Playback(void* ctx, void* output, u32 frameCount) {
 	
 	switch (sampleInfo->bit) {
 		case 16:
-			memcpy(output, &sampleInfo->audio.s16[sampleInfo->playFrame], playFrame * sizeof(s16));
-			if (loopFrame && sampleInfo->doLoop) {
-				memcpy(((s16*)output) + playFrame, &sampleInfo->audio.s16[startFrame], loopFrame * sizeof(s16));
+			memcpy(output, &sampleInfo->audio.s16[sampleInfo->playFrame * sampleInfo->channelNum], playFrame * sizeof(s16) * sampleInfo->channelNum);
+			if (loopFrame && sampleInfo->instrument.loop.count) {
+				memcpy(((s16*)output) + playFrame, &sampleInfo->audio.s16[startFrame * sampleInfo->channelNum], loopFrame * sizeof(s16) * sampleInfo->channelNum);
 			}
 			break;
 		case 32:
-			memcpy(output, &sampleInfo->audio.s32[sampleInfo->playFrame], playFrame * sizeof(s32));
-			if (loopFrame && sampleInfo->doLoop) {
-				memcpy(((s32*)output) + playFrame, &sampleInfo->audio.s32[startFrame], loopFrame * sizeof(s32));
+			memcpy(output, &sampleInfo->audio.s32[sampleInfo->playFrame * sampleInfo->channelNum], playFrame * sizeof(s32) * sampleInfo->channelNum);
+			if (loopFrame && sampleInfo->instrument.loop.count) {
+				memcpy(((s32*)output) + playFrame, &sampleInfo->audio.s32[startFrame * sampleInfo->channelNum], loopFrame * sizeof(s32) * sampleInfo->channelNum);
 			}
 	}
 	
-	sampleInfo->playFrame += frameCount * sampleInfo->channelNum;
+	sampleInfo->playFrame += frameCount;
 	
-	if (loopFrame && sampleInfo->doLoop)
+	if (sampleInfo->playFrame > startFrame && sampleInfo->instrument.loop.count) {
 		sampleInfo->playFrame = WrapS(sampleInfo->playFrame, startFrame, endFrame);
+		
+		return;
+	}
 }

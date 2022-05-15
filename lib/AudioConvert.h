@@ -56,7 +56,6 @@ typedef struct AudioSample {
 	MemFile vadBook;
 	MemFile vadLoopBook;
 	volatile s32 doPlay;
-	volatile s32 doLoop;
 	volatile u32 playFrame;
 } AudioSample;
 

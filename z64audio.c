@@ -183,7 +183,7 @@ s32 Main(s32 argc, char* argv[]) {
 		WindowContext* winCtx = Calloc(0, sizeof(WindowContext));
 		
 		printf_SetSuppressLevel(PSL_DEBUG);
-		winCtx->vg = UI_Init("z64audio", &winCtx->app, &winCtx->input, winCtx, (void*)Window_Update, (void*)Window_Draw, Window_DropCallback, 560, 480, 0);
+		winCtx->vg = UI_Init("z64audio", &winCtx->app, &winCtx->input, winCtx, (void*)Window_Update, (void*)Window_Draw, Window_DropCallback, 980, 480, 2);
 		
 		winCtx->geoGrid.passArg = winCtx;
 		winCtx->geoGrid.taskTable = gTaskTable;

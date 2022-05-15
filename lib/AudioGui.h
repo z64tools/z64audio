@@ -12,19 +12,21 @@ typedef struct {
 typedef struct {
 	ElButton    playButton;
 	ElTextbox   sampleName;
-	ElText      text;
+	ElSlider    loopA;
+	ElSlider    loopB;
+	ElText      text[2];
 	AudioSample sample;
 	void* player;
 	f32   y;
 	s32   butTog;
 	struct {
-		f64 start;
-		f64 end;
+		f32 start;
+		f32 end;
 		s32 modifying;
 		f32 rel;
 		
-		f64 vStart;
-		f64 vEnd;
+		f32 vStart;
+		f32 vEnd;
 	} zoom;
 	struct {
 		f32 playPos;
@@ -33,6 +35,7 @@ typedef struct {
 		NVGcolor findCol;
 	} visual;
 	f32 mousePrevX;
+	f32 prevLoopB;
 } Sampler;
 
 void Window_DropCallback();
