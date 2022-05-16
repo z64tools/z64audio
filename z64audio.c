@@ -291,6 +291,7 @@ s32 Main(s32 argc, char* argv[]) {
 		if (StrStr(argv[parArg], "16"))
 			sample.targetBit = 16;
 		
+		sample.targetIsFloat = false;
 		if (sample.targetBit) {
 			if (StrStr(argv[parArg], "f"))
 				sample.targetIsFloat = true;

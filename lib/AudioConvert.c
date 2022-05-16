@@ -326,7 +326,7 @@ void Audio_BitDepth(AudioSample* sampleInfo) {
 	
 	if (sampleInfo->bit == 32 && sampleInfo->dataIsFloat == true && sampleInfo->targetIsFloat == false) {
 		for (s32 i = 0; i < sampleInfo->samplesNum * sampleInfo->channelNum; i++) {
-			sampleInfo->audio.s32[i] = sampleInfo->audio.f32[i] * (f32)__INT32_MAX__;
+			sampleInfo->audio.s32[i] = sampleInfo->audio.f32[i] * __INT32_MAX__;
 		}
 		
 		Log("Converting from 32-float to 32-int");
@@ -399,6 +399,8 @@ void Audio_LoadSample_Wav(AudioSample* sampleInfo) {
 	if (waveInfo->format == IEEE_FLOAT) {
 		Log("[%s] 32-BitFloat", sampleInfo->input);
 		sampleInfo->dataIsFloat = true;
+		if (sampleInfo->targetBit == 0)
+			sampleInfo->targetIsFloat = sampleInfo->dataIsFloat;
 	}
 	
 	if (waveInstInfo) {
@@ -627,7 +629,7 @@ static void Wave_WriteChunk_Data(AudioSample* sampleInfo, MemFile* output) {
 	data.chunk.size = sampleInfo->size;
 	
 	memcpy(data.chunk.name, "data", 4);
-	MemFile_Write(output, &data, sizeof(data));
+	MemFile_Write(output, &data, 8);
 	MemFile_Write(output, sampleInfo->audio.p, sampleInfo->size);
 }
 
@@ -677,6 +679,7 @@ void Audio_SaveSample_Wav(AudioSample* sampleInfo) {
 	
 	Log("Malloc %fMB", BinToMb(sampleInfo->size * 2));
 	MemFile_Malloc(&output, sampleInfo->size * 2);
+	MemFile_Params(&output, MEM_REALLOC, true, MEM_END);
 	
 	Log("WriteChunk " PRNT_BLUE "RIFF"); Wave_WriteChunk_Riff(sampleInfo, &output);
 	Log("WriteChunk " PRNT_BLUE "FMT "); Wave_WriteChunk_Fmt(sampleInfo, &output);

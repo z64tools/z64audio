@@ -13,6 +13,7 @@ typedef struct {
 	struct {
 		s32 selecting    : 1;
 		s32 selModify    : 1;
+		s32 setLoop      : 2;
 		s32 waveWinBlock : 1;
 		f32 lockPos;
 	} state;
@@ -20,9 +21,7 @@ typedef struct {
 	ElButton    setLoopButton;
 	ElButton    clearLoopButton;
 	ElTextbox   sampleName;
-	ElSlider    loopA;
-	ElSlider    loopB;
-	ElText      textLoop;
+	ElText      textInfo;
 	AudioSample sample;
 	void* player;
 	f32   waveFormPos;
@@ -45,7 +44,6 @@ typedef struct {
 		NVGcolor findCol;
 	} visual;
 	f32 mousePrevX;
-	f32 prevLoopB;
 } Sampler;
 
 void Window_DropCallback();

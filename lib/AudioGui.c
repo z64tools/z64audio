@@ -53,16 +53,8 @@ void Window_DropCallback(GLFWwindow* window, s32 count, char* item[]) {
 			} else
 				strncpy(__sampler->sampleName.txt, String_GetBasename(item[0]), 64);
 			
-			__sampler->loopA.max = (f32)__sampler->sample.samplesNum - 0.95;
-			__sampler->loopB.max = (f32)__sampler->sample.samplesNum;
-			
-			if (__sampler->sample.instrument.loop.count) {
-				Element_Slider_SetValue(&__sampler->loopA, __sampler->sample.instrument.loop.start);
-				Element_Slider_SetValue(&__sampler->loopB, __sampler->sample.instrument.loop.end);
-			} else {
-				Element_Slider_SetValue(&__sampler->loopA, 0);
-				Element_Slider_SetValue(&__sampler->loopB, 0);
-			}
+			__sampler->zoom.end = 1.0;
+			__sampler->zoom.start = 0.0;
 		}
 	}
 }
@@ -84,15 +76,13 @@ void Sampler_Init(WindowContext* winCtx, Sampler* this, Split* split) {
 	this->playButton.txt = "Play Sample";
 	this->playButton.toggle = true;
 	
-	this->setLoopButton.txt = "Set";
-	this->clearLoopButton.txt = "Clear";
+	this->setLoopButton.txt = "Set Loop";
+	this->clearLoopButton.txt = "Clear Loop";
 	
 	this->sampleName.txt = Calloc(0, 66);
 	this->sampleName.size = 64;
 	
-	this->textLoop.txt = "Loop Settings";
-	
-	this->loopA.isInt = this->loopB.isInt = true;
+	this->textInfo.txt = Calloc(0, 128);
 	
 	this->zoom.end = 1.0f;
 	this->zoom.vEnd = 1.0f;
@@ -102,6 +92,7 @@ void Sampler_Init(WindowContext* winCtx, Sampler* this, Split* split) {
 
 void Sampler_Destroy(WindowContext* winCtx, Sampler* this, Split* split) {
 	Free(this->sampleName.txt);
+	Free(this->textInfo.txt);
 	
 	if (this->player) {
 		Sound_Free(this->player);
@@ -119,17 +110,17 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	if (split->mouseInSplit)
 		__sampler = this;
 	
-	this->loopA.locked = false;
-	this->loopB.locked = false;
-	if (this->sample.audio.p == NULL) {
-		this->loopA.locked = true;
-		this->loopB.locked = true;
-	}
+	this->setLoopButton.isDisabled = false;
+	if (sample->selectStart == sample->selectEnd)
+		this->setLoopButton.isDisabled = true;
+	
+	this->clearLoopButton.isDisabled = false;
+	if (sample->instrument.loop.count == 0)
+		this->clearLoopButton.isDisabled = true;
 	
 	Element_SetRect_Multiple(
 		split,
 		y,
-		3,
 		&this->playButton.rect,
 		0.20,
 		NULL,
@@ -172,12 +163,9 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	Element_SetRect_Multiple(
 		split,
 		y,
-		5,
-		&this->textLoop.rect,
-		0.20,
-		&this->loopA.rect,
-		0.20,
-		&this->loopB.rect,
+		&this->textInfo.rect,
+		0.40,
+		NULL,
 		0.20,
 		&this->setLoopButton.rect,
 		0.20,
@@ -189,10 +177,6 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 		sample->instrument.loop.start = 0;
 		sample->instrument.loop.end = 0;
 		sample->instrument.loop.count = 0;
-		
-		Element_Slider_SetValue(&this->loopA, sample->instrument.loop.start);
-		this->loopB.min = sliderA + 1.0f;
-		Element_Slider_SetValue(&this->loopB, sample->instrument.loop.end);
 	}
 	
 	if (Element_Button(&winCtx->geoGrid, split, &this->setLoopButton)) {
@@ -202,32 +186,23 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 			sample->instrument.loop.count = -1;
 			
 			sample->selectStart = sample->selectEnd = 0;
-			
-			Element_Slider_SetValue(&this->loopA, sample->instrument.loop.start);
-			this->loopB.min = sliderA + 1.0f;
-			Element_Slider_SetValue(&this->loopB, sample->instrument.loop.end);
 		}
 	}
 	
-	sliderA = Element_Slider(&winCtx->geoGrid, split, &this->loopA);
-	if (this->loopA.holdState) {
-		this->loopB.min = sliderA + 1.0f;
-		Element_Slider_SetValue(&this->loopB, this->prevLoopB);
-	}
-	sliderB = Element_Slider(&winCtx->geoGrid, split, &this->loopB);
-	this->prevLoopB = sliderB;
+	const char* bit[] = {
+		"-int",
+		"-float"
+	};
 	
-	Element_Text(&winCtx->geoGrid, split, &this->textLoop);
-	
-	if (this->loopA.holdState || this->loopB.holdState) {
-		if (this->loopA.value != 0 || this->loopB.value != 0) {
-			sample->instrument.loop.start = sliderA;
-			sample->instrument.loop.end = sliderB;
-			sample->instrument.loop.count = -1;
-		} else {
-			sample->instrument.loop.count = 0;
-		}
+	sprintf(this->textInfo.txt, "%d %d", this->sample.sampleRate, this->sample.bit);
+	if (this->sample.bit == 32) {
+		catprintf(this->textInfo.txt, "%s", bit[this->sample.dataIsFloat]);
 	}
+	if (this->sample.selectStart != this->sample.selectEnd) {
+		catprintf(this->textInfo.txt, "    Selection: %d / %-7d", this->sample.selectStart, this->sample.selectEnd);
+	}
+	
+	Element_Text(&winCtx->geoGrid, split, &this->textInfo);
 	
 	this->waveFormPos = y + SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING;
 }
@@ -280,7 +255,6 @@ static void Sampler_Draw_Waveform_Spline(void* vg, Rect* waverect, AudioSample* 
 		nvgStrokeWidth(vg, 1.25f);
 		
 		for (s32 i = sample->samplesNum * this->zoom.vStart; i < endSample;) {
-			s32 smpid = i;
 			f32 yl[4];
 			
 			x = Sampler_GetSamplePos(i + k, waverect, sample, this);
@@ -289,14 +263,14 @@ static void Sampler_Draw_Waveform_Spline(void* vg, Rect* waverect, AudioSample* 
 				goto adv;
 			
 			for (s32 j = -1; j < 3; j++) {
-				s32 smpidclmp = Clamp(smpid + j, 0, sample->samplesNum);
+				s32 smpidclmp = Clamp(i + j, 0, sample->samplesNum - 1);
 				
 				if (sample->bit == 16) {
-					yl[j + 1] = (f32)sample->audio.s16[(smpidclmp + s) * sample->channelNum] / __INT16_MAX__;
+					yl[j + 1] = (f32)sample->audio.s16[smpidclmp * sample->channelNum + s - 1] / __INT16_MAX__;
 				} else if (sample->dataIsFloat) {
-					yl[j + 1] = ((f32)sample->audio.f32[(smpidclmp + s) * sample->channelNum]);
+					yl[j + 1] = ((f32)sample->audio.f32[smpidclmp * sample->channelNum + s - 1]);
 				} else {
-					yl[j + 1] = (f32)sample->audio.s32[(smpidclmp + s) * sample->channelNum] / (f32)__INT32_MAX__;
+					yl[j + 1] = (f32)sample->audio.s32[smpidclmp * sample->channelNum + s - 1] / (f32)__INT32_MAX__;
 				}
 			}
 			
@@ -322,7 +296,7 @@ static void Sampler_Draw_Waveform_Spline(void* vg, Rect* waverect, AudioSample* 
 adv:
 			k += smplPixelRatio / 8;
 			if (!(k < 1.0))
-				i++;
+				i += floorf(k);
 			k = WrapF(k, 0.0, 1.0);
 		}
 		
@@ -419,6 +393,19 @@ static void Sampler_Draw_LoopMarker(void* vg, Rect* waverect, AudioSample* sampl
 			}
 			
 			nvgFill(vg);
+			
+			nvgBeginPath(vg);
+			nvgFillColor(vg, Theme_GetColor(THEME_RED, 255, 1.0));
+			nvgRoundedRect(
+				vg,
+				point,
+				waverect->y + 4,
+				j == 0 ? 2 : -2,
+				waverect->h - 8 * 2 + 4,
+				SPLIT_ROUND_R
+			);
+			
+			nvgFill(vg);
 		}
 	}
 }
@@ -427,14 +414,29 @@ static void Sampler_Draw_Selection(void* vg, Rect* waverect, Rect* finder, Audio
 	if (sample->selectStart == sample->selectEnd)
 		return;
 	
+	Rect rect = {
+		this->visual.selectStart,
+		waverect->y + 8,
+		this->visual.selectStart != this->visual.selectEnd ? this->visual.selectEnd - this->visual.selectStart + 2 : 2,
+		waverect->h - 8 * 2
+	};
+	
+	rect.w += rect.x - ClampMin(rect.x, waverect->x);
+	rect.x = ClampMin(rect.x, waverect->x);
+	
+	rect.w = ClampMax(rect.w, waverect->w - rect.x + 12);
+	
+	if (rect.w <= 0 || rect.x > waverect->x + waverect->w)
+		return;
+	
 	nvgBeginPath(vg);
 	nvgFillColor(vg, Theme_GetColor(THEME_PRIM, 127, 1.25));
 	nvgRoundedRect(
 		vg,
-		this->visual.selectStart,
-		waverect->y + 8,
-		this->visual.selectStart != this->visual.selectEnd ? this->visual.selectEnd - this->visual.selectStart + 2 : 2,
-		waverect->h - 8 * 2,
+		rect.x,
+		rect.y,
+		rect.w,
+		rect.h,
 		SPLIT_ROUND_R
 	);
 	
@@ -611,14 +613,12 @@ static void Sampler_ZoomLogic(WindowContext* winCtx, Split* split, Sampler* this
 	}
 	
 	if (GeoGrid_Cursor_InRect(split, waverect) && this->state.waveWinBlock == false) {
-		f32 relPosX;
 		f32 zoomRatio = this->zoom.end - this->zoom.start;
-		f32 mod = (mouseX - this->mousePrevX) * zoomRatio;
 		f32 scrollY = winCtx->input.mouse.scrollY;
 		
-		relPosX = this->zoom.start + ((f32)(split->mousePos.x - waverect->x) / waverect->w) * zoomRatio;
-		
 		if (winCtx->input.mouse.clickMid.hold) {
+			f32 mod = (mouseX - this->mousePrevX) * zoomRatio;
+			
 			if (this->zoom.start - mod >= 0 && this->zoom.end - mod <= 1.0) {
 				this->zoom.start -= mod;
 				this->zoom.end -= mod;
@@ -627,6 +627,7 @@ static void Sampler_ZoomLogic(WindowContext* winCtx, Split* split, Sampler* this
 		
 		if (scrollY) {
 			if (scrollY > 0) {
+				f32 relPosX = this->zoom.start + ((f32)(split->mousePos.x - waverect->x) / waverect->w) * zoomRatio;
 				f32 start = this->zoom.start - (this->zoom.start - relPosX) * 0.25;
 				f32 end = this->zoom.end - (this->zoom.end - relPosX) * 0.25;
 				f32 endSample = this->sample.samplesNum * end;
@@ -670,11 +671,6 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 		waverect.w * this->zoom.end - ((waverect.w - 4) * this->zoom.start),
 		16,
 	};
-	f32 center = finder.x + finder.w * 0.5;
-	s32 fx = finder.x;
-	
-	finder.x = ClampMax(finder.x, center - 32);
-	finder.w = ClampMin(finder.w, (center - fx) + 32);
 	
 	Sampler_ZoomLogic(winCtx, split, this, &waverect, &finder);
 	Sampler_Draw_WaveRect(vg, &waverect);
@@ -707,13 +703,41 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 	
 	// Adjust play position line by clicking
 	
-	if (Split_Cursor(split, 1) && GeoGrid_Cursor_InRect(split, &waverect) && this->state.waveWinBlock == false) {
+	if ((Split_Cursor(split, 1) && GeoGrid_Cursor_InRect(split, &waverect) && this->state.waveWinBlock == false) || this->state.selecting || this->state.selModify || this->state.setLoop) {
 		MouseInput* mouse = &winCtx->input.mouse;
 		static s32 noPlayPosSet;
 		f32 curPosX = split->mousePos.x - waverect.x;
 		f32 prsPosX = split->mousePressPos.x - waverect.x;
+		
+		curPosX = ClampMin(curPosX, 0);
+		
 		curPosX = sample->samplesNum * this->zoom.start + (f32)sample->samplesNum * (this->zoom.end - this->zoom.start) * (curPosX / waverect.w);
 		prsPosX = sample->samplesNum * this->zoom.start + (f32)sample->samplesNum * (this->zoom.end - this->zoom.start) * (prsPosX / waverect.w);
+		
+		if (this->sample.instrument.loop.count) {
+			if (mouse->clickL.press && Abs(curPosX - this->sample.instrument.loop.start) < 32) {
+				this->state.setLoop = 1;
+			}
+			if (mouse->clickL.press && Abs(curPosX - this->sample.instrument.loop.end) < 32) {
+				this->state.setLoop = -1;
+			}
+			
+			if (this->state.setLoop) {
+				if (mouse->clickL.hold == false) {
+					this->state.setLoop = 0;
+					
+					return;
+				}
+				
+				if (this->state.setLoop == 1) {
+					this->sample.instrument.loop.start = curPosX;
+				} else {
+					this->sample.instrument.loop.end = curPosX;
+				}
+				
+				return;
+			}
+		}
 		
 		if (mouse->clickL.release && noPlayPosSet == false)
 			sample->playFrame = curPosX;
@@ -753,5 +777,8 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 			
 			noPlayPosSet = true;
 		}
+		
+		sample->selectStart = ClampMin(sample->selectStart, 0);
+		sample->selectEnd = ClampMax(sample->selectEnd, sample->samplesNum);
 	}
 }
