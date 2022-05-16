@@ -11,8 +11,9 @@ typedef struct {
 
 typedef struct {
 	struct {
-		s32 selecting : 1;
-		s32 selModify : 1;
+		s32 selecting    : 1;
+		s32 selModify    : 1;
+		s32 waveWinBlock : 1;
 		f32 lockPos;
 	} state;
 	ElButton    playButton;
