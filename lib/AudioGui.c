@@ -207,10 +207,10 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	this->waveFormPos = y + SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING;
 }
 
-static f32 Sampler_GetSamplePos(f32 i, Rect* waverect, AudioSample* sample, Sampler* this) {
-	f32 endSample = sample->samplesNum * this->zoom.vEnd;
+static f64 Sampler_GetSamplePos(f64 i, Rect* waverect, AudioSample* sample, Sampler* this) {
+	f64 endSample = sample->samplesNum * this->zoom.vEnd;
 	
-	return waverect->x + waverect->w * ((i - sample->samplesNum * this->zoom.vStart) / (f32)(endSample - sample->samplesNum * this->zoom.vStart));
+	return waverect->x + waverect->w * ((i - sample->samplesNum * this->zoom.vStart) / (f64)(endSample - sample->samplesNum * this->zoom.vStart));
 }
 
 static void Sampler_Draw_WaveRect(void* vg, Rect* waverect) {
@@ -295,9 +295,10 @@ static void Sampler_Draw_Waveform_Spline(void* vg, Rect* waverect, AudioSample* 
 			
 adv:
 			k += smplPixelRatio / 8;
-			if (!(k < 1.0))
+			if (!(k < 1.0)) {
 				i += floorf(k);
-			k = WrapF(k, 0.0, 1.0);
+				k -= floorf(k);
+			}
 		}
 		
 		if (s == 1)
