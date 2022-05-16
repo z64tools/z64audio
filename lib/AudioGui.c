@@ -243,47 +243,52 @@ static void Sampler_Draw_Waveform_Line(void* vg, Rect* waverect, AudioSample* sa
 	f32 smplPixelRatio = (endSample - sample->samplesNum * this->zoom.vStart) / waverect->w;
 	f32 y;
 	f32 x;
+	f32 e = 0;
+	f32 k = 0;
+	s32 m = 0;
 	
 	nvgBeginPath(vg);
 	nvgLineCap(vg, NVG_ROUND);
 	nvgStrokeWidth(vg, 1.25f);
 	
-	nvgMoveTo(vg, waverect->x, waverect->y + waverect->h * 0.5);
-	
-	// Quarter precision
-	smplPixelRatio *= 0.25;
-	
-	for (f32 i = sample->samplesNum * this->zoom.vStart; i < endSample; i += smplPixelRatio) {
-		s32 smpid = (s32)i;
-		f32 ylist[4];
-		f32 intr = WrapF(i, 0.0, 1.0);
-		x = GetPos(i, waverect, sample, this);
+	for (s32 i = sample->samplesNum * this->zoom.vStart; i < endSample;) {
+		s32 smpid = i;
 		
-		for (s32 j = -3; j < 1; j++) {
-			s32 nid = ClampMin(smpid + j, 0);
-			
-			if (sample->bit == 16) {
-				ylist[j + 3] = (f32)sample->audio.s16[nid * sample->channelNum] / __INT16_MAX__;
-			} else if (sample->dataIsFloat) {
-				ylist[j + 3] = ((f32)sample->audio.f32[nid * sample->channelNum]);
-			} else {
-				ylist[j + 3] = (f32)sample->audio.s32[nid * sample->channelNum] / (f32)__INT32_MAX__;
-			}
+		x = GetPos(i + k, waverect, sample, this);
+		
+		if (!IsBetween(x, waverect->x, waverect->x + waverect->w))
+			goto adv;
+		
+		if (sample->bit == 16) {
+			y = (f32)sample->audio.s16[smpid * sample->channelNum] / __INT16_MAX__;
+		} else if (sample->dataIsFloat) {
+			y = ((f32)sample->audio.f32[smpid * sample->channelNum]);
+		} else {
+			y = (f32)sample->audio.s32[smpid * sample->channelNum] / (f32)__INT32_MAX__;
 		}
 		
-		if (smplPixelRatio > 1.0)
-			y = ylist[3];
-		else
-			y = Math_SplineFloat(intr, NULL, &ylist[0], &ylist[1], &ylist[2], &ylist[3]);
+		if (m == 0) {
+			m++;
+			nvgMoveTo(
+				vg,
+				x,
+				waverect->y + waverect->h * 0.5 - (waverect->h * 0.5) * y
+			);
+		} else {
+			nvgLineTo(
+				vg,
+				x,
+				waverect->y + waverect->h * 0.5 - (waverect->h * 0.5) * y
+			);
+		}
 		
-		nvgLineTo(
-			vg,
-			x,
-			waverect->y + waverect->h * 0.5 + (waverect->h * 0.5) * y
-		);
+adv:
+		k += smplPixelRatio / 8;
+		if (!(k < 1.0))
+			i++;
+		k = WrapF(k, 0.0, 1.0);
 	}
 	
-	nvgLineTo(vg, waverect->x + waverect->w, waverect->y + waverect->h * 0.5);
 	nvgStrokeColor(vg, Theme_GetColor(THEME_HIGHLIGHT, 255, 0.95));
 	nvgStroke(vg);
 }
@@ -327,12 +332,12 @@ static void Sampler_Draw_Waveform_Block(void* vg, Rect* waverect, AudioSample* s
 		nvgMoveTo(
 			vg,
 			waverect->x + i,
-			waverect->y + waverect->h * 0.5 - (waverect->h * 0.5) * Abs(yMin)
+			waverect->y + waverect->h * 0.5 - (waverect->h * 0.5) * yMin
 		);
 		nvgLineTo(
 			vg,
 			waverect->x + i,
-			waverect->y + waverect->h * 0.5 + (waverect->h * 0.5) * yMax + 1
+			waverect->y + waverect->h * 0.5 - (waverect->h * 0.5) * yMax + 1
 		);
 		
 		nvgStrokeColor(vg, Theme_GetColor(THEME_HIGHLIGHT, 255, 0.95));
