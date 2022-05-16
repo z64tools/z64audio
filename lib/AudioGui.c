@@ -716,11 +716,17 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 		prsPosX = sample->samplesNum * this->zoom.start + (f32)sample->samplesNum * (this->zoom.end - this->zoom.start) * (prsPosX / waverect.w);
 		
 		if (this->sample.instrument.loop.count) {
-			if (mouse->clickL.press && Abs(curPosX - this->sample.instrument.loop.start) < 32) {
-				this->state.setLoop = 1;
-			}
-			if (mouse->clickL.press && Abs(curPosX - this->sample.instrument.loop.end) < 32) {
-				this->state.setLoop = -1;
+			if (this->state.setLoop == false) {
+				if (Abs(split->mousePos.x - this->visual.loopA) < 8) {
+					Cursor_ForceCursor(CURSOR_ARROW_H);
+					if (mouse->clickL.press)
+						this->state.setLoop = 1;
+				}
+				if (Abs(split->mousePos.x - this->visual.loopB) < 8) {
+					Cursor_ForceCursor(CURSOR_ARROW_H);
+					if (mouse->clickL.press)
+						this->state.setLoop = -1;
+				}
 			}
 			
 			if (this->state.setLoop) {
