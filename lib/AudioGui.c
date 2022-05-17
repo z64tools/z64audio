@@ -55,6 +55,8 @@ void Window_DropCallback(GLFWwindow* window, s32 count, char* item[]) {
 			
 			__sampler->zoom.end = 1.0;
 			__sampler->zoom.start = 0.0;
+			
+			glfwFocusWindow(window);
 		}
 	}
 }
@@ -103,8 +105,6 @@ void Sampler_Destroy(WindowContext* winCtx, Sampler* this, Split* split) {
 void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	AudioSample* sample = &this->sample;
 	s32 y = SPLIT_ELEM_X_PADDING;
-	f32 sliderA;
-	f32 sliderB;
 	
 	// For drag n dropping
 	if (split->mouseInSplit)
@@ -128,14 +128,6 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 		&this->sampleName.rect,
 		0.60
 	);
-	
-	if (winCtx->input.key[KEY_SPACE].press) {
-		if (sample->doPlay == 1) {
-			sample->doPlay = 0;
-			this->playButton.toggle = 1;
-		} else if (sample->doPlay == 0)
-			this->playButton.toggle = 2;
-	}
 	
 	if (Element_Button(&winCtx->geoGrid, split, &this->playButton)) {
 		if (sample->doPlay == 0) {
@@ -203,6 +195,14 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	}
 	
 	Element_Text(&winCtx->geoGrid, split, &this->textInfo);
+	
+	if (Input_GetKey(KEY_SPACE)->press) {
+		if (sample->doPlay == 1) {
+			sample->doPlay = 0;
+			this->playButton.toggle = 1;
+		} else if (sample->doPlay == 0)
+			this->playButton.toggle = 2;
+	}
 	
 	this->waveFormPos = y + SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING;
 }

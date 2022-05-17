@@ -183,7 +183,7 @@ s32 Main(s32 argc, char* argv[]) {
 		WindowContext* winCtx = Calloc(0, sizeof(WindowContext));
 		
 		printf_SetSuppressLevel(PSL_DEBUG);
-		winCtx->vg = UI_Init("z64audio", &winCtx->app, &winCtx->input, winCtx, (void*)Window_Update, (void*)Window_Draw, Window_DropCallback, 980, 480, 2);
+		winCtx->vg = Interface_Init("z64audio", &winCtx->app, &winCtx->input, winCtx, (void*)Window_Update, (void*)Window_Draw, Window_DropCallback, 980, 480, 2);
 		
 		winCtx->geoGrid.passArg = winCtx;
 		winCtx->geoGrid.taskTable = gTaskTable;
@@ -213,10 +213,10 @@ s32 Main(s32 argc, char* argv[]) {
 		
 		GeoGrid_AddSplit(&winCtx->geoGrid, &size)->id = 1;
 		
-		Thread_Init();
-		UI_Main();
+		ThreadLock_Init();
+		Interface_Main();
 		
-		Thread_Free();
+		ThreadLock_Free();
 		glfwTerminate();
 		
 		return 0;
@@ -279,6 +279,17 @@ s32 Main(s32 argc, char* argv[]) {
 	if (ParseArg("tuning")) gTuning = String_GetFloat(argv[parArg]);
 	
 	Audio_LoadSample(&sample);
+	
+	if (ParseArg("z64rom")) {
+		if (sample.instrument.note == 60 &&
+			sample.instrument.fineTune == 0) {
+			goto noteinfo;
+		}
+	} else {
+noteinfo:
+		if (ParseArg("basenote")) sample.instrument.note = String_GetInt(argv[parArg]);
+		if (ParseArg("finetune")) sample.instrument.fineTune = String_GetInt(argv[parArg]);
+	}
 	
 	if (ParseArg("split-hi")) sample.instrument.highNote = String_GetInt(argv[parArg]);
 	if (ParseArg("split-lo")) sample.instrument.lowNote = String_GetInt(argv[parArg]);
