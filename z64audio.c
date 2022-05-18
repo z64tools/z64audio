@@ -60,7 +60,6 @@ char* sToolUsage = {
 	EXT_INFO("--N",        16, "Print Info of input [file]")
 };
 
-DirCtx gDir;
 bool gVadPrev;
 bool gRomForceLoop;
 FormatParam sDefaultFormat;

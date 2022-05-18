@@ -2,7 +2,6 @@
 #include "AudioTools.h"
 #include <minimp3/minimp3_ex.h>
 
-extern DirCtx gDir;
 NameParam gBinNameIndex;
 u32 gSampleRate = 32000;
 u32 gPrecisionFlag;
@@ -496,10 +495,10 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	if (sampleInfo->memFile.data == NULL)
 		printf_error("Could not load file. Closing!");
 	
-	Dir_Set(&gDir, String_GetPath(sampleInfo->input));
+	Dir_Set(String_GetPath(sampleInfo->input));
 	Log("Wildcard *.book.bin");
-	MemFile_LoadFile(&sampleInfo->vadBook, Dir_File(&gDir, "*.book.bin"));
-	MemFile_LoadFile_String(&config, Dir_File(&gDir, "config.cfg"));
+	MemFile_LoadFile(&sampleInfo->vadBook, Dir_File("*.book.bin"));
+	MemFile_LoadFile_String(&config, Dir_File("config.cfg"));
 	
 	loopEnd = Config_GetInt(&config, "loop_end");
 	tailEnd = Config_GetInt(&config, "tail_end");
