@@ -77,7 +77,7 @@ bin/linux/%.o: %.c $(ExtLibDep)
 
 z64audio: z64audio.c $(SOURCE_O_LINUX) $(ExtLib_Linux_O) $(Mp3_Linux_O) $(Audio_Linux_O) $(ExtGui_Linux_O)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
-	@gcc -o $@ $^ $(CFLAGS) -lm -Wl,--no-as-needed -ldl $(ExtGui_Linux_Flags)
+	@gcc -o $@ $^ $(CFLAGS) -lm -Wl,--no-as-needed -ldl -lGL $(ExtGui_Linux_Flags)
 
 # WINDOWS32
 bin/win32/lib/External.o: lib/External.c $(ExtLibDep) $(C_INCLUDE_PATH)/ExtLib.c
