@@ -157,8 +157,8 @@ void Main_LoadSampleConf(char* conf) {
 	if ((param = Config_GetVariable(mem.str, "book_order"))) gTableDesignOrder = param;
 	if ((param = Config_GetVariable(mem.str, "book_threshold"))) gTableDesignThreshold = param;
 	
-	if ((param = Config_GetVariable(mem.str, "sample_rate"))) gSampleRate = String_GetInt(param);
-	if ((param = Config_GetVariable(mem.str, "sample_tuning"))) gTuning = String_GetFloat(param);
+	if ((param = Config_GetVariable(mem.str, "sample_rate"))) gSampleRate = Value_Int(param);
+	if ((param = Config_GetVariable(mem.str, "sample_tuning"))) gTuning = Value_Float(param);
 	
 	MemFile_Free(&mem);
 }
@@ -273,8 +273,8 @@ s32 Main(s32 argc, char* argv[]) {
 		if (ParseArg("table-threshold")) gTableDesignThreshold = argv[parArg];
 	}
 	
-	if (ParseArg("srate")) gSampleRate = String_GetInt(argv[parArg]);
-	if (ParseArg("tuning")) gTuning = String_GetFloat(argv[parArg]);
+	if (ParseArg("srate")) gSampleRate = Value_Int(argv[parArg]);
+	if (ParseArg("tuning")) gTuning = Value_Float(argv[parArg]);
 	
 	Audio_LoadSample(&sample);
 	
@@ -285,12 +285,12 @@ s32 Main(s32 argc, char* argv[]) {
 		}
 	} else {
 noteinfo:
-		if (ParseArg("basenote")) sample.instrument.note = String_GetInt(argv[parArg]);
-		if (ParseArg("finetune")) sample.instrument.fineTune = String_GetInt(argv[parArg]);
+		if (ParseArg("basenote")) sample.instrument.note = Value_Int(argv[parArg]);
+		if (ParseArg("finetune")) sample.instrument.fineTune = Value_Int(argv[parArg]);
 	}
 	
-	if (ParseArg("split-hi")) sample.instrument.highNote = String_GetInt(argv[parArg]);
-	if (ParseArg("split-lo")) sample.instrument.lowNote = String_GetInt(argv[parArg]);
+	if (ParseArg("split-hi")) sample.instrument.highNote = Value_Int(argv[parArg]);
+	if (ParseArg("split-lo")) sample.instrument.lowNote = Value_Int(argv[parArg]);
 	if (ParseArg("half-precision")) gPrecisionFlag = 3;
 	
 	if (output == NULL) printf_error("No output specified!");

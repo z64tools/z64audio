@@ -487,11 +487,11 @@ void AudioTools_TableDesign(AudioSample* sampleInfo) {
 		}
 	#define FREE_P(P) if (P) free(P)
 	
-	u32 refineIteration = String_GetInt(gTableDesignIteration);
-	u32 frameSize = String_GetInt(gTableDesignFrameSize);
-	u32 bits = String_GetInt(gTableDesignBits);
-	u32 order = String_GetInt(gTableDesignOrder);
-	f64 threshold = String_GetFloat(gTableDesignThreshold);
+	u32 refineIteration = Value_Int(gTableDesignIteration);
+	u32 frameSize = Value_Int(gTableDesignFrameSize);
+	u32 bits = Value_Int(gTableDesignBits);
+	u32 order = Value_Int(gTableDesignOrder);
+	f64 threshold = Value_Float(gTableDesignThreshold);
 	u32 frameCount = sampleInfo->samplesNum;
 	
 	Log(

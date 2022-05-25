@@ -1,7 +1,7 @@
 OPT_WIN32 := -Os
 OPT_LINUX := -Os
 
-CFLAGS          = -Wall -Wno-unused-result -pthread -DEXTLIB=135
+CFLAGS          = -Wall -Wno-unused-result -pthread -DEXTLIB=136
 SOURCE_C       := $(shell find lib/* -maxdepth 0 -type f -name '*.c')
 SOURCE_O_WIN32 := $(foreach f,$(SOURCE_C:.c=.o),bin/win32/$f)
 SOURCE_O_LINUX := $(foreach f,$(SOURCE_C:.c=.o),bin/linux/$f)
