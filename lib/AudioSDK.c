@@ -220,7 +220,7 @@ s64 scored_encode(s32* inBuffer, s32* origState, s32*** coefTable, s32 order, s3
 			s32 clampedIx = clamp_bits(ix, encBits);
 			s32 val = wantedIx[base + i] * (1 << scale);
 			if (clampedIx != wantedIx[base + i]) {
-				assert(ix != wantedIx[base + i]);
+				Assert(ix != wantedIx[base + i]);
 				s32 lo = val - (1 << scale) / 2;
 				s32 hi = val + (1 << scale) / 2;
 				s64 diff = 0;

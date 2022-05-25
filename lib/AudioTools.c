@@ -816,16 +816,6 @@ void AudioTools_VadpcmEnc(AudioSample* sampleInfo) {
 	sampleInfo->size = nBytes;
 	
 	Log("New MemFile Size [0x%X]", sampleInfo->size);
-	
-	Log("LoopBook:");
-	
-	if (gPrintfSuppress <= PSL_DEBUG) {
-		for (s32 i = 0; i < (0x8 * sampleInfo->vadBook.cast.u16[0]) * sampleInfo->vadBook.cast.u16[1]; i++) {
-			printf("%04X ", sampleInfo->vadBook.cast.u16[2 + i]);
-			if ((i % 8) == 7)
-				printf("\n");
-		}
-	}
 }
 
 void AudioTools_VadpcmDec(AudioSample* sampleInfo) {
