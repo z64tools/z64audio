@@ -11,7 +11,7 @@ s32 inner_product(s32 length, s32* v1, s32* v2);
 void permute(s32* out, s32* in, s32* decompressed, s32 scale, u32 framesize);
 void get_bounds(s32* in, s32* decompressed, s32 scale, s32* minVals, s32* maxVals, u32 framesize);
 s64 scored_encode(s32* inBuffer, s32* origState, s32*** coefTable, s32 order, s32 npredictors, s32 wantedPredictor, s32 wantedScale, s32 wantedIx[16], u32 framesize);
-s32 descent(s32 guess[16], s32 minVals[16], s32 maxVals[16], u8 input[9], s32 lastState[16], s32*** coefTable, s32 order, s32 npredictors, s32 wantedPredictor, s32 wantedScale, s32 wantedIx[32], u32 framesize);
+s32 descent(s32 guess[16], s32 minVals[16], s32 maxVals[16], u8 input[9], s32 lastState[16], s32*** coefTable, s32 order, s32 npredictors, s32 wantedPredictor, s32 wantedScale, s32 wantedIx[16], u32 framesize);
 s32 bruteforce(s32 guess[16], u8 input[9], s32 decoded[16], s32 decompressed[16], s32 lastState[16], s32*** coefTable, s32 order, s32 npredictors, u32 framesize);
 
 void clamp(s32 fs, f32* e, s32* ie, s32 bits);

@@ -244,7 +244,7 @@ s64 scored_encode(s32* inBuffer, s32* origState, s32*** coefTable, s32 order, s3
 	return scoreA + scoreB + 10 * scoreC;
 }
 
-s32 descent(s32 guess[16], s32 minVals[16], s32 maxVals[16], u8 input[9], s32 lastState[16], s32*** coefTable, s32 order, s32 npredictors, s32 wantedPredictor, s32 wantedScale, s32 wantedIx[32], u32 framesize) {
+s32 descent(s32 guess[16], s32 minVals[16], s32 maxVals[16], u8 input[9], s32 lastState[16], s32*** coefTable, s32 order, s32 npredictors, s32 wantedPredictor, s32 wantedScale, s32 wantedIx[16], u32 framesize) {
 	const f64 inf = 1e100;
 	s64 curScore = scored_encode(guess, lastState, coefTable, order, npredictors, wantedPredictor, wantedScale, wantedIx, framesize);
 	
@@ -437,7 +437,7 @@ void acmat(short* in, int n, int m, double** out) {
 }
 
 int lud(double** a, int n, int* indx, int* d) {
-	int i, imax, j, k;
+	int i, imax = 0, j, k;
 	double big, dum, sum, temp;
 	double min, max;
 	double* vv;

@@ -1,7 +1,7 @@
 OPT_WIN32 := -Os
 OPT_LINUX := -Os
 
-CFLAGS          = -Os -s -flto -Wall -Wno-unused-result -pthread -DEXTLIB=133
+CFLAGS          = -Wall -Wno-unused-result -pthread -DEXTLIB=135
 SOURCE_C       := $(shell find lib/* -maxdepth 0 -type f -name '*.c')
 SOURCE_O_WIN32 := $(foreach f,$(SOURCE_C:.c=.o),bin/win32/$f)
 SOURCE_O_LINUX := $(foreach f,$(SOURCE_C:.c=.o),bin/linux/$f)
@@ -73,25 +73,25 @@ bin/linux/lib/External.o: lib/External.c $(ExtLibDep) $(C_INCLUDE_PATH)/ExtLib.c
 bin/linux/%.o: %.c %.h $(ExtLibDep)
 bin/linux/%.o: %.c $(ExtLibDep)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
-	@gcc -c -o $@ $< $(CFLAGS)
+	@gcc -c -o $@ $< $(OPT_LINUX) $(CFLAGS)
 
 z64audio: z64audio.c $(SOURCE_O_LINUX) $(ExtLib_Linux_O) $(Mp3_Linux_O) $(Audio_Linux_O) $(ExtGui_Linux_O)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
-	@gcc -o $@ $^ $(CFLAGS) -lm -Wl,--no-as-needed -ldl -lGL $(ExtGui_Linux_Flags)
+	@gcc -o $@ $^ $(OPT_LINUX) $(CFLAGS) -lm -Wl,--no-as-needed -ldl -lGL $(ExtGui_Linux_Flags)
 
 # WINDOWS32
 bin/win32/lib/External.o: lib/External.c $(ExtLibDep) $(C_INCLUDE_PATH)/ExtLib.c
 bin/win32/%.o: %.c %.h $(ExtLibDep)
 bin/win32/%.o: %.c $(ExtLibDep)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
-	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32
+	@i686-w64-mingw32.static-gcc -c -o $@ $< $(OPT_WIN32) $(CFLAGS) -D_WIN32
 
 bin/icon.o: lib/icon.rc lib/icon.ico
 	@i686-w64-mingw32.static-windres -o $@ $<
 
 z64audio.exe: z64audio.c bin/icon.o $(SOURCE_O_WIN32) $(ExtLib_Win32_O) $(Mp3_Win32_O) $(Audio_Win32_O) $(ExtGui_Win32_O)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
-	@i686-w64-mingw32.static-gcc -o $@ $^ $(CFLAGS) -lm -D_WIN32 $(ExtGui_Win32_Flags)
+	@i686-w64-mingw32.static-gcc -o $@ $^ $(OPT_WIN32) $(CFLAGS) -lm -D_WIN32 $(ExtGui_Win32_Flags)
 
 # AUDIOTOOLS LINUX
 
