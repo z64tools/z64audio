@@ -157,7 +157,7 @@ void Main_LoadSampleConf(char* conf) {
 	if ((param = Config_GetVariable(mem.str, "book_order"))) gTableDesignOrder = param;
 	if ((param = Config_GetVariable(mem.str, "book_threshold"))) gTableDesignThreshold = param;
 	
-	if ((param = Config_GetVariable(mem.str, "sample_rate"))) gSampleRate = Value_Int(param);
+	if ((param = Config_GetVariable(mem.str, "sample_rate"))) gBinSampleRate = Value_Int(param);
 	if ((param = Config_GetVariable(mem.str, "sample_tuning"))) gTuning = Value_Float(param);
 	
 	MemFile_Free(&mem);
@@ -273,8 +273,16 @@ s32 Main(s32 argc, char* argv[]) {
 		if (ParseArg("table-threshold")) gTableDesignThreshold = argv[parArg];
 	}
 	
-	if (ParseArg("srate")) gSampleRate = Value_Int(argv[parArg]);
+	if (ParseArg("srate")) gBinSampleRate = Value_Int(argv[parArg]);
 	if (ParseArg("tuning")) gTuning = Value_Float(argv[parArg]);
+	
+	if (ParseArg("raw-channel")) gRaw.channelNum = Value_Int(argv[parArg]);
+	if (ParseArg("raw-samplerate")) gRaw.sampleRate = Value_Int(argv[parArg]);
+	if (ParseArg("raw-bit")) {
+		gRaw.bit = Value_Int(argv[parArg]);
+		if (StrStrCase(argv[parArg], "f"))
+			gRaw.dataIsFloat = true;
+	}
 	
 	Audio_LoadSample(&sample);
 	

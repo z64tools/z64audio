@@ -211,15 +211,23 @@ typedef struct {
 
 #endif /* __AIFF_HEADER__ */
 
+typedef struct {
+	u32 sampleRate;
+	u32 channelNum;
+	u32 bit;
+	u32 dataIsFloat;
+} RawValues;
+
 typedef enum {
 	NAMEPARAM_DEFAULT,
 	NAMEPARAM_ZZRTL,
 } NameParam;
 
 extern NameParam gBinNameIndex;
-extern u32 gSampleRate;
+extern u32 gBinSampleRate;
 extern u32 gPrecisionFlag;
 extern f32 gTuning;
+extern RawValues gRaw;
 
 void Audio_Mono(AudioSample* sampleInfo);
 void Audio_Normalize(AudioSample* sampleInfo);

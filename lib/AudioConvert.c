@@ -3,9 +3,10 @@
 #include <minimp3/minimp3_ex.h>
 
 NameParam gBinNameIndex;
-u32 gSampleRate = 32000;
+u32 gBinSampleRate = 32000;
 u32 gPrecisionFlag;
 f32 gTuning = 1.0f;
+RawValues gRaw;
 
 char* sBinName[][3] = {
 	{
@@ -505,7 +506,7 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	
 	sampleInfo->channelNum = 1;
 	sampleInfo->bit = 16;
-	sampleInfo->sampleRate = gSampleRate;
+	sampleInfo->sampleRate = gBinSampleRate;
 	sampleInfo->samplesNum = tailEnd ? tailEnd : loopEnd;
 	sampleInfo->size = sampleInfo->memFile.dataSize;
 	sampleInfo->audio.p = sampleInfo->memFile.data;
@@ -516,7 +517,7 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	sampleInfo->instrument.loop.count = sampleInfo->instrument.loop.start ? -1 : 0;
 	
 	// Thanks Sauraen!
-	f32 y = 12.0f * log(32000.0f * gTuning / (f32)gSampleRate) / log(2.0f);
+	f32 y = 12.0f * log(32000.0f * gTuning / (f32)gBinSampleRate) / log(2.0f);
 	
 	sampleInfo->instrument.note = 60 - (s32)round(y);
 	sampleInfo->instrument.fineTune = (y - round(y)) * __INT8_MAX__;
@@ -568,18 +569,49 @@ void Audio_LoadSample_Mp3(AudioSample* sampleInfo) {
 	sampleInfo->instrument.loop.end = sampleInfo->samplesNum;
 }
 
+void Audio_LoadSample_Raw(AudioSample* sampleInfo) {
+	u32 size = 0;
+	
+	MemFile_LoadFile(&sampleInfo->memFile, sampleInfo->input);
+	
+	if (gRaw.sampleRate == 0 || gRaw.channelNum == 0 || gRaw.bit == 0)
+		printf_error("Raw sample loading requires [raw-rate], [raw-channels], [raw-bit]");
+	
+	sampleInfo->sampleRate = gRaw.sampleRate;
+	sampleInfo->dataIsFloat = gRaw.dataIsFloat;
+	sampleInfo->channelNum = gRaw.channelNum;
+	sampleInfo->bit = gRaw.bit;
+	sampleInfo->size = sampleInfo->memFile.dataSize;
+	
+	sampleInfo->audio.p = sampleInfo->memFile.data;
+	
+	if (sampleInfo->bit == 16) {
+		size = sizeof(s16) * sampleInfo->channelNum;
+	} else if (sampleInfo->bit == 32) {
+		size = sizeof(s32) * sampleInfo->channelNum;
+	}
+	
+	if (size == 0)
+		printf_error("Size is 0");
+	
+	sampleInfo->samplesNum = sampleInfo->size / size;
+}
+
 void Audio_LoadSample(AudioSample* sampleInfo) {
 	char* keyword[] = {
 		".wav",
 		".aiff",
 		".bin",
-		".mp3"
+		".mp3",
+		".raw"
 	};
 	AudioFunc loadSample[] = {
 		Audio_LoadSample_Wav,
 		Audio_LoadSample_Aiff,
 		Audio_LoadSample_Bin,
-		Audio_LoadSample_Mp3
+		Audio_LoadSample_Mp3,
+		Audio_LoadSample_Raw,
+		NULL
 	};
 	
 	if (!sampleInfo->input)
