@@ -19,29 +19,36 @@ void Window_DropCallback(GLFWwindow* window, s32 count, char* item[]) {
 	if (count == 1) {
 		if (StrEndCase(item[0], ".wav") || StrEndCase(item[0], ".aiff") || StrEndCase(item[0], ".mp3")) {
 			SoundFormat fmt;
+			char* fileName = item[0];
+			FILE* tst;
 			
 			if (__sampler == NULL)
 				return;
+			
+			tst = fopen(fileName, "r");
+			if (tst == NULL)
+				return;
+			fclose(tst);
 			
 			if (__sampler->player) {
 				Sound_Free(__sampler->player);
 				Audio_FreeSample(&__sampler->sample);
 			}
 			
-			Audio_InitSample(&__sampler->sample, item[0], 0);
-			Log("Input File [%s]", item[0]);
+			Audio_InitSample(&__sampler->sample, fileName, 0);
+			Log("Input File %s", fileName);
 			Audio_LoadSample(&__sampler->sample);
 			
 			fmt = __sampler->sample.bit == 16 ? SOUND_S16 : (__sampler->sample.bit == 32 && __sampler->sample.dataIsFloat) ? SOUND_F32 : SOUND_S32;
 			
 			__sampler->player = Sound_Init(fmt, __sampler->sample.sampleRate, __sampler->sample.channelNum, Audio_Playback, &__sampler->sample);
 			
-			if (StrStr(item[0], "Sample.wav")) {
-				char* ptr = StrStr(item[0], "\\Sample.wav");
+			if (StrStr(fileName, "Sample.wav")) {
+				char* ptr = StrStr(fileName, "\\Sample.wav");
 				char* str;
-				if (ptr == NULL) StrStr(item[0], "/Sample.wav");
+				if (ptr == NULL) StrStr(fileName, "/Sample.wav");
 				if (ptr == NULL)
-					strncpy(__sampler->sampleName.txt, String_GetBasename(item[0]), 64);
+					strncpy(__sampler->sampleName.txt, String_GetBasename(fileName), 64);
 				else {
 					str = ptr;
 					
@@ -51,7 +58,7 @@ void Window_DropCallback(GLFWwindow* window, s32 count, char* item[]) {
 					strncpy(__sampler->sampleName.txt, str, (uPtr)ptr - (uPtr)str);
 				}
 			} else
-				strncpy(__sampler->sampleName.txt, String_GetBasename(item[0]), 64);
+				strncpy(__sampler->sampleName.txt, String_GetBasename(fileName), 64);
 			
 			__sampler->zoom.end = 1.0;
 			__sampler->zoom.start = 0.0;
