@@ -496,7 +496,7 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	if (sampleInfo->memFile.data == NULL)
 		printf_error("Could not load file. Closing!");
 	
-	Dir_Set(String_GetPath(sampleInfo->input));
+	Dir_Set(Path(sampleInfo->input));
 	Log("Wildcard *.book.bin");
 	MemFile_LoadFile(&sampleInfo->vadBook, Dir_File("*.book.bin"));
 	MemFile_LoadFile_String(&config, Dir_File("config.cfg"));
@@ -875,7 +875,7 @@ void Audio_SaveSample_Binary(AudioSample* sampleInfo) {
 		0.01 * sampleInfo->instrument.fineTune
 	);
 	
-	Config_WriteTitle_Str(String_GetBasename(sampleInfo->output));
+	Config_WriteTitle_Str(Basename(sampleInfo->output));
 	
 	Config_WriteVar_Int("codec", gPrecisionFlag);
 	Config_WriteVar_Int("medium", 0);
@@ -896,7 +896,7 @@ void Audio_SaveSample_Binary(AudioSample* sampleInfo) {
 	Config_WriteVar_Flo("tuning", tuning);
 	
 	Log("Save Config");
-	MemFile_SaveFile_String(config, Tmp_Printf("%sconfig.cfg", String_GetPath(sampleInfo->output)));
+	MemFile_SaveFile_String(config, HeapPrint("%sconfig.cfg", Path(sampleInfo->output)));
 	MemFile_Free(&output);
 }
 
@@ -911,7 +911,7 @@ void Audio_SaveSample_VadpcmC(AudioSample* sampleInfo) {
 	MemFile_Malloc(&output, 0x40000);
 	order = sampleInfo->vadBook.cast.u16[0];
 	numPred = sampleInfo->vadBook.cast.u16[1];
-	basename = String_GetBasename(sampleInfo->output);
+	basename = Basename(sampleInfo->output);
 	basename[0] = tolower(basename[0]);
 	
 	MemFile_Printf(

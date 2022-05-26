@@ -704,7 +704,7 @@ void AudioTools_VadpcmEnc(AudioSample* sampleInfo) {
 	if (sampleInfo->channelNum != 1)
 		Audio_Mono(sampleInfo);
 	
-	if (Sys_Stat(Tmp_Printf("%s.normalize", String_GetPath(sampleInfo->input))))
+	if (Sys_Stat(HeapPrint("%s.normalize", Path(sampleInfo->input))))
 		Audio_Normalize(sampleInfo);
 	
 	if (sampleInfo->vadBook.data == NULL)

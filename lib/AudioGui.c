@@ -48,7 +48,7 @@ void Window_DropCallback(GLFWwindow* window, s32 count, char* item[]) {
 				char* str;
 				if (ptr == NULL) StrStr(fileName, "/Sample.wav");
 				if (ptr == NULL)
-					strncpy(__sampler->sampleName.txt, String_GetBasename(fileName), 64);
+					strncpy(__sampler->sampleName.txt, Basename(fileName), 64);
 				else {
 					str = ptr;
 					
@@ -58,7 +58,7 @@ void Window_DropCallback(GLFWwindow* window, s32 count, char* item[]) {
 					strncpy(__sampler->sampleName.txt, str, (uPtr)ptr - (uPtr)str);
 				}
 			} else
-				strncpy(__sampler->sampleName.txt, String_GetBasename(fileName), 64);
+				strncpy(__sampler->sampleName.txt, Basename(fileName), 64);
 			
 			__sampler->zoom.end = 1.0;
 			__sampler->zoom.start = 0.0;
