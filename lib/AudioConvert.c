@@ -501,8 +501,8 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	MemFile_LoadFile(&sampleInfo->vadBook, Dir_File("*.book.bin"));
 	MemFile_LoadFile_String(&config, Dir_File("config.cfg"));
 	
-	loopEnd = Config_GetInt(&config, "loop_end");
-	tailEnd = Config_GetInt(&config, "tail_end");
+	loopEnd = Toml_GetInt(config.str, "loop_end");
+	tailEnd = Toml_GetInt(config.str, "tail_end");
 	
 	sampleInfo->channelNum = 1;
 	sampleInfo->bit = 16;
@@ -511,9 +511,9 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	sampleInfo->size = sampleInfo->memFile.dataSize;
 	sampleInfo->audio.p = sampleInfo->memFile.data;
 	
-	sampleInfo->instrument.loop.start = Config_GetInt(&config, "loop_start");
-	sampleInfo->instrument.loop.end = Config_GetInt(&config, "loop_end");
-	gPrecisionFlag = Config_GetInt(&config, "codec");
+	sampleInfo->instrument.loop.start = Toml_GetInt(config.str, "loop_start");
+	sampleInfo->instrument.loop.end = Toml_GetInt(config.str, "loop_end");
+	gPrecisionFlag = Toml_GetInt(config.str, "codec");
 	sampleInfo->instrument.loop.count = sampleInfo->instrument.loop.start ? -1 : 0;
 	
 	// Thanks Sauraen!
@@ -875,25 +875,25 @@ void Audio_SaveSample_Binary(AudioSample* sampleInfo) {
 		0.01 * sampleInfo->instrument.fineTune
 	);
 	
-	Config_WriteTitle_Str(Basename(sampleInfo->output));
+	Toml_WriteComment(config, Basename(sampleInfo->output));
 	
-	Config_WriteVar_Int("codec", gPrecisionFlag);
-	Config_WriteVar_Int("medium", 0);
-	Config_WriteVar_Int("bitA", 0);
-	Config_WriteVar_Int("bitB", 0);
+	Toml_WriteInt(config, "codec", gPrecisionFlag, NO_COMMENT);
+	Toml_WriteInt(config, "medium", 0, NO_COMMENT);
+	Toml_WriteInt(config, "bitA", 0, NO_COMMENT);
+	Toml_WriteInt(config, "bitB", 0, NO_COMMENT);
 	
-	Config_SPrintf("\n");
-	Config_WriteTitle_Str("Loop");
-	Config_WriteVar_Int("loop_start", sampleInfo->instrument.loop.start);
-	Config_WriteVar_Int("loop_end", sampleInfo->instrument.loop.end);
-	Config_WriteVar_Int("loop_count", sampleInfo->instrument.loop.count);
-	Config_WriteVar_Int("tail_end", sampleInfo->instrument.loop.oldEnd && sampleInfo->instrument.loop.oldEnd != sampleInfo->instrument.loop.end ? sampleInfo->instrument.loop.oldEnd : 0);
+	Toml_Print(config, "\n");
+	Toml_WriteComment(config, "Loop");
+	Toml_WriteInt(config, "loop_start", sampleInfo->instrument.loop.start, NO_COMMENT);
+	Toml_WriteInt(config, "loop_end", sampleInfo->instrument.loop.end, NO_COMMENT);
+	Toml_WriteInt(config, "loop_count", sampleInfo->instrument.loop.count, NO_COMMENT);
+	Toml_WriteInt(config, "tail_end", sampleInfo->instrument.loop.oldEnd && sampleInfo->instrument.loop.oldEnd != sampleInfo->instrument.loop.end ? sampleInfo->instrument.loop.oldEnd : 0, NO_COMMENT);
 	
-	Config_SPrintf("\n");
-	Config_WriteTitle_Str("Instrument Info");
-	Config_WriteVar_Int("basenote", sampleInfo->instrument.note);
-	Config_WriteVar_Int("finetune", sampleInfo->instrument.fineTune);
-	Config_WriteVar_Flo("tuning", tuning);
+	Toml_Print(config, "\n");
+	Toml_WriteComment(config, "Instrument Info");
+	Toml_WriteInt(config, "basenote", sampleInfo->instrument.note, NO_COMMENT);
+	Toml_WriteInt(config, "finetune", sampleInfo->instrument.fineTune, NO_COMMENT);
+	Toml_WriteFloat(config, "tuning", tuning, NO_COMMENT);
 	
 	Log("Save Config");
 	MemFile_SaveFile_String(config, HeapPrint("%sconfig.cfg", Path(sampleInfo->output)));

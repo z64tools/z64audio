@@ -77,7 +77,7 @@ FormatParam sDefaultFormat;
 		com2 \
 )
 
-void Main_Config_Generate(MemFile* param, char* file) {
+void Main_Toml_Generate(MemFile* param, char* file) {
 	MemFile_Malloc(param, 0x1000);
 	
 	MemFile_Printf(
@@ -125,11 +125,11 @@ void Main_Config(char* argv[]) {
 		MemFile_LoadFile_String(&param, argv[parArg]);
 	} else if (MemFile_LoadFile_String(&param, file)) {
 		printf_info("Generating settings [%s]", file);
-		Main_Config_Generate(&param, file);
+		Main_Toml_Generate(&param, file);
 	}
 	
-	gBinNameIndex = Config_GetBool(&param, "zaudio_zz_naming");
-	integer = Config_GetOption(&param, "zaudio_def_dnd_fmt", list);
+	gBinNameIndex = Toml_GetBool(param.str, "zaudio_zz_naming");
+	integer = Toml_GetOption(param.str, "zaudio_def_dnd_fmt", list);
 	
 	if (integer != 404040404) {
 		sDefaultFormat = integer;
@@ -151,14 +151,14 @@ void Main_LoadSampleConf(char* conf) {
 	
 	MemFile_LoadFile_String(&mem, conf);
 	
-	if ((param = Config_GetVariable(mem.str, "book_iteration"))) gTableDesignIteration = param;
-	if ((param = Config_GetVariable(mem.str, "book_frame_size"))) gTableDesignFrameSize = param;
-	if ((param = Config_GetVariable(mem.str, "book_bits"))) gTableDesignBits = param;
-	if ((param = Config_GetVariable(mem.str, "book_order"))) gTableDesignOrder = param;
-	if ((param = Config_GetVariable(mem.str, "book_threshold"))) gTableDesignThreshold = param;
+	if ((param = Toml_GetVariable(mem.str, "book_iteration"))) gTableDesignIteration = param;
+	if ((param = Toml_GetVariable(mem.str, "book_frame_size"))) gTableDesignFrameSize = param;
+	if ((param = Toml_GetVariable(mem.str, "book_bits"))) gTableDesignBits = param;
+	if ((param = Toml_GetVariable(mem.str, "book_order"))) gTableDesignOrder = param;
+	if ((param = Toml_GetVariable(mem.str, "book_threshold"))) gTableDesignThreshold = param;
 	
-	if ((param = Config_GetVariable(mem.str, "sample_rate"))) gBinSampleRate = Value_Int(param);
-	if ((param = Config_GetVariable(mem.str, "sample_tuning"))) gTuning = Value_Float(param);
+	if ((param = Toml_GetVariable(mem.str, "sample_rate"))) gBinSampleRate = Value_Int(param);
+	if ((param = Toml_GetVariable(mem.str, "sample_tuning"))) gTuning = Value_Float(param);
 	
 	MemFile_Free(&mem);
 }
