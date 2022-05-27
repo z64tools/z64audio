@@ -128,8 +128,8 @@ void Main_Config(char* argv[]) {
 		Main_Toml_Generate(&param, file);
 	}
 	
-	gBinNameIndex = Toml_GetBool(param.str, "zaudio_zz_naming");
-	integer = Toml_GetOption(param.str, "zaudio_def_dnd_fmt", list);
+	gBinNameIndex = Toml_GetBool(&param, "zaudio_zz_naming");
+	integer = Toml_GetOption(&param, "zaudio_def_dnd_fmt", list);
 	
 	if (integer != 404040404) {
 		sDefaultFormat = integer;

@@ -501,8 +501,8 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	MemFile_LoadFile(&sampleInfo->vadBook, Dir_File("*.book.bin"));
 	MemFile_LoadFile_String(&config, Dir_File("config.toml"));
 	
-	loopEnd = Toml_GetInt(config.str, "loop_end");
-	tailEnd = Toml_GetInt(config.str, "tail_end");
+	loopEnd = Toml_GetInt(&config, "loop_end");
+	tailEnd = Toml_GetInt(&config, "tail_end");
 	
 	sampleInfo->channelNum = 1;
 	sampleInfo->bit = 16;
@@ -511,9 +511,9 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	sampleInfo->size = sampleInfo->memFile.dataSize;
 	sampleInfo->audio.p = sampleInfo->memFile.data;
 	
-	sampleInfo->instrument.loop.start = Toml_GetInt(config.str, "loop_start");
-	sampleInfo->instrument.loop.end = Toml_GetInt(config.str, "loop_end");
-	gPrecisionFlag = Toml_GetInt(config.str, "codec");
+	sampleInfo->instrument.loop.start = Toml_GetInt(&config, "loop_start");
+	sampleInfo->instrument.loop.end = Toml_GetInt(&config, "loop_end");
+	gPrecisionFlag = Toml_GetInt(&config, "codec");
 	sampleInfo->instrument.loop.count = sampleInfo->instrument.loop.start ? -1 : 0;
 	
 	// Thanks Sauraen!
