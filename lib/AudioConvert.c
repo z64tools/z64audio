@@ -499,7 +499,7 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	Dir_Set(Path(sampleInfo->input));
 	Log("Wildcard *.book.bin");
 	MemFile_LoadFile(&sampleInfo->vadBook, Dir_File("*.book.bin"));
-	MemFile_LoadFile_String(&config, Dir_File("config.cfg"));
+	MemFile_LoadFile_String(&config, Dir_File("config.toml"));
 	
 	loopEnd = Toml_GetInt(config.str, "loop_end");
 	tailEnd = Toml_GetInt(config.str, "tail_end");
@@ -896,7 +896,7 @@ void Audio_SaveSample_Binary(AudioSample* sampleInfo) {
 	Toml_WriteFloat(config, "tuning", tuning, NO_COMMENT);
 	
 	Log("Save Config");
-	MemFile_SaveFile_String(config, HeapPrint("%sconfig.cfg", Path(sampleInfo->output)));
+	MemFile_SaveFile_String(config, HeapPrint("%sconfig.toml", Path(sampleInfo->output)));
 	MemFile_Free(&output);
 }
 

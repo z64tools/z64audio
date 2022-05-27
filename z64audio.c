@@ -54,7 +54,7 @@ char* sToolUsage = {
 	EXT_INFO("--T [ 10 ]", 16, "Override TableDesign Threshold")
 	PRNT_NL
 	EXT_INFO_TITLE("Extra:")
-	EXT_INFO("--P",        16, "Load separate settings [.cfg]")
+	EXT_INFO("--P",        16, "Load separate settings [.toml]")
 	EXT_INFO("--log",      16, "Print Debug Log")
 	EXT_INFO("--S",        16, "Silence")
 	EXT_INFO("--N",        16, "Print Info of input [file]")
@@ -118,7 +118,7 @@ void Main_Config(char* argv[]) {
 	};
 	
 	strcpy(file, Sys_AppDir());
-	strcat(file, "z64audio.cfg");
+	strcat(file, "z64audio.toml");
 	
 	Log("Get: %s", file);
 	if (ParseArg("P")) {
