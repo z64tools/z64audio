@@ -27,6 +27,6 @@ void rfroma(double* arg0, int n, double* arg2);
 int durbin(double* arg0, int n, double* arg2, double* arg3, double* outSomething);
 void split(double** table, double* delta, int order, int npredictors, double scale);
 double model_dist(double* arg0, double* arg1, int n);
-void refine(double** table, int order, int npredictors, double** data, int dataSize, int refineIters, double unused);
+void refine(double** table, int order, int npredictors, double** data, int dataSize, int refineIters);
 
 #endif

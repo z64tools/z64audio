@@ -595,7 +595,7 @@ void AudioTools_TableDesign(AudioSample* sampleInfo) {
 		splitDelta[order - 1] = -1.0;
 		split(tempS1, splitDelta, order, (1 << curBits), 0.01);
 		curBits++;
-		refine(tempS1, order, (1 << curBits), data, dataSize, refineIteration, 0.0);
+		refine(tempS1, order, (1 << curBits), data, dataSize, refineIteration);
 	}
 	
 	s32 nPredictors = (1 << curBits);
@@ -820,20 +820,17 @@ void AudioTools_VadpcmEnc(AudioSample* sampleInfo) {
 
 void AudioTools_VadpcmDec(AudioSample* sampleInfo) {
 	MemFile memDec = MemFile_Initialize();
-	u32 pos = 0;
 	s32 order;
 	s32 npredictors;
 	s32*** coefTable = NULL;
-	u32 nSamples = sampleInfo->samplesNum;
+	u32 nSamples = 0;
 	void* storePoint = sampleInfo->memFile.data;
-	MemFile encode = MemFile_Initialize();
 	u32 framesize = gPrecisionFlag ? 5 : 9;
 	s32 decompressed[16];
 	s32 state[16];
+	u8 input[9];
 	
-	Log("MemFile_Malloc(memDec, 0x%X);", nSamples * sizeof(s32) + 0x100);
-	MemFile_Malloc(&memDec, nSamples * sizeof(s32) + 0x100);
-	MemFile_Malloc(&encode, sizeof(s16) * 16);
+	MemFile_Malloc(&memDec, sampleInfo->samplesNum * sizeof(s32) + 0x100);
 	AudioTools_ReadCodeBook(sampleInfo, &coefTable, &order, &npredictors);
 	
 	MemFile_Rewind(&sampleInfo->memFile);
@@ -843,8 +840,7 @@ void AudioTools_VadpcmDec(AudioSample* sampleInfo) {
 		state[15 - i] = 0;
 	}
 	
-	while (pos < nSamples) {
-		u8 input[9];
+	while (true) {
 		u8 encoded[9];
 		s32 lastState[16];
 		s32 decoded[16];
@@ -852,7 +848,8 @@ void AudioTools_VadpcmDec(AudioSample* sampleInfo) {
 		s16 origGuess[16];
 		
 		memcpy(lastState, state, sizeof(state));
-		MemFile_Read(&sampleInfo->memFile, input, framesize);
+		if (MemFile_Read(&sampleInfo->memFile, input, framesize) != framesize)
+			break;
 		
 		// Decode for real
 		AudioTools_VdecodeFrame(input, decompressed, state, order, coefTable, framesize);
@@ -868,6 +865,7 @@ void AudioTools_VadpcmDec(AudioSample* sampleInfo) {
 		// If it doesn't match, bruteforce the matching.
 		if (memcmp(input, encoded, framesize) != 0) {
 			s32 guess32[16];
+			Log("Bruteforce %d", nSamples);
 			if (bruteforce(guess32, input, decoded, decompressed, lastState, coefTable, order, npredictors, framesize)) {
 				for (int i = 0; i < 16; i++) {
 					if (!(-0x8000 <= guess32[i] && guess32[i] <= 0x7fff))
@@ -876,7 +874,7 @@ void AudioTools_VadpcmDec(AudioSample* sampleInfo) {
 				}
 				AudioTools_VencodeBrute(encoded, guess, lastState, coefTable, order, npredictors, framesize);
 				if (memcmp(input, encoded, framesize) != 0)
-					printf_warning("Could not bruteforce sample %d", pos);
+					printf_warning("Could not bruteforce sample %d", nSamples);
 			}
 			
 			// Bring the matching closer to the original decode (not strictly
@@ -898,7 +896,7 @@ void AudioTools_VadpcmDec(AudioSample* sampleInfo) {
 		
 		memcpy(state, decoded, sizeof(state));
 		MemFile_Write(&memDec, guess, sizeof(guess));
-		pos += 16;
+		nSamples += 16;
 	}
 	
 	sampleInfo->memFile.data = storePoint;
@@ -921,7 +919,6 @@ void AudioTools_VadpcmDec(AudioSample* sampleInfo) {
 	Log("Old MemFile Size [0x%X]", sampleInfo->size);
 	
 	MemFile_Free(&sampleInfo->memFile);
-	MemFile_Free(&encode);
 	sampleInfo->channelNum = 1;
 	sampleInfo->samplesNum = nSamples;
 	sampleInfo->memFile = memDec;
@@ -952,6 +949,7 @@ void AudioTools_LoadCodeBook(AudioSample* sampleInfo, char* file) {
 	nPred = temp.cast.u16[3];
 	size = sizeof(u16) * 8 * order * nPred + sizeof(u16) * 2;
 	MemFile_Malloc(vadBook, size);
+	MemFile_Seek(vadBook, 0);
 	MemFile_Write(vadBook, &order, 2);
 	MemFile_Write(vadBook, &nPred, 2);
 	for (s32 i = 0; i < (8 * order * nPred); i++) {

@@ -507,8 +507,8 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	sampleInfo->channelNum = 1;
 	sampleInfo->bit = 16;
 	sampleInfo->sampleRate = gBinSampleRate;
-	sampleInfo->samplesNum = tailEnd ? tailEnd : loopEnd;
 	sampleInfo->size = sampleInfo->memFile.dataSize;
+	sampleInfo->samplesNum = tailEnd ? tailEnd : loopEnd;
 	sampleInfo->audio.p = sampleInfo->memFile.data;
 	
 	sampleInfo->instrument.loop.start = Toml_GetInt(&config, "loop_start");

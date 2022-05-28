@@ -220,7 +220,7 @@ s64 scored_encode(s32* inBuffer, s32* origState, s32*** coefTable, s32 order, s3
 			s32 clampedIx = clamp_bits(ix, encBits);
 			s32 val = wantedIx[base + i] * (1 << scale);
 			if (clampedIx != wantedIx[base + i]) {
-				Assert(ix != wantedIx[base + i]);
+				// Assert(ix != wantedIx[base + i]);
 				s32 lo = val - (1 << scale) / 2;
 				s32 hi = val + (1 << scale) / 2;
 				s64 diff = 0;
@@ -316,7 +316,7 @@ s32 descent(s32 guess[16], s32 minVals[16], s32 maxVals[16], u8 input[9], s32 la
 
 s32 bruteforce(s32 guess[16], u8 input[9], s32 decoded[16], s32 decompressed[16], s32 lastState[16], s32*** coefTable, s32 order, s32 npredictors, u32 framesize) {
 	s32 scale = input[0] >> 4, predictor = input[0] & 0xF;
-	s32 freeMe = 0;
+	
 	s32 minVals[16], maxVals[16];
 	
 	get_bounds(decoded, decompressed, 1 << scale, minVals, maxVals, framesize);
@@ -330,9 +330,6 @@ s32 bruteforce(s32 guess[16], u8 input[9], s32 decoded[16], s32 decompressed[16]
 			if (score == 0) {
 				return 1;
 			}
-			if (Abs(score) < ClampMin(freeMe - 100, 0)) {
-				return 1;
-			}
 			if (bestScore == -1 || score < bestScore) {
 				bestScore = score;
 				memcpy(bestGuess, guess, sizeof(bestGuess));
@@ -342,30 +339,21 @@ s32 bruteforce(s32 guess[16], u8 input[9], s32 decoded[16], s32 decompressed[16]
 		if (descent(guess, minVals, maxVals, input, lastState, coefTable, order, npredictors, predictor, scale, decompressed, framesize)) {
 			return 1;
 		}
-		freeMe++;
 	}
 }
 
 s32 inner_product(s32 length, s32* v1, s32* v2) {
-	s32 j;
-	s32 dout;
-	s32 fiout;
-	s32 out;
+	s32 out = 0;
 	
-	j = 0;
-	out = 0;
-	for (; j < length; j++) {
-		out += *v1++ **v2++;
+	for (s32 i = 0; i < length; i++) {
+		out += v1[i] * v2[i];
 	}
 	
 	// Compute "out / 2^11", rounded down.
-	dout = out / (1 << 11);
-	fiout = dout * (1 << 11);
-	if (out - fiout < 0) {
-		return dout - 1;
-	} else {
-		return dout;
-	}
+	s32 dout = out / (1 << 11);
+	s32 fiout = dout * (1 << 11);
+	
+	return dout - (out - fiout < 0);
 }
 
 void clamp(s32 fs, f32* e, s32* ie, s32 bits) {
@@ -673,7 +661,7 @@ double model_dist(double* arg0, double* arg1, int n) {
 	return ret;
 }
 
-void refine(double** table, int order, int npredictors, double** data, int dataSize, int refineIters, double unused) {
+void refine(double** table, int order, int npredictors, double** data, int dataSize, int refineIters) {
 	int iter; // spD8
 	double** rsums;
 	int* counts; // spD0

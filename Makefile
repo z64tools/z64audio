@@ -1,7 +1,7 @@
 OPT_WIN32 := -Os
 OPT_LINUX := -Os
 
-CFLAGS          = -Wall -Wno-unused-result -pthread -DEXTLIB=138
+CFLAGS          = -Wall -Wno-unused-result -pthread -DEXTLIB=139
 SOURCE_C       := $(shell find lib/* -maxdepth 0 -type f -name '*.c')
 SOURCE_O_WIN32 := $(foreach f,$(SOURCE_C:.c=.o),bin/win32/$f)
 SOURCE_O_LINUX := $(foreach f,$(SOURCE_C:.c=.o),bin/linux/$f)
@@ -35,6 +35,9 @@ PRNT_CYAN := \e[0;96m
 PRNT_RSET := \e[m
 
 include $(C_INCLUDE_PATH)/ExtLib.mk
+
+# bin/win32/lib/AudioSDK.o: CFLAGS = -Wall -Wextra -pedantic -std=c99 -g -O2
+# bin/linux/lib/AudioSDK.o: CFLAGS = -Wall -Wextra -pedantic -std=c99 -g -O2
 
 # Make build directories
 $(shell mkdir -p bin/ $(foreach dir, \
