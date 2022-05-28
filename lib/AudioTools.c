@@ -865,7 +865,6 @@ void AudioTools_VadpcmDec(AudioSample* sampleInfo) {
 		// If it doesn't match, bruteforce the matching.
 		if (memcmp(input, encoded, framesize) != 0) {
 			s32 guess32[16];
-			Log("Bruteforce %d", nSamples);
 			if (bruteforce(guess32, input, decoded, decompressed, lastState, coefTable, order, npredictors, framesize)) {
 				for (int i = 0; i < 16; i++) {
 					if (!(-0x8000 <= guess32[i] && guess32[i] <= 0x7fff))
