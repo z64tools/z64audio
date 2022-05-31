@@ -88,10 +88,10 @@ void Sampler_Init(WindowContext* winCtx, Sampler* this, Split* split) {
 	this->setLoopButton.txt = "Set Loop";
 	this->clearLoopButton.txt = "Clear Loop";
 	
-	this->sampleName.txt = Calloc(0, 66);
+	Calloc(this->sampleName.txt, 66);
 	this->sampleName.size = 64;
 	
-	this->textInfo.txt = Calloc(0, 128);
+	Calloc(this->textInfo.txt, 128);
 	
 	this->zoom.end = 1.0f;
 	this->zoom.vEnd = 1.0f;

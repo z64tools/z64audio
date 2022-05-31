@@ -179,8 +179,9 @@ s32 Main(s32 argc, char* argv[]) {
 	printf_SetPrefix("");
 	
 	if (argc == 1) {
-		WindowContext* winCtx = Calloc(0, sizeof(WindowContext));
+		WindowContext* winCtx;
 		
+		Calloc(winCtx, sizeof(WindowContext));
 		winCtx->vg = Interface_Init("z64audio", &winCtx->app, &winCtx->input, winCtx, (void*)Window_Update, (void*)Window_Draw, Window_DropCallback, 980, 480, 2);
 		
 		winCtx->geoGrid.passArg = winCtx;
