@@ -18,6 +18,7 @@ typedef struct {
 		f32 lockPos;
 	} state;
 	ElButton    playButton;
+	ElButton    saveButton;
 	ElButton    setLoopButton;
 	ElButton    clearLoopButton;
 	ElTextbox   sampleName;

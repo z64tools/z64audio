@@ -125,7 +125,6 @@ typedef struct {
 	u32 offset;
 	u32 numSampleLoops;
 	u32 samplerData;
-	WaveSmplLoop loopData[];
 } WaveSmpl;
 
 typedef struct {

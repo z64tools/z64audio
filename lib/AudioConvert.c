@@ -411,8 +411,9 @@ void Audio_LoadSample_Wav(AudioSample* sampleInfo) {
 	}
 	
 	if (waveSampleInfo && waveSampleInfo->numSampleLoops) {
-		sampleInfo->instrument.loop.start = waveSampleInfo->loopData[0].start;
-		sampleInfo->instrument.loop.end = waveSampleInfo->loopData[0].end;
+		WaveSmplLoop* loop = (void*)&waveSampleInfo[1];
+		sampleInfo->instrument.loop.start = loop->start;
+		sampleInfo->instrument.loop.end = loop->end;
 		sampleInfo->instrument.loop.count = 0xFFFFFFFF;
 	}
 }
@@ -689,7 +690,7 @@ static void Wave_WriteChunk_Smpl(AudioSample* sampleInfo, MemFile* output) {
 		sampleInfo->instrument.fineTune = 0x7F - Abs(sampleInfo->instrument.fineTune);
 	}
 	
-	sample.chunk.size = sizeof(WaveSmpl) - sizeof(WaveChunk) + sizeof(WaveSmplLoop);
+	sample.chunk.size = sizeof(WaveSmpl) + sizeof(WaveSmplLoop) - sizeof(WaveChunk);
 	sample.unityNote = sampleInfo->instrument.note;
 	sample.fineTune = sampleInfo->instrument.fineTune * 2;
 	
@@ -699,10 +700,10 @@ static void Wave_WriteChunk_Smpl(AudioSample* sampleInfo, MemFile* output) {
 		loop.end = sampleInfo->instrument.loop.end;
 	}
 	
+	memcpy(&sample.manufacturer, "z64audio", 8);
 	memcpy(sample.chunk.name, "smpl", 4);
-	MemFile_Write(output, &sample, sizeof(sample));
-	if (sampleInfo->instrument.loop.count)
-		MemFile_Write(output, &loop, sizeof(loop));
+	printf_info("%08X / %08X", MemFile_Write(output, &sample, sizeof(WaveSmpl)), sizeof(WaveSmpl));
+	printf_info("%08X / %08X", MemFile_Write(output, &loop, sizeof(WaveSmplLoop)), sizeof(WaveSmplLoop));
 }
 
 void Audio_SaveSample_Wav(AudioSample* sampleInfo) {

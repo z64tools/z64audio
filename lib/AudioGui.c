@@ -84,6 +84,7 @@ void Sampler_Init(WindowContext* winCtx, Sampler* this, Split* split) {
 	
 	this->playButton.txt = "Play Sample";
 	this->playButton.toggle = true;
+	this->saveButton.txt = "Save Sample";
 	
 	this->setLoopButton.txt = "Set Loop";
 	this->clearLoopButton.txt = "Clear Loop";
@@ -130,7 +131,7 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 		y,
 		&this->playButton.rect,
 		0.20,
-		NULL,
+		&this->saveButton.rect,
 		0.20,
 		&this->sampleName.rect,
 		0.60
@@ -153,6 +154,13 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 			sample->doPlay = false;
 			this->butTog = false;
 		}
+	}
+	
+	if (Element_Button(&winCtx->geoGrid, split, &this->saveButton) & 0x1) {
+		this->sample.output = HeapStrDup(this->sample.memFile.info.name);
+		String_Replace(this->sample.output, ".mp3", ".wav");
+		
+		Audio_SaveSample(&this->sample);
 	}
 	
 	Element_Textbox(&winCtx->geoGrid, split, &this->sampleName);
