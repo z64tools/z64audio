@@ -158,7 +158,7 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	
 	if (Element_Button(&winCtx->geoGrid, split, &this->saveButton) & 0x1) {
 		this->sample.output = HeapStrDup(this->sample.memFile.info.name);
-		String_Replace(this->sample.output, ".mp3", ".wav");
+		strrep(this->sample.output, ".mp3", ".wav");
 		
 		if (this->sample.output != NULL && strlen(this->sample.output) > 4)
 			Audio_SaveSample(&this->sample);
