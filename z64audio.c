@@ -24,7 +24,7 @@ typedef enum {
 } FormatParam;
 
 char* sToolName = {
-	"z64audio" PRNT_GRAY " 2.1.0"
+	"z64audio" PRNT_GRAY " 2.2.0"
 };
 
 char* sToolUsage = {

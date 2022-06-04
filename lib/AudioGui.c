@@ -50,12 +50,9 @@ void Window_DropCallback(GLFWwindow* window, s32 count, char* item[]) {
 				if (ptr == NULL)
 					strncpy(__sampler->sampleName.txt, Basename(fileName), 64);
 				else {
-					str = ptr;
+					ptr = StrSlash(PathSlot(fileName, -1));
 					
-					while (str[-1] != '/' && str[-1] != '\\' && str[-1] != '\0')
-						str--;
-					
-					strncpy(__sampler->sampleName.txt, str, (uPtr)ptr - (uPtr)str);
+					strncpy(__sampler->sampleName.txt, str, 64);
 				}
 			} else
 				strncpy(__sampler->sampleName.txt, Basename(fileName), 64);
@@ -157,11 +154,14 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	}
 	
 	if (Element_Button(&winCtx->geoGrid, split, &this->saveButton) & 0x1) {
-		this->sample.output = HeapStrDup(this->sample.memFile.info.name);
-		StrRep(this->sample.output, ".mp3", ".wav");
+		StrStripIllegalChar(this->sampleName.txt);
 		
-		if (this->sample.output != NULL && strlen(this->sample.output) > 4)
-			Audio_SaveSample(&this->sample);
+		if (strlen(this->sampleName.txt) > 0) {
+			this->sample.output = HeapPrint("%s%s.wav", Path(this->sample.memFile.info.name), this->sampleName.txt);
+			
+			if (this->sample.output != NULL && strlen(this->sample.output) > 4)
+				Audio_SaveSample(&this->sample);
+		}
 	}
 	
 	Element_Textbox(&winCtx->geoGrid, split, &this->sampleName);
@@ -216,8 +216,11 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 		if (sample->doPlay == 1) {
 			sample->doPlay = 0;
 			this->playButton.toggle = 1;
-		} else if (sample->doPlay == 0)
+		} else if (sample->doPlay == 0) {
+			if (Input_GetKey(KEY_LEFT_SHIFT)->hold)
+				sample->playFrame = 0;
 			this->playButton.toggle = 2;
+		}
 	}
 	
 	this->waveFormPos = y + SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING;
@@ -753,9 +756,9 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 				}
 				
 				if (this->state.setLoop == 1) {
-					this->sample.instrument.loop.start = curPosX;
+					this->sample.instrument.loop.start = ClampMax(curPosX, this->sample.instrument.loop.end - 1);
 				} else {
-					this->sample.instrument.loop.end = curPosX;
+					this->sample.instrument.loop.end = ClampMin(curPosX, this->sample.instrument.loop.start + 1);
 				}
 				
 				return;
