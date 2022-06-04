@@ -686,9 +686,9 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 		split->rect.h - (this->waveFormPos + SPLIT_TEXT_H * 0.5 + SPLIT_BAR_HEIGHT) - 20
 	};
 	Rect finder = {
-		waverect.x + ((waverect.w + 2) * this->zoom.start),
+		waverect.x + (waverect.w * this->zoom.start),
 		waverect.y + waverect.h + 4,
-		waverect.w * this->zoom.end - ((waverect.w - 4) * this->zoom.start),
+		waverect.w * this->zoom.end - (waverect.w * this->zoom.start),
 		16,
 	};
 	
@@ -756,9 +756,9 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 				}
 				
 				if (this->state.setLoop == 1) {
-					this->sample.instrument.loop.start = ClampMax(curPosX, this->sample.instrument.loop.end - 1);
+					this->sample.instrument.loop.start = Clamp(curPosX, 0, this->sample.instrument.loop.end - 1);
 				} else {
-					this->sample.instrument.loop.end = ClampMin(curPosX, this->sample.instrument.loop.start + 1);
+					this->sample.instrument.loop.end = Clamp(curPosX, this->sample.instrument.loop.start + 1, this->sample.samplesNum);
 				}
 				
 				return;
