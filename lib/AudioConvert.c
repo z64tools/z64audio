@@ -540,6 +540,8 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 		sampleInfo->vadBook.cast.u16[i + 2] = ReadBE(sampleInfo->vadBook.cast.u16[i + 4]);
 	}
 	
+	MemFile_Free(&config);
+	FileSys_Free();
 	AudioTools_VadpcmDec(sampleInfo);
 }
 
