@@ -23,3 +23,4 @@ vadpcm_enc
 audio/*
 *.sh
 *.toml
+.log

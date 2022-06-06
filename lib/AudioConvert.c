@@ -491,16 +491,26 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	MemFile config = MemFile_Initialize();
 	u32 loopEnd;
 	u32 tailEnd;
+	char* basename = Basename(Basename(sampleInfo->input));
+	char* book;
 	
 	MemFile_LoadFile(&sampleInfo->memFile, sampleInfo->input);
 	
 	if (sampleInfo->memFile.data == NULL)
 		printf_error("Could not load file. Closing!");
 	
-	Dir_Set(Path(sampleInfo->input));
-	Log("Wildcard *.book.bin");
-	MemFile_LoadFile(&sampleInfo->vadBook, Dir_File("*.book.bin"));
-	MemFile_LoadFile_String(&config, Dir_File("config.toml"));
+	FileSys_Path(Path(sampleInfo->input));
+	
+	book = FileSys_File(HeapPrint("%s.book.bin", basename));
+	if (!Sys_Stat(book))
+		book = FileSys_FindFile("*.book.bin");
+	if (!Sys_Stat(book))
+		printf_error("Could not locate [*.book.bin]");
+	if (!Sys_Stat(FileSys_File("config.toml")))
+		printf_error("Could not locate [config.toml]");
+	
+	MemFile_LoadFile(&sampleInfo->vadBook, book);
+	MemFile_LoadFile_String(&config, FileSys_File("config.toml"));
 	
 	loopEnd = Toml_GetInt(&config, "loop_end");
 	tailEnd = Toml_GetInt(&config, "tail_end");
