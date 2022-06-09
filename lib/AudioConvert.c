@@ -888,28 +888,42 @@ void Audio_SaveSample_Binary(AudioSample* sampleInfo) {
 		0.01 * sampleInfo->instrument.fineTune
 	);
 	
-	Toml_WriteComment(config, Basename(sampleInfo->output));
+	char* file;
 	
-	Toml_WriteInt(config, "codec", gPrecisionFlag, NO_COMMENT);
-	Toml_WriteInt(config, "medium", 0, NO_COMMENT);
-	Toml_WriteInt(config, "bitA", 0, NO_COMMENT);
-	Toml_WriteInt(config, "bitB", 0, NO_COMMENT);
+	file = HeapPrint("%sconfig.toml", Path(sampleInfo->output));
 	
-	Toml_Print(config, "\n");
-	Toml_WriteComment(config, "Loop");
-	Toml_WriteInt(config, "loop_start", sampleInfo->instrument.loop.start, NO_COMMENT);
-	Toml_WriteInt(config, "loop_end", sampleInfo->instrument.loop.end, NO_COMMENT);
-	Toml_WriteInt(config, "loop_count", sampleInfo->instrument.loop.count, NO_COMMENT);
-	Toml_WriteInt(config, "tail_end", sampleInfo->instrument.loop.oldEnd && sampleInfo->instrument.loop.oldEnd != sampleInfo->instrument.loop.end ? sampleInfo->instrument.loop.oldEnd : 0, NO_COMMENT);
-	
-	Toml_Print(config, "\n");
-	Toml_WriteComment(config, "Instrument Info");
-	Toml_WriteInt(config, "basenote", sampleInfo->instrument.note, NO_COMMENT);
-	Toml_WriteInt(config, "finetune", sampleInfo->instrument.fineTune, NO_COMMENT);
-	Toml_WriteFloat(config, "tuning", tuning, NO_COMMENT);
+	if (Sys_Stat(file)) {
+		MemFile_LoadFile_String(config, file);
+		
+		Toml_ReplaceVariable(config, "codec", "%d", gPrecisionFlag);
+		Toml_ReplaceVariable(config, "loop_start", "%d", sampleInfo->instrument.loop.start);
+		Toml_ReplaceVariable(config, "loop_end", "%d", sampleInfo->instrument.loop.end);
+		Toml_ReplaceVariable(config, "loop_count", "%d", sampleInfo->instrument.loop.count);
+		Toml_ReplaceVariable(config, "tail_end", "%d", sampleInfo->instrument.loop.oldEnd && sampleInfo->instrument.loop.oldEnd != sampleInfo->instrument.loop.end ? sampleInfo->instrument.loop.oldEnd : 0);
+		
+		Toml_ReplaceVariable(config, "basenote", "%d", sampleInfo->instrument.note);
+		Toml_ReplaceVariable(config, "finetune", "%d", sampleInfo->instrument.fineTune);
+		Toml_ReplaceVariable(config, "tuning", "%f", tuning);
+	} else {
+		Toml_WriteInt(config, "codec", gPrecisionFlag, NO_COMMENT);
+		Toml_WriteInt(config, "medium", 0, NO_COMMENT);
+		Toml_WriteInt(config, "bitA", 0, NO_COMMENT);
+		Toml_WriteInt(config, "bitB", 0, NO_COMMENT);
+		
+		Toml_Print(config, "\n");
+		Toml_WriteInt(config, "loop_start", sampleInfo->instrument.loop.start, NO_COMMENT);
+		Toml_WriteInt(config, "loop_end", sampleInfo->instrument.loop.end, NO_COMMENT);
+		Toml_WriteInt(config, "loop_count", sampleInfo->instrument.loop.count, NO_COMMENT);
+		Toml_WriteInt(config, "tail_end", sampleInfo->instrument.loop.oldEnd && sampleInfo->instrument.loop.oldEnd != sampleInfo->instrument.loop.end ? sampleInfo->instrument.loop.oldEnd : 0, NO_COMMENT);
+		
+		Toml_Print(config, "\n");
+		Toml_WriteInt(config, "basenote", sampleInfo->instrument.note, NO_COMMENT);
+		Toml_WriteInt(config, "finetune", sampleInfo->instrument.fineTune, NO_COMMENT);
+		Toml_WriteFloat(config, "tuning", tuning, NO_COMMENT);
+	}
 	
 	Log("Save Config");
-	MemFile_SaveFile_String(config, HeapPrint("%sconfig.toml", Path(sampleInfo->output)));
+	MemFile_SaveFile_String(config, file);
 	MemFile_Free(&output);
 }
 

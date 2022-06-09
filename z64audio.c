@@ -288,8 +288,8 @@ s32 Main(s32 argc, char* argv[]) {
 	Audio_LoadSample(&sample);
 	
 	if (ParseArg("z64rom")) {
-		if (sample.instrument.note == 60 &&
-			sample.instrument.fineTune == 0) {
+		if (sample.instrument.note != 60 ||
+			sample.instrument.fineTune != 0) {
 			goto noteinfo;
 		}
 	} else {
