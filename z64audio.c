@@ -287,16 +287,8 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	Audio_LoadSample(&sample);
 	
-	if (ParseArg("z64rom")) {
-		if (sample.instrument.note != 60 ||
-			sample.instrument.fineTune != 0) {
-			goto noteinfo;
-		}
-	} else {
-noteinfo:
-		if (ParseArg("basenote")) sample.instrument.note = Value_Int(argv[parArg]);
-		if (ParseArg("finetune")) sample.instrument.fineTune = Value_Int(argv[parArg]);
-	}
+	if (ParseArg("basenote")) sample.instrument.note = Value_Int(argv[parArg]);
+	if (ParseArg("finetune")) sample.instrument.fineTune = Value_Int(argv[parArg]);
 	
 	if (ParseArg("split-hi")) sample.instrument.highNote = Value_Int(argv[parArg]);
 	if (ParseArg("split-lo")) sample.instrument.lowNote = Value_Int(argv[parArg]);
