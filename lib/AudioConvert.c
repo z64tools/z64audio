@@ -903,7 +903,12 @@ void Audio_SaveSample_Binary(AudioSample* sampleInfo) {
 		
 		Toml_ReplaceVariable(config, "basenote", "%d", sampleInfo->instrument.note);
 		Toml_ReplaceVariable(config, "finetune", "%d", sampleInfo->instrument.fineTune);
-		Toml_ReplaceVariable(config, "tuning", "%f", tuning);
+		
+		if (Toml_Variable(config->str, "tuning"))
+			Toml_ReplaceVariable(config, "tuning", "%f", tuning);
+		else {
+			Toml_WriteFloat(config, "tuning", tuning, NO_COMMENT);
+		}
 	} else {
 		Toml_WriteInt(config, "codec", gPrecisionFlag, NO_COMMENT);
 		Toml_WriteInt(config, "medium", 0, NO_COMMENT);
