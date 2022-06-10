@@ -832,6 +832,8 @@ void Audio_SaveSample_Aiff(AudioSample* sampleInfo) {
 	MemFile_Free(&output);
 }
 
+s32 gOverrideConfig = false;
+
 void Audio_SaveSample_Binary(AudioSample* sampleInfo) {
 	MemFile output = MemFile_Initialize();
 	u16 emp = 0;
@@ -892,7 +894,7 @@ void Audio_SaveSample_Binary(AudioSample* sampleInfo) {
 	
 	file = HeapPrint("%sconfig.toml", Path(sampleInfo->output));
 	
-	if (Sys_Stat(file)) {
+	if (Sys_Stat(file) && !gOverrideConfig) {
 		MemFile_LoadFile_String(config, file);
 		
 		Toml_ReplaceVariable(config, "codec", "%d", gPrecisionFlag);

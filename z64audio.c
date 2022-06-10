@@ -63,6 +63,7 @@ char* sToolUsage = {
 bool gVadPrev;
 bool gRomForceLoop;
 FormatParam sDefaultFormat;
+extern s32 gOverrideConfig;
 
 // # # # # # # # # # # # # # # # # # # # #
 // # Setup                               #
@@ -260,6 +261,8 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	printf_toolinfo(sToolName, "\n");
 	Audio_InitSample(&sample, input, output);
+	
+	if (Arg("config-override")) gOverrideConfig = true;
 	
 	if (ParseArg("design")) {
 		Main_LoadSampleConf(argv[parArg]);
