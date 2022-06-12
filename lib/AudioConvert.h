@@ -52,6 +52,7 @@ typedef struct AudioSample {
 	PointerCast audio;
 	u32 dataIsFloat;
 	u32 targetIsFloat;
+	u32 isEncoded;
 	SampleInstrument instrument;
 	MemFile vadBook;
 	MemFile vadLoopBook;

@@ -696,6 +696,11 @@ void AudioTools_VadpcmEnc(AudioSample* sampleInfo) {
 	s32 prec = 9; // 5 half VADPCM Precision
 	s32 nRepeats = 0;
 	
+	if (sampleInfo->isEncoded)
+		return;
+	
+	sampleInfo->isEncoded = true;
+	
 	if (sampleInfo->bit != 16) {
 		sampleInfo->targetBit = 16;
 		Audio_BitDepth(sampleInfo);
