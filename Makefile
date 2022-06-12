@@ -19,6 +19,10 @@ PRNT_PRPL := \e[0;95m
 PRNT_CYAN := \e[0;96m
 PRNT_RSET := \e[m
 
+.PHONY: clean default linux win32
+
+default: linux
+
 include $(C_INCLUDE_PATH)/ExtLib.mk
 
 # bin/win32/lib/AudioSDK.o: CFLAGS = -Wall -Wextra -pedantic -std=c99 -g -O2
@@ -29,9 +33,6 @@ $(shell mkdir -p bin/ $(foreach dir, \
 	$(dir $(SOURCE_O_WIN32)) \
 	$(dir $(SOURCE_O_LINUX)), $(dir)))
 
-.PHONY: clean default linux win32
-
-default: linux
 all: linux win32
 linux: $(SOURCE_O_LINUX) z64audio
 win32: $(SOURCE_O_WIN32) bin/icon.o z64audio.exe
