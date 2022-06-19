@@ -2,7 +2,7 @@
 *.o
 z64audio
 .vscode/*
-uncrustify.toml
+uncrustify.cfg
 __include/*
 compile_flags.txt
 *.wav
@@ -22,5 +22,5 @@ vadpcm_enc
 *.book
 audio/*
 *.sh
-*.toml
+*.cfg
 .log

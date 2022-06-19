@@ -506,14 +506,14 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 		book = FileSys_FindFile("*.book.bin");
 	if (!Sys_Stat(book))
 		printf_error("Could not locate [*.book.bin]");
-	if (!Sys_Stat(FileSys_File("config.toml")))
-		printf_error("Could not locate [config.toml]");
+	if (!Sys_Stat(FileSys_File("config.cfg")))
+		printf_error("Could not locate [config.cfg]");
 	
 	MemFile_LoadFile(&sampleInfo->vadBook, book);
-	MemFile_LoadFile_String(&config, FileSys_File("config.toml"));
+	MemFile_LoadFile_String(&config, FileSys_File("config.cfg"));
 	
-	loopEnd = Toml_GetInt(&config, "loop_end");
-	tailEnd = Toml_GetInt(&config, "tail_end");
+	loopEnd = Config_GetInt(&config, "loop_end");
+	tailEnd = Config_GetInt(&config, "tail_end");
 	
 	sampleInfo->channelNum = 1;
 	sampleInfo->bit = 16;
@@ -522,9 +522,9 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	sampleInfo->samplesNum = tailEnd ? tailEnd : loopEnd;
 	sampleInfo->audio.p = sampleInfo->memFile.data;
 	
-	sampleInfo->instrument.loop.start = Toml_GetInt(&config, "loop_start");
-	sampleInfo->instrument.loop.end = Toml_GetInt(&config, "loop_end");
-	gPrecisionFlag = Toml_GetInt(&config, "codec");
+	sampleInfo->instrument.loop.start = Config_GetInt(&config, "loop_start");
+	sampleInfo->instrument.loop.end = Config_GetInt(&config, "loop_end");
+	gPrecisionFlag = Config_GetInt(&config, "codec");
 	sampleInfo->instrument.loop.count = sampleInfo->instrument.loop.start ? -1 : 0;
 	
 	// Thanks Sauraen!
@@ -892,36 +892,36 @@ void Audio_SaveSample_Binary(AudioSample* sampleInfo) {
 	
 	char* file;
 	
-	file = HeapPrint("%sconfig.toml", Path(sampleInfo->output));
+	file = HeapPrint("%sconfig.cfg", Path(sampleInfo->output));
 	
 	if (Sys_Stat(file) && !gOverrideConfig) {
 		MemFile_LoadFile_String(config, file);
 		
-		Toml_ReplaceVariable(config, "codec", "%d", gPrecisionFlag);
-		Toml_ReplaceVariable(config, "loop_start", "%d", sampleInfo->instrument.loop.start);
-		Toml_ReplaceVariable(config, "loop_end", "%d", sampleInfo->instrument.loop.end);
-		Toml_ReplaceVariable(config, "loop_count", "%d", sampleInfo->instrument.loop.count);
-		Toml_ReplaceVariable(config, "tail_end", "%d", sampleInfo->instrument.loop.oldEnd && sampleInfo->instrument.loop.oldEnd != sampleInfo->instrument.loop.end ? sampleInfo->instrument.loop.oldEnd : 0);
+		Config_ReplaceVariable(config, "codec", "%d", gPrecisionFlag);
+		Config_ReplaceVariable(config, "loop_start", "%d", sampleInfo->instrument.loop.start);
+		Config_ReplaceVariable(config, "loop_end", "%d", sampleInfo->instrument.loop.end);
+		Config_ReplaceVariable(config, "loop_count", "%d", sampleInfo->instrument.loop.count);
+		Config_ReplaceVariable(config, "tail_end", "%d", sampleInfo->instrument.loop.oldEnd && sampleInfo->instrument.loop.oldEnd != sampleInfo->instrument.loop.end ? sampleInfo->instrument.loop.oldEnd : 0);
 		
-		Toml_ReplaceVariable(config, "basenote", "%d", sampleInfo->instrument.note);
-		Toml_ReplaceVariable(config, "finetune", "%d", sampleInfo->instrument.fineTune);
-		Toml_ReplaceVariable(config, "tuning", "%f", tuning);
+		Config_ReplaceVariable(config, "basenote", "%d", sampleInfo->instrument.note);
+		Config_ReplaceVariable(config, "finetune", "%d", sampleInfo->instrument.fineTune);
+		Config_ReplaceVariable(config, "tuning", "%f", tuning);
 	} else {
-		Toml_WriteInt(config, "codec", gPrecisionFlag, NO_COMMENT);
-		Toml_WriteInt(config, "medium", 0, NO_COMMENT);
-		Toml_WriteInt(config, "bitA", 0, NO_COMMENT);
-		Toml_WriteInt(config, "bitB", 0, NO_COMMENT);
+		Config_WriteInt(config, "codec", gPrecisionFlag, NO_COMMENT);
+		Config_WriteInt(config, "medium", 0, NO_COMMENT);
+		Config_WriteInt(config, "bitA", 0, NO_COMMENT);
+		Config_WriteInt(config, "bitB", 0, NO_COMMENT);
 		
-		Toml_Print(config, "\n");
-		Toml_WriteInt(config, "loop_start", sampleInfo->instrument.loop.start, NO_COMMENT);
-		Toml_WriteInt(config, "loop_end", sampleInfo->instrument.loop.end, NO_COMMENT);
-		Toml_WriteInt(config, "loop_count", sampleInfo->instrument.loop.count, NO_COMMENT);
-		Toml_WriteInt(config, "tail_end", sampleInfo->instrument.loop.oldEnd && sampleInfo->instrument.loop.oldEnd != sampleInfo->instrument.loop.end ? sampleInfo->instrument.loop.oldEnd : 0, NO_COMMENT);
+		Config_Print(config, "\n");
+		Config_WriteInt(config, "loop_start", sampleInfo->instrument.loop.start, NO_COMMENT);
+		Config_WriteInt(config, "loop_end", sampleInfo->instrument.loop.end, NO_COMMENT);
+		Config_WriteInt(config, "loop_count", sampleInfo->instrument.loop.count, NO_COMMENT);
+		Config_WriteInt(config, "tail_end", sampleInfo->instrument.loop.oldEnd && sampleInfo->instrument.loop.oldEnd != sampleInfo->instrument.loop.end ? sampleInfo->instrument.loop.oldEnd : 0, NO_COMMENT);
 		
-		Toml_Print(config, "\n");
-		Toml_WriteInt(config, "basenote", sampleInfo->instrument.note, NO_COMMENT);
-		Toml_WriteInt(config, "finetune", sampleInfo->instrument.fineTune, NO_COMMENT);
-		Toml_WriteFloat(config, "tuning", tuning, NO_COMMENT);
+		Config_Print(config, "\n");
+		Config_WriteInt(config, "basenote", sampleInfo->instrument.note, NO_COMMENT);
+		Config_WriteInt(config, "finetune", sampleInfo->instrument.fineTune, NO_COMMENT);
+		Config_WriteFloat(config, "tuning", tuning, NO_COMMENT);
 	}
 	
 	Log("Save Config");

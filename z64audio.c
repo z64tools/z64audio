@@ -54,7 +54,7 @@ char* sToolUsage = {
 	EXT_INFO("--T [ 10 ]", 16, "Override TableDesign Threshold")
 	PRNT_NL
 	EXT_INFO_TITLE("Extra:")
-	EXT_INFO("--P",        16, "Load separate settings [.toml]")
+	EXT_INFO("--P",        16, "Load separate settings [.cfg]")
 	EXT_INFO("--log",      16, "Print Debug Log")
 	EXT_INFO("--S",        16, "Silence")
 	EXT_INFO("--N",        16, "Print Info of input [file]")
@@ -78,7 +78,7 @@ extern s32 gOverrideConfig;
 		com2 \
 )
 
-void Main_Toml_Generate(MemFile* param, char* file) {
+void Main_Config_Generate(MemFile* param, char* file) {
 	MemFile_Malloc(param, 0x1000);
 	
 	MemFile_Printf(
@@ -119,18 +119,18 @@ void Main_Config(char* argv[]) {
 	};
 	
 	strcpy(file, Sys_AppDir());
-	strcat(file, "z64audio.toml");
+	strcat(file, "z64audio.cfg");
 	
 	Log("Get: %s", file);
 	if (ParseArg("P")) {
 		MemFile_LoadFile_String(&param, argv[parArg]);
 	} else if (MemFile_LoadFile_String(&param, file)) {
 		printf_info("Generating settings [%s]", file);
-		Main_Toml_Generate(&param, file);
+		Main_Config_Generate(&param, file);
 	}
 	
-	gBinNameIndex = Toml_GetBool(&param, "zaudio_zz_naming");
-	integer = Toml_GetOption(&param, "zaudio_def_dnd_fmt", list);
+	gBinNameIndex = Config_GetBool(&param, "zaudio_zz_naming");
+	integer = Config_GetOption(&param, "zaudio_def_dnd_fmt", list);
 	
 	if (integer != 404040404) {
 		sDefaultFormat = integer;
@@ -152,14 +152,14 @@ void Main_LoadSampleConf(char* conf) {
 	
 	MemFile_LoadFile_String(&mem, conf);
 	
-	if ((param = Toml_GetVariable(mem.str, "book_iteration"))) gTableDesignIteration = param;
-	if ((param = Toml_GetVariable(mem.str, "book_frame_size"))) gTableDesignFrameSize = param;
-	if ((param = Toml_GetVariable(mem.str, "book_bits"))) gTableDesignBits = param;
-	if ((param = Toml_GetVariable(mem.str, "book_order"))) gTableDesignOrder = param;
-	if ((param = Toml_GetVariable(mem.str, "book_threshold"))) gTableDesignThreshold = param;
+	if ((param = Config_GetVariable(mem.str, "book_iteration"))) gTableDesignIteration = param;
+	if ((param = Config_GetVariable(mem.str, "book_frame_size"))) gTableDesignFrameSize = param;
+	if ((param = Config_GetVariable(mem.str, "book_bits"))) gTableDesignBits = param;
+	if ((param = Config_GetVariable(mem.str, "book_order"))) gTableDesignOrder = param;
+	if ((param = Config_GetVariable(mem.str, "book_threshold"))) gTableDesignThreshold = param;
 	
-	if ((param = Toml_GetVariable(mem.str, "sample_rate"))) gBinSampleRate = Value_Int(param);
-	if ((param = Toml_GetVariable(mem.str, "sample_tuning"))) gTuning = Value_Float(param);
+	if ((param = Config_GetVariable(mem.str, "sample_rate"))) gBinSampleRate = Value_Int(param);
+	if ((param = Config_GetVariable(mem.str, "sample_tuning"))) gTuning = Value_Float(param);
 	
 	MemFile_Free(&mem);
 }
