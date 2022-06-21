@@ -351,7 +351,7 @@ static void* Audio_GetChunk(AudioSample* sampleInfo, const char* type) {
 		memcpy(&chunkHead, data, 0x8);
 		if (isAiff) SwapBE(chunkHead.size);
 		if (MemMem(type, 4, chunkHead.type, 4)) {
-			Log("%d - Chunk: %.4s Offset: 0x%08X", i, chunkHead.type, (uPtr)data - (uPtr)sampleInfo->memFile.data);
+			Log("%d - Chunk: %.4s Offset: 0x%08X", i, chunkHead.type, (uptr)data - (uptr)sampleInfo->memFile.data);
 			
 			return data;
 		}
@@ -361,11 +361,11 @@ static void* Audio_GetChunk(AudioSample* sampleInfo, const char* type) {
 		// In case of padding between chunks
 		while (data[0] == 0) {
 			data++;
-			if ((uPtr)data - (uPtr)sampleInfo->memFile.data >= fileSize)
+			if ((uptr)data - (uptr)sampleInfo->memFile.data >= fileSize)
 				return NULL;
 		}
 		
-		if ((uPtr)data - (uPtr)sampleInfo->memFile.data >= fileSize)
+		if ((uptr)data - (uptr)sampleInfo->memFile.data >= fileSize)
 			return NULL;
 	}
 }
