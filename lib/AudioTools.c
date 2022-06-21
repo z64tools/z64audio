@@ -602,7 +602,7 @@ void AudioTools_TableDesign(AudioSample* sampleInfo) {
 	u32 numOverflows = 0;
 	
 	MemFile* memBook = &sampleInfo->vadBook;
-	MemFile_Malloc(memBook, sizeof(u16) * 0x8 * order * nPredictors + sizeof(u16) * 2);
+	MemFile_Alloc(memBook, sizeof(u16) * 0x8 * order * nPredictors + sizeof(u16) * 2);
 	MemFile_Write(memBook, &order, sizeof(u16));
 	MemFile_Write(memBook, &nPredictors, sizeof(u16));
 	
@@ -709,7 +709,7 @@ void AudioTools_VadpcmEnc(AudioSample* sampleInfo) {
 	if (sampleInfo->channelNum != 1)
 		Audio_Mono(sampleInfo);
 	
-	if (Sys_Stat(HeapPrint("%s.normalize", Path(sampleInfo->input))))
+	if (Sys_Stat(xFmt("%s.normalize", Path(sampleInfo->input))))
 		Audio_Normalize(sampleInfo);
 	
 	if (sampleInfo->vadBook.data == NULL)
@@ -725,12 +725,12 @@ void AudioTools_VadpcmEnc(AudioSample* sampleInfo) {
 	if (gPrecisionFlag == 3)
 		prec = 5;
 	
-	MemFile_Malloc(&memEnc, sampleInfo->size * 2);
+	MemFile_Alloc(&memEnc, sampleInfo->size * 2);
 	AudioTools_ReadCodeBook(sampleInfo, &table, &order, &nPred);
 	
 	// Process Loop
 	if (sampleInfo->instrument.loop.count) {
-		MemFile_Malloc(&sampleInfo->vadLoopBook, sizeof(s16) * 16);
+		MemFile_Alloc(&sampleInfo->vadLoopBook, sizeof(s16) * 16);
 		
 		loopStart = sampleInfo->instrument.loop.start;
 		loopEnd = sampleInfo->instrument.loop.end;
@@ -835,7 +835,7 @@ void AudioTools_VadpcmDec(AudioSample* sampleInfo) {
 	s32 state[16];
 	u8 input[9];
 	
-	MemFile_Malloc(&memDec, sampleInfo->samplesNum * sizeof(s32) + 0x100);
+	MemFile_Alloc(&memDec, sampleInfo->samplesNum * sizeof(s32) + 0x100);
 	AudioTools_ReadCodeBook(sampleInfo, &coefTable, &order, &npredictors);
 	
 	MemFile_Rewind(&sampleInfo->memFile);
@@ -952,7 +952,7 @@ void AudioTools_LoadCodeBook(AudioSample* sampleInfo, char* file) {
 	order = temp.cast.u16[1];
 	nPred = temp.cast.u16[3];
 	size = sizeof(u16) * 8 * order * nPred + sizeof(u16) * 2;
-	MemFile_Malloc(vadBook, size);
+	MemFile_Alloc(vadBook, size);
 	MemFile_Seek(vadBook, 0);
 	MemFile_Write(vadBook, &order, 2);
 	MemFile_Write(vadBook, &nPred, 2);

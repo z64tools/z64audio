@@ -157,7 +157,7 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 		StrStripIllegalChar(this->sampleName.txt);
 		
 		if (strlen(this->sampleName.txt) > 0) {
-			this->sample.output = HeapPrint("%s%s.wav", Path(this->sample.memFile.info.name), this->sampleName.txt);
+			this->sample.output = xFmt("%s%s.wav", Path(this->sample.memFile.info.name), this->sampleName.txt);
 			
 			if (this->sample.output != NULL && strlen(this->sample.output) > 4)
 				Audio_SaveSample(&this->sample);

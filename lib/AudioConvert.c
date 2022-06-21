@@ -144,7 +144,7 @@ static void Audio_BitDepth_Raise(AudioSample* sampleInfo) {
 	printf_info_align("Upsampling", "%d-bit -> 32-bit", sampleInfo->bit);
 	Log("Upsampling will iterate %d times. %d x %d", samplesNum * channelNum, samplesNum, channelNum);
 	
-	MemFile_Malloc(&newMem, samplesNum * sizeof(f32) * channelNum);
+	MemFile_Alloc(&newMem, samplesNum * sizeof(f32) * channelNum);
 	
 	if (sampleInfo->bit == 16) {
 		for (s32 i = 0; i < samplesNum * channelNum; i++) {
@@ -501,7 +501,7 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	
 	FileSys_Path(Path(sampleInfo->input));
 	
-	book = FileSys_File(HeapPrint("%s.book.bin", basename));
+	book = FileSys_File(xFmt("%s.book.bin", basename));
 	if (!Sys_Stat(book))
 		book = FileSys_FindFile("*.book.bin");
 	if (!Sys_Stat(book))
@@ -557,7 +557,7 @@ void Audio_LoadSample_Mp3(AudioSample* sampleInfo) {
 	sampleInfo->channelNum = info.channels;
 	sampleInfo->sampleRate = info.hz;
 	
-	MemFile_Malloc(&sampleInfo->memFile, sizeof(s16) * info.samples * 2);
+	MemFile_Alloc(&sampleInfo->memFile, sizeof(s16) * info.samples * 2);
 	MemFile_Write(&sampleInfo->memFile, info.buffer, sizeof(s16) * info.samples);
 	
 	sampleInfo->audio.p = sampleInfo->memFile.data;
@@ -722,7 +722,7 @@ void Audio_SaveSample_Wav(AudioSample* sampleInfo) {
 	MemFile output = MemFile_Initialize();
 	
 	Log("Malloc %fMB", BinToMb(sampleInfo->size * 2));
-	MemFile_Malloc(&output, sampleInfo->size * 2);
+	MemFile_Alloc(&output, sampleInfo->size * 2);
 	MemFile_Params(&output, MEM_REALLOC, true, MEM_END);
 	
 	Log("WriteChunk " PRNT_BLUE "RIFF"); Wave_WriteChunk_Riff(sampleInfo, &output);
@@ -819,7 +819,7 @@ void Audio_SaveSample_Aiff(AudioSample* sampleInfo) {
 	MemFile output = MemFile_Initialize();
 	
 	Log("Malloc %fMB", BinToMb(sampleInfo->size * 2));
-	MemFile_Malloc(&output, sampleInfo->size * 2);
+	MemFile_Alloc(&output, sampleInfo->size * 2);
 	
 	Log("WriteChunk " PRNT_BLUE "FORM"); Aiff_WriteChunk_Form(sampleInfo, &output);
 	Log("WriteChunk " PRNT_BLUE "COMM"); Aiff_WriteChunk_Comm(sampleInfo, &output);
@@ -842,7 +842,7 @@ void Audio_SaveSample_Binary(AudioSample* sampleInfo) {
 	Log("AudioTools_VadpcmEnc(sampleInfo);");
 	AudioTools_VadpcmEnc(sampleInfo);
 	
-	MemFile_Malloc(&output, sampleInfo->size * 2);
+	MemFile_Alloc(&output, sampleInfo->size * 2);
 	
 	String_SwapExtension(buffer, sampleInfo->output, sBinName[gBinNameIndex][0]);
 	MemFile_Clear(&output);
@@ -892,7 +892,7 @@ void Audio_SaveSample_Binary(AudioSample* sampleInfo) {
 	
 	char* file;
 	
-	file = HeapPrint("%sconfig.cfg", Path(sampleInfo->output));
+	file = xFmt("%sconfig.cfg", Path(sampleInfo->output));
 	
 	if (Sys_Stat(file) && !gOverrideConfig) {
 		MemFile_LoadFile_String(config, file);
@@ -937,7 +937,7 @@ void Audio_SaveSample_VadpcmC(AudioSample* sampleInfo) {
 	
 	AudioTools_VadpcmEnc(sampleInfo);
 	
-	MemFile_Malloc(&output, 0x40000);
+	MemFile_Alloc(&output, 0x40000);
 	order = sampleInfo->vadBook.cast.u16[0];
 	numPred = sampleInfo->vadBook.cast.u16[1];
 	basename = Basename(sampleInfo->output);

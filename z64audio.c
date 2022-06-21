@@ -79,7 +79,7 @@ extern s32 gOverrideConfig;
 )
 
 void Main_Config_Generate(MemFile* param, char* file) {
-	MemFile_Malloc(param, 0x1000);
+	MemFile_Alloc(param, 0x1000);
 	
 	MemFile_Printf(
 		param,
