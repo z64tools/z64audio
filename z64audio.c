@@ -5,9 +5,6 @@
 #define INCBIN_PREFIX
 #include <incbin.h>
 
-INCBIN(gFont_CascadiaCode, "assets/CascadiaCode-SemiBold.ttf");
-INCBIN(gFont_NotoSand, "assets/NotoSans-Bold.ttf");
-
 INCBIN(gCursor_ArrowU, "assets/arrow_up.ia16");
 INCBIN(gCursor_ArrowL, "assets/arrow_left.ia16");
 INCBIN(gCursor_ArrowD, "assets/arrow_down.ia16");
@@ -183,14 +180,11 @@ s32 Main(s32 argc, char* argv[]) {
 		WindowContext* winCtx;
 		
 		Calloc(winCtx, sizeof(WindowContext));
-		winCtx->vg = Interface_Init("z64audio", &winCtx->app, &winCtx->input, winCtx, (void*)Window_Update, (void*)Window_Draw, Window_DropCallback, 980, 480, 2);
+		winCtx->vg = Interface_Init("z64audio", &winCtx->app, &winCtx->input, winCtx, (void*)Window_Update, (void*)Window_Draw, Window_DropCallback, 980, 480, 0);
 		
 		winCtx->geoGrid.passArg = winCtx;
 		winCtx->geoGrid.taskTable = gTaskTable;
 		winCtx->geoGrid.taskTableNum = ArrayCount(gTaskTable);
-		
-		nvgCreateFontMem(winCtx->vg, "font-basic", (void*)gFont_CascadiaCodeData, gFont_CascadiaCodeSize, 0);
-		nvgCreateFontMem(winCtx->vg, "font-bold", (void*)gFont_NotoSandData, gFont_NotoSandSize, 0);
 		
 		Theme_Init(0);
 		GeoGrid_Init(&winCtx->geoGrid, &winCtx->app.winDim, &winCtx->input, winCtx->vg);

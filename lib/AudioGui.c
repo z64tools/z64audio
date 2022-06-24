@@ -694,10 +694,11 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 	
 	Sampler_ZoomLogic(winCtx, split, this, &waverect, &finder);
 	Sampler_Draw_WaveRect(vg, &waverect);
-	Sampler_Draw_Finder(vg, &waverect, &finder, sample, this);
 	
 	if (this->sample.audio.p == NULL)
 		return;
+	
+	Sampler_Draw_Finder(vg, &waverect, &finder, sample, this);
 	
 	f32 zoomRatio = this->zoom.vEnd - this->zoom.vStart;
 	
