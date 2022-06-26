@@ -160,7 +160,7 @@ static void Audio_BitDepth_Raise(AudioSample* sampleInfo) {
 	
 	Log("Upsampling done.");
 	
-	newMem.dataSize = sampleInfo->size =
+	newMem.size = sampleInfo->size =
 		sampleInfo->samplesNum *
 		sampleInfo->channelNum *
 		sizeof(f32);
@@ -518,7 +518,7 @@ void Audio_LoadSample_Bin(AudioSample* sampleInfo) {
 	sampleInfo->channelNum = 1;
 	sampleInfo->bit = 16;
 	sampleInfo->sampleRate = gBinSampleRate;
-	sampleInfo->size = sampleInfo->memFile.dataSize;
+	sampleInfo->size = sampleInfo->memFile.size;
 	sampleInfo->samplesNum = tailEnd ? tailEnd : loopEnd;
 	sampleInfo->audio.p = sampleInfo->memFile.data;
 	
@@ -561,7 +561,7 @@ void Audio_LoadSample_Mp3(AudioSample* sampleInfo) {
 	MemFile_Write(&sampleInfo->memFile, info.buffer, sizeof(s16) * info.samples);
 	
 	sampleInfo->audio.p = sampleInfo->memFile.data;
-	sampleInfo->size = sampleInfo->memFile.dataSize;
+	sampleInfo->size = sampleInfo->memFile.size;
 	
 	Free(info.buffer);
 	
@@ -576,7 +576,7 @@ void Audio_LoadSample_Mp3(AudioSample* sampleInfo) {
 		memmove(sampleInfo->audio.s16, &sampleInfo->audio.s16[i], sampleInfo->size - sizeof(s16) * i);
 		sampleInfo->samplesNum -= i / sampleInfo->channelNum;
 		sampleInfo->size -= sizeof(s16) * i;
-		sampleInfo->memFile.dataSize = sampleInfo->size;
+		sampleInfo->memFile.size = sampleInfo->size;
 	}
 	
 	sampleInfo->instrument.loop.end = sampleInfo->samplesNum;
@@ -594,7 +594,7 @@ void Audio_LoadSample_Raw(AudioSample* sampleInfo) {
 	sampleInfo->dataIsFloat = gRaw.dataIsFloat;
 	sampleInfo->channelNum = gRaw.channelNum;
 	sampleInfo->bit = gRaw.bit;
-	sampleInfo->size = sampleInfo->memFile.dataSize;
+	sampleInfo->size = sampleInfo->memFile.size;
 	
 	sampleInfo->audio.p = sampleInfo->memFile.data;
 	
@@ -730,7 +730,7 @@ void Audio_SaveSample_Wav(AudioSample* sampleInfo) {
 	Log("WriteChunk " PRNT_BLUE "DATA"); Wave_WriteChunk_Data(sampleInfo, &output);
 	Log("WriteChunk " PRNT_BLUE "INST"); Wave_WriteChunk_Inst(sampleInfo, &output);
 	Log("WriteChunk " PRNT_BLUE "SMPL"); Wave_WriteChunk_Smpl(sampleInfo, &output);
-	output.cast.u32[1] = output.dataSize - 0x8;
+	output.cast.u32[1] = output.size - 0x8;
 	
 	MemFile_SaveFile(&output, sampleInfo->output);
 	MemFile_Free(&output);
@@ -826,7 +826,7 @@ void Audio_SaveSample_Aiff(AudioSample* sampleInfo) {
 	Log("WriteChunk " PRNT_BLUE "MARK"); Aiff_WriteChunk_Mark(sampleInfo, &output);
 	Log("WriteChunk " PRNT_BLUE "INST"); Aiff_WriteChunk_Inst(sampleInfo, &output);
 	Log("WriteChunk " PRNT_BLUE "SSND"); Aiff_WriteChunk_Ssnd(sampleInfo, &output);
-	WriteBE(output.cast.u32[1], output.dataSize - 0x8);
+	WriteBE(output.cast.u32[1], output.size - 0x8);
 	
 	MemFile_SaveFile(&output, sampleInfo->output);
 	MemFile_Free(&output);
@@ -854,14 +854,14 @@ void Audio_SaveSample_Binary(AudioSample* sampleInfo) {
 	if (sampleInfo->useExistingPred == false) {
 		String_SwapExtension(buffer, sampleInfo->output, sBinName[gBinNameIndex][1]);
 		MemFile_Clear(&output);
-		for (s32 i = 0; i < sampleInfo->vadBook.dataSize / 2; i++) {
+		for (s32 i = 0; i < sampleInfo->vadBook.size / 2; i++) {
 			SwapBE(sampleInfo->vadBook.cast.s16[i]);
 		}
 		MemFile_Write(&output, &emp, sizeof(u16));
 		MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[0], sizeof(u16));
 		MemFile_Write(&output, &emp, sizeof(u16));
 		MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[1], sizeof(u16));
-		MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[2], sampleInfo->vadBook.dataSize - sizeof(u16) * 2);
+		MemFile_Write(&output, &sampleInfo->vadBook.cast.u16[2], sampleInfo->vadBook.size - sizeof(u16) * 2);
 		MemFile_SaveFile(&output, buffer);
 		Log("Save Book", "%s", buffer);
 		printf_info_align("Save Book", "%s", buffer);

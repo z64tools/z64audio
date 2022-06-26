@@ -310,7 +310,7 @@ s32 Main(s32 argc, char* argv[]) {
 		printf_info_align("Channels", "%10d", sample.channelNum);
 		printf_info_align("Frames", "%10d", sample.samplesNum);
 		printf_info_align("Data Size", "%10d", sample.size);
-		printf_info_align("File Size", "%10d", sample.memFile.dataSize);
+		printf_info_align("File Size", "%10d", sample.memFile.size);
 		printf_info_align("Loop Start", "%10d", sample.instrument.loop.start);
 		printf_info_align("Loop End", "%10d", sample.instrument.loop.end);
 		

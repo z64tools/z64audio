@@ -927,7 +927,7 @@ void AudioTools_VadpcmDec(AudioSample* sampleInfo) {
 	sampleInfo->samplesNum = nSamples;
 	sampleInfo->memFile = memDec;
 	sampleInfo->audio.p = memDec.data;
-	sampleInfo->size = memDec.dataSize;
+	sampleInfo->size = memDec.size;
 	sampleInfo->bit = 16;
 	sampleInfo->targetBit = 16;
 	
@@ -946,7 +946,7 @@ void AudioTools_LoadCodeBook(AudioSample* sampleInfo, char* file) {
 	}
 	
 	MemFile_LoadFile(&temp, file);
-	for (s32 i = 0; i < temp.dataSize / 2; i++) {
+	for (s32 i = 0; i < temp.size / 2; i++) {
 		SwapBE(temp.cast.u16[i]);
 	}
 	order = temp.cast.u16[1];
