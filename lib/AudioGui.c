@@ -123,9 +123,9 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	if (sample->instrument.loop.count == 0)
 		this->clearLoopButton.isDisabled = true;
 	
+	Element_SetRowY(SPLIT_ELEM_X_PADDING);
 	Element_SetRect(
 		split,
-		y,
 		&this->playButton.rect,
 		0.20,
 		&this->saveButton.rect,
@@ -170,7 +170,6 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	
 	Element_SetRect(
 		split,
-		y,
 		&this->textInfo.rect,
 		0.40,
 		NULL,
