@@ -123,7 +123,7 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	if (sample->instrument.loop.count == 0)
 		this->clearLoopButton.isDisabled = true;
 	
-	Element_SetRect_Multiple(
+	Element_SetRect(
 		split,
 		y,
 		&this->playButton.rect,
@@ -168,7 +168,7 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	
 	y += SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING;
 	
-	Element_SetRect_Multiple(
+	Element_SetRect(
 		split,
 		y,
 		&this->textInfo.rect,
@@ -724,7 +724,7 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 	
 	// Adjust play position line by clicking
 	
-	if ((Split_Cursor(split, 1) && GeoGrid_Cursor_InRect(split, &waverect) && this->state.waveWinBlock == false) || this->state.selecting || this->state.selModify || this->state.setLoop) {
+	if ((Split_Cursor(&winCtx->geoGrid, split, 1) && GeoGrid_Cursor_InRect(split, &waverect) && this->state.waveWinBlock == false) || this->state.selecting || this->state.selModify || this->state.setLoop) {
 		MouseInput* mouse = &winCtx->input.mouse;
 		static s32 noPlayPosSet;
 		f32 curPosX = split->mousePos.x - waverect.x;
