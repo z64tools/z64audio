@@ -3,10 +3,10 @@
 
 typedef struct {
 	AppInfo app;
-	InputContext   input;
-	GeoGridContext geoGrid;
-	CursorContext  cursor;
-	void* vg;
+	InputContext input;
+	GeoGrid geoGrid;
+	CursorContext cursor;
+	void*   vg;
 } WindowContext;
 
 typedef struct {

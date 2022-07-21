@@ -205,7 +205,7 @@ s32 Main(s32 argc, char* argv[]) {
 			winCtx->geoGrid.workRect.h
 		};
 		
-		GeoGrid_AddSplit(&winCtx->geoGrid, &size)->id = 1;
+		GeoGrid_AddSplit(&winCtx->geoGrid, "SampleView", &size)->id = 1;
 		
 		ThreadLock_Init();
 		Interface_Main();
