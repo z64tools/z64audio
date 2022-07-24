@@ -79,17 +79,14 @@ void Window_Draw(WindowContext* winCtx) {
 void Sampler_Init(WindowContext* winCtx, Sampler* this, Split* split) {
 	__sampler = this;
 	
-	this->playButton.txt = "Play Sample";
-	this->playButton.toggle = true;
-	this->saveButton.txt = "Save Sample";
+	Element_Name(&this->playButton, "Play Sample");
+	Element_Name(&this->saveButton, "Save Sample");
+	Element_Name(&this->setLoopButton, "Set Loop");
+	Element_Name(&this->clearLoopButton, "Clear Loop");
 	
-	this->setLoopButton.txt = "Set Loop";
-	this->clearLoopButton.txt = "Clear Loop";
+	Element_Button_SetValue(&this->playButton, true, false);
 	
-	Calloc(this->sampleName.txt, 66);
-	this->sampleName.size = 64;
-	
-	Calloc(this->textInfo.txt, 128);
+	Calloc(this->textInfo.element.name, 128);
 	
 	this->zoom.end = 1.0f;
 	this->zoom.vEnd = 1.0f;
@@ -98,8 +95,7 @@ void Sampler_Init(WindowContext* winCtx, Sampler* this, Split* split) {
 }
 
 void Sampler_Destroy(WindowContext* winCtx, Sampler* this, Split* split) {
-	Free(this->sampleName.txt);
-	Free(this->textInfo.txt);
+	Free(this->textInfo.element.name);
 	
 	if (this->player) {
 		Sound_Free(this->player);
@@ -115,22 +111,22 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	if (split->mouseInSplit)
 		__sampler = this;
 	
-	this->setLoopButton.isDisabled = false;
+	Element_Disable(&this->setLoopButton);
 	if (sample->selectStart == sample->selectEnd)
-		this->setLoopButton.isDisabled = true;
+		Element_Enable(&this->setLoopButton);
 	
-	this->clearLoopButton.isDisabled = false;
+	Element_Disable(&this->clearLoopButton);
 	if (sample->instrument.loop.count == 0)
-		this->clearLoopButton.isDisabled = true;
+		Element_Enable(&this->clearLoopButton);
 	
 	Element_RowY(SPLIT_ELEM_X_PADDING);
 	Element_Row(
 		split,
-		&this->playButton.rect,
+		&this->playButton,
 		0.20,
-		&this->saveButton.rect,
+		&this->saveButton,
 		0.20,
-		&this->sampleName.rect,
+		&this->sampleName,
 		0.60
 	);
 	
@@ -140,7 +136,7 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 		}
 		
 		if (sample->doPlay < 0) {
-			this->playButton.toggle = 1;
+			this->playButton.element.toggle = 1;
 			sample->playFrame = 0;
 			sample->doPlay = 0;
 		}
@@ -170,13 +166,13 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	
 	Element_Row(
 		split,
-		&this->textInfo.rect,
+		&this->textInfo,
 		0.40,
 		NULL,
 		0.20,
-		&this->setLoopButton.rect,
+		&this->setLoopButton,
 		0.20,
-		&this->clearLoopButton.rect,
+		&this->clearLoopButton,
 		0.20
 	);
 	
@@ -201,12 +197,12 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 		"-float"
 	};
 	
-	sprintf(this->textInfo.txt, "%d %d", this->sample.sampleRate, this->sample.bit);
+	sprintf((char*)this->textInfo.element.name, "%d %d", this->sample.sampleRate, this->sample.bit);
 	if (this->sample.bit == 32) {
-		catprintf(this->textInfo.txt, "%s", bit[this->sample.dataIsFloat]);
+		catprintf((char*)this->textInfo.element.name, "%s", bit[this->sample.dataIsFloat]);
 	}
 	if (this->sample.selectStart != this->sample.selectEnd) {
-		catprintf(this->textInfo.txt, "    Selection: %d / %-7d", this->sample.selectStart, this->sample.selectEnd);
+		catprintf((char*)this->textInfo.element.name, "    Selection: %d / %-7d", this->sample.selectStart, this->sample.selectEnd);
 	}
 	
 	Element_Text(&winCtx->geoGrid, split, &this->textInfo);
@@ -214,11 +210,11 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	if (Input_GetKey(&winCtx->input, KEY_SPACE)->press) {
 		if (sample->doPlay == 1) {
 			sample->doPlay = 0;
-			this->playButton.toggle = 1;
+			this->playButton.element.toggle = 1;
 		} else if (sample->doPlay == 0) {
 			if (Input_GetKey(&winCtx->input, KEY_LEFT_SHIFT)->hold)
 				sample->playFrame = 0;
-			this->playButton.toggle = 2;
+			this->playButton.element.toggle = 2;
 		}
 	}
 	
@@ -243,8 +239,8 @@ static void Sampler_Draw_WaveRect(void* vg, Rect* waverect) {
 			waverect->h,
 			0,
 			8,
-			Theme_GetColor(THEME_BASE_L1, 255, 1.05),
-			Theme_GetColor(THEME_BASE_L1, 255, 0.45)
+			Theme_GetColor(THEME_BASE, 255, 1.05),
+			Theme_GetColor(THEME_BASE, 255, 0.45)
 		)
 	);
 	nvgRoundedRect(
@@ -395,7 +391,7 @@ static void Sampler_Draw_LoopMarker(void* vg, Rect* waverect, AudioSample* sampl
 			};
 			
 			nvgBeginPath(vg);
-			nvgFillColor(vg, Theme_GetColor(THEME_RED, 255, 1.0));
+			nvgFillColor(vg, Theme_GetColor(THEME_PRIM, 255, 1.0));
 			
 			nvgMoveTo(
 				vg,
@@ -414,7 +410,7 @@ static void Sampler_Draw_LoopMarker(void* vg, Rect* waverect, AudioSample* sampl
 			nvgFill(vg);
 			
 			nvgBeginPath(vg);
-			nvgFillColor(vg, Theme_GetColor(THEME_RED, 255, 1.0));
+			nvgFillColor(vg, Theme_GetColor(THEME_PRIM, 255, 1.0));
 			nvgRoundedRect(
 				vg,
 				point,
@@ -512,7 +508,7 @@ static void Sampler_Draw_Grid(void* vg, Rect* waverect, AudioSample* sample, Sam
 
 static void Sampler_Draw_Finder(void* vg, Rect* waverect, Rect* finder, AudioSample* sample, Sampler* this) {
 	nvgBeginPath(vg);
-	nvgFillColor(vg, Theme_GetColor(THEME_BASE_L1, 255, 0.75));
+	nvgFillColor(vg, Theme_GetColor(THEME_BASE, 255, 0.75));
 	nvgRoundedRect(
 		vg,
 		waverect->x - 1,
@@ -572,7 +568,7 @@ static void Sampler_ZoomLogic(WindowContext* winCtx, Split* split, Sampler* this
 	this->state.waveWinBlock = false;
 	
 	// Finder Zoom
-	if (GeoGrid_Cursor_InRect(split, finder) || this->zoom.modifying) {
+	if (Split_CursorInRect(split, finder) || this->zoom.modifying) {
 		this->state.waveWinBlock = true;
 		
 		Theme_SmoothStepToCol(&this->visual.findCol, Theme_GetColor(THEME_HIGHLIGHT, 175, 1.0), 0.25, 1.0, 0.0);
@@ -631,7 +627,7 @@ static void Sampler_ZoomLogic(WindowContext* winCtx, Split* split, Sampler* this
 		Theme_SmoothStepToCol(&this->visual.findCol, Theme_GetColor(THEME_HIGHLIGHT, 25, 1.0), 0.25, 1.0, 0.0);
 	}
 	
-	if (GeoGrid_Cursor_InRect(split, waverect) && this->state.waveWinBlock == false) {
+	if (Split_CursorInRect(split, waverect) && this->state.waveWinBlock == false) {
 		f32 zoomRatio = this->zoom.end - this->zoom.start;
 		f32 scrollY = winCtx->input.mouse.scrollY;
 		
@@ -723,7 +719,7 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 	
 	// Adjust play position line by clicking
 	
-	if ((Split_Cursor(&winCtx->geoGrid, split, 1) && GeoGrid_Cursor_InRect(split, &waverect) && this->state.waveWinBlock == false) || this->state.selecting || this->state.selModify || this->state.setLoop) {
+	if ((Split_GetCursor(&winCtx->geoGrid, split, 1) && Split_CursorInRect(split, &waverect) && this->state.waveWinBlock == false) || this->state.selecting || this->state.selModify || this->state.setLoop) {
 		MouseInput* mouse = &winCtx->input.mouse;
 		static s32 noPlayPosSet;
 		f32 curPosX = split->mousePos.x - waverect.x;
