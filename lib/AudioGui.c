@@ -123,8 +123,8 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	if (sample->instrument.loop.count == 0)
 		this->clearLoopButton.isDisabled = true;
 	
-	Element_SetRowY(SPLIT_ELEM_X_PADDING);
-	Element_SetRect(
+	Element_RowY(SPLIT_ELEM_X_PADDING);
+	Element_Row(
 		split,
 		&this->playButton.rect,
 		0.20,
@@ -168,7 +168,7 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	
 	y += SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING;
 	
-	Element_SetRect(
+	Element_Row(
 		split,
 		&this->textInfo.rect,
 		0.40,
@@ -211,12 +211,12 @@ void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split) {
 	
 	Element_Text(&winCtx->geoGrid, split, &this->textInfo);
 	
-	if (Input_GetKey(KEY_SPACE)->press) {
+	if (Input_GetKey(&winCtx->input, KEY_SPACE)->press) {
 		if (sample->doPlay == 1) {
 			sample->doPlay = 0;
 			this->playButton.toggle = 1;
 		} else if (sample->doPlay == 0) {
-			if (Input_GetKey(KEY_LEFT_SHIFT)->hold)
+			if (Input_GetKey(&winCtx->input, KEY_LEFT_SHIFT)->hold)
 				sample->playFrame = 0;
 			this->playButton.toggle = 2;
 		}
@@ -777,7 +777,7 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 			this->state.selModify = 0;
 		}
 		
-		if (mouse->clickL.hold && (Input_GetPressPosDist() > 4 || this->state.selecting || this->state.selecting)) {
+		if (mouse->clickL.hold && (Input_GetPressPosDist(&winCtx->input) > 4 || this->state.selecting || this->state.selecting)) {
 			if (this->state.selModify == false && this->state.selecting == false) {
 				if (sample->selectStart != sample->selectEnd) {
 					if (Abs(sample->selectStart - prsPosX) > Abs(sample->selectEnd - prsPosX))

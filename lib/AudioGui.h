@@ -1,11 +1,11 @@
-#include <ExtGui/Global.h>
+#include <ExtGui/Interface.h>
 #include "AudioConvert.h"
 
 typedef struct {
 	AppInfo app;
-	InputContext input;
+	Input   input;
 	GeoGrid geoGrid;
-	CursorContext cursor;
+	Cursor  cursor;
 	void*   vg;
 } WindowContext;
 

@@ -188,15 +188,15 @@ s32 Main(s32 argc, char* argv[]) {
 		
 		Theme_Init(0);
 		GeoGrid_Init(&winCtx->geoGrid, &winCtx->app.winDim, &winCtx->input, winCtx->vg);
-		Cursor_Init(&winCtx->cursor);
-		Cursor_CreateCursor(&winCtx->cursor, CURSOR_ARROW_U, gCursor_ArrowUData, 24, 12, 12);
-		Cursor_CreateCursor(&winCtx->cursor, CURSOR_ARROW_D, gCursor_ArrowDData, 24, 12, 12);
-		Cursor_CreateCursor(&winCtx->cursor, CURSOR_ARROW_L, gCursor_ArrowLData, 24, 12, 12);
-		Cursor_CreateCursor(&winCtx->cursor, CURSOR_ARROW_R, gCursor_ArrowRData, 24, 12, 12);
-		Cursor_CreateCursor(&winCtx->cursor, CURSOR_ARROW_H, gCursor_ArrowHData, 32, 16, 16);
-		Cursor_CreateCursor(&winCtx->cursor, CURSOR_ARROW_V, gCursor_ArrowVData, 32, 16, 16);
-		Cursor_CreateCursor(&winCtx->cursor, CURSOR_CROSSHAIR, gCursor_CrosshairData, 40, 19, 20);
-		Cursor_CreateCursor(&winCtx->cursor, CURSOR_EMPTY, gCursor_EmptyData, 16, 0, 0);
+		Cursor_Init(&winCtx->cursor, &winCtx->app);
+		Cursor_CreateCursor(CURSOR_ARROW_U, gCursor_ArrowUData, 24, 12, 12);
+		Cursor_CreateCursor(CURSOR_ARROW_D, gCursor_ArrowDData, 24, 12, 12);
+		Cursor_CreateCursor(CURSOR_ARROW_L, gCursor_ArrowLData, 24, 12, 12);
+		Cursor_CreateCursor(CURSOR_ARROW_R, gCursor_ArrowRData, 24, 12, 12);
+		Cursor_CreateCursor(CURSOR_ARROW_H, gCursor_ArrowHData, 32, 16, 16);
+		Cursor_CreateCursor(CURSOR_ARROW_V, gCursor_ArrowVData, 32, 16, 16);
+		Cursor_CreateCursor(CURSOR_CROSSHAIR, gCursor_CrosshairData, 40, 19, 20);
+		Cursor_CreateCursor(CURSOR_EMPTY, gCursor_EmptyData, 16, 0, 0);
 		
 		Rectf32 size = {
 			winCtx->geoGrid.workRect.x,
@@ -208,7 +208,7 @@ s32 Main(s32 argc, char* argv[]) {
 		GeoGrid_AddSplit(&winCtx->geoGrid, "SampleView", &size)->id = 1;
 		
 		ThreadLock_Init();
-		Interface_Main();
+		Interface_Main(&winCtx->app);
 		
 		ThreadLock_Free();
 		glfwTerminate();
