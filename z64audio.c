@@ -184,7 +184,6 @@ s32 Main(s32 argc, char* argv[]) {
 		
 		winCtx->geoGrid.passArg = winCtx;
 		winCtx->geoGrid.taskTable = gTaskTable;
-		winCtx->geoGrid.taskTableNum = ArrayCount(gTaskTable);
 		
 		Theme_Init(0);
 		GeoGrid_Init(&winCtx->geoGrid, &winCtx->app.winDim, &winCtx->input, winCtx->vg);

@@ -54,4 +54,4 @@ void Sampler_Init(WindowContext* winCtx, Sampler* this, Split* split);
 void Sampler_Destroy(WindowContext* winCtx, Sampler* this, Split* split);
 void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split);
 void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split);
-extern SplitTask gTaskTable[2];
+extern SplitTask* gTaskTable[];

@@ -1,14 +1,10 @@
 #include "AudioGui.h"
 #include "AudioConvert.h"
 
-SplitTask gTaskTable[2] = {
-	{
-		"None",
-	},
-	{
-		"Sampler",
-		DefineTask(Sampler)
-	},
+SplitTask sSamplerTask = DefineTask("Sampler", Sampler);
+
+SplitTask* gTaskTable[] = {
+	[1] = &sSamplerTask
 };
 
 Sampler* __sampler;
