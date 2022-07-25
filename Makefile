@@ -1,12 +1,14 @@
+include setup.mk
+
 OPT_WIN32 := -Os
 OPT_LINUX := -Os
 
-CFLAGS          = -Wall -Wno-unused-result -pthread -DEXTLIB=162
+CFLAGS          = -Wall -Wno-unused-result -pthread -DEXTLIB=200
 SOURCE_C       := $(shell find lib/* -maxdepth 0 -type f -name '*.c')
 SOURCE_O_WIN32 := $(foreach f,$(SOURCE_C:.c=.o),bin/win32/$f)
 SOURCE_O_LINUX := $(foreach f,$(SOURCE_C:.c=.o),bin/linux/$f)
 
-ExtLibDep := $(C_INCLUDE_PATH)/ExtLib.h
+ExtLibDep := $(PATH_EXTLIB)/ExtLib.h
 
 PRNT_DGRY := \e[90;2m
 PRNT_GRAY := \e[0;90m

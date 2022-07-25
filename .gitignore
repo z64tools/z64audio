@@ -24,3 +24,5 @@ audio/*
 *.sh
 *.cfg
 .log
+settings.mk
+!setup.sh
