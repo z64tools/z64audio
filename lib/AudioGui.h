@@ -1,3 +1,6 @@
+#define WOW_20ZZ gWow20ZZ
+
+#if 0
 #include <ExtGui/Interface.h>
 #include "AudioConvert.h"
 
@@ -55,3 +58,4 @@ void Sampler_Destroy(WindowContext* winCtx, Sampler* this, Split* split);
 void Sampler_Update(WindowContext* winCtx, Sampler* this, Split* split);
 void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split);
 extern SplitTask* gTaskTable[];
+#endif

@@ -1,5 +1,10 @@
+
 #include "AudioGui.h"
 #include "AudioConvert.h"
+
+const char WOW_20ZZ = 'w';
+
+#if 0
 
 SplitTask sSamplerTask = DefineTask("Sampler", Sampler);
 
@@ -800,3 +805,4 @@ void Sampler_Draw(WindowContext* winCtx, Sampler* this, Split* split) {
 		sample->selectEnd = ClampMax(sample->selectEnd, sample->samplesNum);
 	}
 }
+#endif

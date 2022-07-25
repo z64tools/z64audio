@@ -176,6 +176,7 @@ s32 Main(s32 argc, char* argv[]) {
 	printf_WinFix();
 	printf_SetPrefix("");
 	
+#if 0
 	if (argc == 1) {
 		WindowContext* winCtx;
 		
@@ -214,6 +215,7 @@ s32 Main(s32 argc, char* argv[]) {
 		
 		return 0;
 	}
+#endif
 	
 	Main_Config(argv);
 	if (ParseArg("log")) callSignal = true;
