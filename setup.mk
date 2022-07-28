@@ -7,7 +7,7 @@ ifeq (,$(wildcard settings.mk))
   
   include settings.mk
   
-  $(shell git clone https://github.com/rankaisija64/ExtLib.git $(PATH_EXTLIB))
+  $(shell git clone --recurse-submodules https://github.com/rankaisija64/ExtLib.git $(PATH_EXTLIB))
   $(info  )
   ifeq (,$(wildcard $(PATH_EXTLIB)ExtLib.c))
   	$(shell rm settings.mk)
